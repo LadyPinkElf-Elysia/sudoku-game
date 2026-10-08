@@ -10,8 +10,12 @@ const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
     if (!parent) return null
 
     const dpr = window.devicePixelRatio || 1
-    const base = Math.max(parent.clientWidth * BOARD_SIZE.widthRatio, BOARD_SIZE.minSide)
-    const side = Math.round(Math.min(base, BOARD_SIZE.maxSide) * zoom)               // ← 乘上 zoom
+    const parentStyle = getComputedStyle(parent)
+    const padX = parseFloat(parentStyle.paddingLeft) + parseFloat(parentStyle.paddingRight)
+    const contentWidth = parent.clientWidth - padX
+    
+    const base = Math.max(contentWidth * BOARD_SIZE.widthRatio, BOARD_SIZE.minSide)
+    const side = Math.round(Math.min(base, BOARD_SIZE.maxSide) * zoom)
     const pixel = Math.round(side * dpr)
 
     if (canvas.width !== pixel) {

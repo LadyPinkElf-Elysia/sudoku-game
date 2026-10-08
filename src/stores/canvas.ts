@@ -3,6 +3,7 @@ import { ref, watchEffect } from 'vue'
 import { useGameStore } from './game'
 import { renderBoard, getClickPos } from '@/utils/canvas'
 import { getSudoku } from '@/utils/getSudoku'
+import { BOARD_ZOOM } from '@/constants/board'
 
 export const useCanvasStore = defineStore('canvasStore', () => {
     const game = useGameStore()
@@ -11,7 +12,7 @@ export const useCanvasStore = defineStore('canvasStore', () => {
     const el = ref<HTMLCanvasElement | null>(null)
 
     /** 缩放倍数，1 表示铺满容器宽度 */
-    const zoom = ref(1)
+    const zoom = ref<number>(BOARD_ZOOM.default)
 
     /** 按当前 game 数据 + zoom 重绘 */
     const draw = (): void => {
@@ -70,11 +71,11 @@ export const useCanvasStore = defineStore('canvasStore', () => {
     }
 
     const setZoom = (v: number): void => {
-        zoom.value = Math.min(3, Math.max(0.5, v))
+        zoom.value = Math.min(BOARD_ZOOM.max, Math.max(BOARD_ZOOM.min, v))
     }
-    const zoomIn = (): void => setZoom(zoom.value + 0.1)
-    const zoomOut = (): void => setZoom(zoom.value - 0.1)
-    const resetZoom = (): void => setZoom(1)
+    const zoomIn = (): void => setZoom(zoom.value + BOARD_ZOOM.step)
+    const zoomOut = (): void => setZoom(zoom.value - BOARD_ZOOM.step)
+    const resetZoom = (): void => setZoom(BOARD_ZOOM.default)
 
     return {
         el, zoom,

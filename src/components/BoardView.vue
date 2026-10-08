@@ -21,6 +21,7 @@ onBeforeUnmount(() => canvasStore.detach())
 
 <style scoped>
 .board-scroll-container {
+    box-sizing: border-box;
     width: 100%;
     max-height: 60vh;
     overflow: auto;

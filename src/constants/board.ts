@@ -1,7 +1,7 @@
 /** 棋盘尺寸 */
 export const BOARD_SIZE = {
     /** 容器宽度占比（0~1） */
-    widthRatio: 0.95,
+    widthRatio: 0.70,
     /** 最小边长（像素） */
     minSide: 240,
     /** 最大边长（像素） */
