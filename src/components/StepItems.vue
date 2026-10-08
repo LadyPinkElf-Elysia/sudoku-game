@@ -7,9 +7,12 @@ const store = useGameStore()
 
 <template>
     <div class="history-section" v-if="store.steps >= 0">
-        <div class="history-label">📜 历史记录</div>
+        <div class="history-label">
+            📜 历史记录
+            <span class="step-counter">{{ store.steps }} / {{ store.history.length - 1 }}</span>
+        </div>
         <div class="history-steps-container">
-            <StepItem v-for="i in store.steps + 1" :key="i - 1" :step="i - 1" />
+            <StepItem v-for="i in store.history.length" :key="i - 1" :step="i - 1" />
         </div>
     </div>
 </template>

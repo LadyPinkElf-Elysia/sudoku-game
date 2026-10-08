@@ -6,7 +6,8 @@ const props = defineProps<{
 }>()
 const store = useGameStore()
 const activeClass = computed(() => ({
-    active: props.step === store.steps
+    active: props.step === store.steps,
+    future: props.step > store.steps
 }))
 const jump = (): void => store.jump(props.step)
 </script>
@@ -46,5 +47,18 @@ const jump = (): void => store.jump(props.step)
     border-color: #4f46e5;
     color: #fff;
     font-weight: 600;
+}
+
+/* 未来步（撤回之后）：灰色、半透明 */
+.step-block.future {
+    color: #cbd5e1;
+    background: #fafafa;
+    border-color: #f1f5f9;
+}
+
+.step-block.future:hover {
+    color: #64748b;
+    background: #f1f5f9;
+    border-color: #e2e8f0;
 }
 </style>

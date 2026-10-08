@@ -155,7 +155,7 @@ export const useGameStore = defineStore('gameStore', () => {
         board, selected, status, message,
 
         // 派生
-        isWin, isLost, isGameOver, steps,
+        isWin, isLost, isGameOver, steps,history,
         conflictSet, selectedCell,
         canUndo, canRedo,
 
