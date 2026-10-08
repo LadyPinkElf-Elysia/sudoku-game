@@ -1,7 +1,8 @@
 import type { RenderParams } from "@/types/canvas"
 import { makeGrid } from "./array"
 import { BOARD_COLOR, BOARD_FONT } from "@/constants/colors"
-import type { Cell, Position } from "@/types/game"
+import type { Position } from "@/types/game"
+import { BOARD_LINE, BOARD_SIZE } from "@/constants/board"
 
 /** 初始化画布：清晰度、尺寸、坐标对齐；返回画笔、边长、每格边长 */
 const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
@@ -9,8 +10,8 @@ const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
     if (!parent) return null
 
     const dpr = window.devicePixelRatio || 1
-    const base = Math.max(parent.clientWidth * 0.70, 240)
-    const side = Math.round(base * zoom)               // ← 乘上 zoom
+    const base = Math.max(parent.clientWidth * BOARD_SIZE.widthRatio, BOARD_SIZE.minSide)
+    const side = Math.round(Math.min(base, BOARD_SIZE.maxSide) * zoom)               // ← 乘上 zoom
     const pixel = Math.round(side * dpr)
 
     if (canvas.width !== pixel) {
@@ -31,11 +32,11 @@ const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
 }
 
 export const renderBoard = (params: RenderParams): void => {
-    const { canvas, board, selected, conflictSet, boxSize ,zoom=1} = params
+    const { canvas, board, selected, conflictSet, boxSize, zoom = 1 } = params
     if (!board.length) return
 
     const size = board.length
-    const info = setupCanvas(canvas, size,zoom)
+    const info = setupCanvas(canvas, size, zoom)
     if (!info) return
     const { ctx, side, cellSize } = info
 
@@ -45,7 +46,7 @@ export const renderBoard = (params: RenderParams): void => {
         conflictMask[r][c] = true
     }
 
-    const fontSize = Math.max(8, Math.floor(cellSize * 0.55))
+    const fontSize = Math.max(BOARD_SIZE.minFontSize, Math.floor(cellSize * BOARD_SIZE.fontSizeRatio))
     const fontGiven = `${BOARD_FONT.given} ${fontSize}px ${BOARD_FONT.family}`
     const fontPlayer = `${BOARD_FONT.player} ${fontSize}px ${BOARD_FONT.family}`
 
@@ -72,9 +73,10 @@ export const renderBoard = (params: RenderParams): void => {
 
         // 选中框
         if (isSelected) {
+            const inset = BOARD_LINE.selected / 2
             ctx.strokeStyle = BOARD_COLOR.selectedBorder
-            ctx.lineWidth = 2
-            ctx.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2)
+            ctx.lineWidth = BOARD_LINE.selected
+            ctx.strokeRect(x + inset, y + inset, cellSize - BOARD_LINE.selected, cellSize - BOARD_LINE.selected)
         }
     }
 
@@ -83,7 +85,7 @@ export const renderBoard = (params: RenderParams): void => {
         const boardSide = size * cellSize
 
         ctx.strokeStyle = BOARD_COLOR.thinLine
-        ctx.lineWidth = 1
+        ctx.lineWidth = BOARD_LINE.thin
         ctx.beginPath()
         for (let i = 1; i < size; i++) {
             if (i % boxSize === 0) continue
@@ -94,7 +96,7 @@ export const renderBoard = (params: RenderParams): void => {
         ctx.stroke()
 
         ctx.strokeStyle = BOARD_COLOR.thickLine
-        ctx.lineWidth = 2
+        ctx.lineWidth = BOARD_LINE.thick
         ctx.beginPath()
         for (let i = 0; i <= size; i += boxSize) {
             const p = i * cellSize
