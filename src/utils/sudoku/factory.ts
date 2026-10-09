@@ -1,5 +1,5 @@
 import type { Board, Cell, ConflictMask, NumBoard, Position } from "@/types/game";
-import { makeGrid, mapGrid } from "./array";
+import { makeGrid, mapGrid } from "../array";
 import { makeCell } from "./board";
 
 /**将数组放入集合验重，判断有无重复*/

@@ -1,5 +1,5 @@
 import type { Cell, NumBoard, Board, Position } from "@/types/game"
-import { mapGrid } from "./array"
+import { mapGrid } from "../array"
 
 /**数字转Cell*/
 export const makeCell = (v: number, lock: boolean): Cell => ({ v, lock })

@@ -1,5 +1,5 @@
 import type { NumBoard } from "@/types/game";
-import { chunk } from "./array";
+import { chunk } from "../array";
 
 
 const parseNumArray = (str: string): number[] | null => {

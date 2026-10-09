@@ -2,17 +2,17 @@
 import StepItem from '@/components/StepItem.vue';
 import { useGameStore } from '@/stores/game';
 
-const store = useGameStore()
+const gameStore = useGameStore()
 </script>
 
 <template>
-    <div class="history-section" v-if="store.steps >= 0">
+    <div class="history-section" v-if="gameStore.history.length">
         <div class="history-label">
             📜 历史记录
-            <span class="step-counter">{{ store.steps }} / {{ store.history.length - 1 }}</span>
+            <span class="step-counter">{{ gameStore.steps }} / {{ gameStore.history.length - 1 }}</span>
         </div>
         <div class="history-steps-container">
-            <StepItem v-for="i in store.history.length" :key="i - 1" :step="i - 1" />
+            <StepItem v-for="i in gameStore.history.length" :key="i - 1" :step="i - 1" />
         </div>
     </div>
 </template>
@@ -40,12 +40,10 @@ const store = useGameStore()
     overflow-x: auto;
     overflow-y: hidden;
     box-sizing: border-box;
-    /* 从 thin 改成 auto：让 Firefox 用正常宽度 */
     scrollbar-width: auto;
     scrollbar-color: #94a3b8 #f1f5f9;
 }
 
-/* WebKit：加粗、加深，加 hover 反馈 */
 .history-steps-container::-webkit-scrollbar {
     height: 12px;
     background: #f1f5f9;

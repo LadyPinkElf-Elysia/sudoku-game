@@ -14,7 +14,8 @@ export type Position = readonly [row: number, col: number]
 
 export interface GameConfig {
     boxSize: number,
-    maxSteps:number
+    maxSteps:number,
+    blanks:number
 }
 
 export interface Game {

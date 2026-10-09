@@ -4,12 +4,12 @@ import { useGameStore } from '@/stores/game'
 const props = defineProps<{
     step: number
 }>()
-const store = useGameStore()
+const gameStore = useGameStore()
 const activeClass = computed(() => ({
-    active: props.step === store.steps,
-    future: props.step > store.steps
+    active: props.step === gameStore.steps,
+    future: props.step > gameStore.steps
 }))
-const jump = (): void => store.jump(props.step)
+const jump = (): void => gameStore.jump(props.step)
 </script>
 
 <template>
@@ -49,7 +49,6 @@ const jump = (): void => store.jump(props.step)
     font-weight: 600;
 }
 
-/* 未来步（撤回之后）：灰色、半透明 */
 .step-block.future {
     color: #cbd5e1;
     background: #fafafa;

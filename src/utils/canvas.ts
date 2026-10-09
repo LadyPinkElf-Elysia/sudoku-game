@@ -1,8 +1,7 @@
 import type { RenderParams } from "@/types/canvas"
 import { makeGrid } from "./array"
-import { BOARD_COLOR, BOARD_FONT } from "@/constants/colors"
 import type { Position } from "@/types/game"
-import { BOARD_LINE, BOARD_SIZE } from "@/constants/board"
+import { BOARD_COLOR, BOARD_FONT, BOARD_LINE, BOARD_SIZE } from "@/constants/board"
 
 /** 初始化画布：清晰度、尺寸、坐标对齐；返回画笔、边长、每格边长 */
 const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {

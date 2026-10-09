@@ -1,18 +1,20 @@
 import { GAME_STATUS, type GameStatus } from "@/constants/enums";
+import { GAME_CONFIG } from "@/constants/game";
 import type { Board, Cell, GameConfig, NumBoard, Position, Snapshot } from "@/types/game";
 import { mapGrid } from "@/utils/array";
-import { toNum, fromPuzzle } from "@/utils/board";
-import { getSudoku } from "@/utils/getSudoku";
-import type { Sudoku } from "@/utils/sudoku";
+import { toNum, fromPuzzle } from "@/utils/sudoku/board";
+import { getSudoku } from "@/utils/sudoku/cache";
+import type { Sudoku } from "@/utils/sudoku/factory";
 
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 export const useGameStore = defineStore('gameStore', () => {
-    const config = ref<GameConfig>({
-        boxSize: 3,
-        maxSteps: 200
-    })
+    const config = ref<GameConfig>({...GAME_CONFIG})
+
+    const setConfig=(patch:Partial<GameConfig>):void=>{
+        Object.assign(config.value,patch)
+    }
 
     const board = ref<Board>([])
 
@@ -22,9 +24,7 @@ export const useGameStore = defineStore('gameStore', () => {
 
     const stepPtr = ref<number>(-1)
 
-    const originalPuzzle = computed<NumBoard>((): NumBoard => history.value.length ? toNum(history.value[0]) : toNum(board.value))
-
-    const sudoku = computed<Sudoku>((): Sudoku => getSudoku(config.value.boxSize))
+    const sudoku = computed<Sudoku>((): Sudoku => getSudoku(config.value?.boxSize ?? 3))
 
     const numBoard = computed<NumBoard>((): NumBoard => toNum(board.value))
 
@@ -35,7 +35,10 @@ export const useGameStore = defineStore('gameStore', () => {
         return sudoku.value.isSolved(numBoard.value)
     })
 
-    const isLost = computed<boolean>((): boolean => steps.value >= config.value.maxSteps)
+    const isLost = computed<boolean>((): boolean => {
+        if (!config.value) return false
+        return steps.value >= config.value.maxSteps
+    })
 
     const isGameOver = computed<boolean>((): boolean => isWin.value || isLost.value)
 
@@ -72,7 +75,7 @@ export const useGameStore = defineStore('gameStore', () => {
     const message = computed<string>((): string => {
         if (status.value === GAME_STATUS.Won) return '恭喜成功'
         if (status.value === GAME_STATUS.Lost) return '遗憾失败'
-        if (status.value === GAME_STATUS.Playing) return `还剩${config.value.maxSteps - steps.value}步`
+        if (status.value === GAME_STATUS.Playing && config.value) return `还剩${config.value.maxSteps - steps.value}步`
         return ''
     })
 
@@ -96,10 +99,19 @@ export const useGameStore = defineStore('gameStore', () => {
     }
 
     /**开始游戏*/
-    const startFromPuzzle = (puzzle: NumBoard) => {
+    const startFromPuzzle = (puzzle: NumBoard, cfg: GameConfig) => {
+        config.value = { ...cfg }
         board.value = fromPuzzle(puzzle, true)
         selected.value = null
         history.value = [cloneBoard(board.value)]
+        stepPtr.value = 0
+    }
+
+    /**重开*/
+    const restart = (): void => {
+        if (!history.value.length) return
+        board.value = cloneBoard(history.value[0])
+        selected.value = null
         stepPtr.value = 0
     }
 
@@ -143,10 +155,6 @@ export const useGameStore = defineStore('gameStore', () => {
         jump(steps.value + 1)
     }
 
-    /**重开*/
-    const restart = (): void => startFromPuzzle(originalPuzzle.value)
-
-
     return {
         // 配置
         config,
@@ -155,7 +163,7 @@ export const useGameStore = defineStore('gameStore', () => {
         board, selected, status, message,
 
         // 派生
-        isWin, isLost, isGameOver, steps,history,
+        isWin, isLost, isGameOver, steps, history,
         conflictSet, selectedCell,
         canUndo, canRedo,
 

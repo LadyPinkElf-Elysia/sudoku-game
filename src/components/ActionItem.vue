@@ -20,13 +20,13 @@ defineProps<{
     gap: 4px;
     height: 32px;
     padding: 0 12px;
-    border-radius: 6px;          /* 从 16px 改成 6px：方角小圆角 */
-    border: 1px solid #d1d5db;   /* 从 2px 改成 1px：更轻 */
+    border-radius: 6px;          
+    border: 1px solid #d1d5db;   
     background: #fff;
     cursor: pointer;
     color: #374151;
     font-size: 0.85rem;
-    font-weight: 500;            /* 从 600 改成 500：不那么粗 */
+    font-weight: 500;            
     transition: 0.15s;
 }
 

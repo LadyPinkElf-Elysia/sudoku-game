@@ -35,7 +35,6 @@ defineProps<{
     margin-top: 8px;
 }
 
-/* 空插槽时隐藏，避免空壳占位 */
 .action-tip:empty {
     display: none;
 }

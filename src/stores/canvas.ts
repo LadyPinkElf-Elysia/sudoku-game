@@ -2,11 +2,11 @@ import { defineStore } from 'pinia'
 import { ref, watchEffect } from 'vue'
 import { useGameStore } from './game'
 import { renderBoard, getClickPos } from '@/utils/canvas'
-import { getSudoku } from '@/utils/getSudoku'
+import { getSudoku } from '@/utils/sudoku/cache'
 import { BOARD_ZOOM } from '@/constants/board'
 
 export const useCanvasStore = defineStore('canvasStore', () => {
-    const game = useGameStore()
+    const gameStore = useGameStore()
 
     /** canvas DOM 引用，BoardView 挂载时绑定、卸载时置空 */
     const el = ref<HTMLCanvasElement | null>(null)
@@ -14,14 +14,14 @@ export const useCanvasStore = defineStore('canvasStore', () => {
     /** 缩放倍数，1 表示铺满容器宽度 */
     const zoom = ref<number>(BOARD_ZOOM.default)
 
-    /** 按当前 game 数据 + zoom 重绘 */
+    /** 按当前 gameStore 数据 + zoom 重绘 */
     const draw = (): void => {
         // 先读一遍依赖，保证 watchEffect 建立追踪（哪怕本次提前返回）
         const canvas = el.value
-        const board = game.board
-        const selected = game.selected
-        const conflictSet = game.conflictSet
-        const boxSize = game.config.boxSize
+        const board = gameStore.board
+        const selected = gameStore.selected
+        const conflictSet = gameStore.conflictSet
+        const boxSize = gameStore.config.boxSize
         const z = zoom.value
 
         if (!canvas || !board.length) return
@@ -62,12 +62,12 @@ export const useCanvasStore = defineStore('canvasStore', () => {
         el.value = null
     }
 
-    /** 处理 canvas 点击：换算成行列，写回 game.selected */
+    /** 处理 canvas 点击：换算成行列，写回 gameStore.selected */
     const handleClick = (e: MouseEvent): void => {
         const canvas = el.value
-        if (!canvas || !game.board.length) return
-        const pos = getClickPos(canvas, e, game.board.length)
-        if (pos) game.select(pos)
+        if (!canvas || !gameStore.board.length) return
+        const pos = getClickPos(canvas, e, gameStore.board.length)
+        if (pos) gameStore.select(pos)
     }
 
     const setZoom = (v: number): void => {

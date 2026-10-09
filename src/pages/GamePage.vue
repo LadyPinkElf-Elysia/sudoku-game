@@ -3,35 +3,44 @@ import ActionItems from '@/components/ActionItems.vue';
 import BoardView from '@/components/BoardView.vue';
 import NumberPad from '@/components/NumberPad.vue';
 import StepItems from '@/components/StepItems.vue';
+import { GAME_CONFIG } from '@/constants/game';
 import { useGameStore } from '@/stores/game';
 import type { ActionDef } from '@/types/actionDef';
-import { generate } from '@/utils/generator';
+import { generate } from '@/utils/sudoku/generator';
 import { computed, onMounted, ref } from 'vue';
 
-const store = useGameStore()
+const gameStore = useGameStore()
 
-const play = (): void => {
-    const { puzzle } = generate(store.config.boxSize)
-    store.startFromPuzzle(puzzle)
+const playerConfig = ref({ ...GAME_CONFIG })
+
+const play = async (): Promise<void> => {
+    tip.value = ''
+    try {
+        const cfg = playerConfig.value
+        const { puzzle } = await generate(cfg.boxSize, cfg.blanks)
+        gameStore.startFromPuzzle(puzzle, cfg)
+    } catch (err) {
+        tip.value = err instanceof Error ? err.message : '生成失败，请重试'
+    }
 }
 
 const tip = ref<string>('')
 const hint = (): void => {
-    const cell = store.selectedCell
+    const cell = gameStore.selectedCell
     if (!cell) { tip.value = '请选中一个格子'; return }
     if (cell.lock) { tip.value = '无法更改初始题目'; return }
-    const cands = store.getCandidates(store.selected!)
+    const cands = gameStore.getCandidates(gameStore.selected!)
     tip.value = `此格可以填：${cands.join('、') || '无'}`
 }
 
 const actions = computed<ActionDef[]>(() => [
-    { key: 'undo', icon: '↩', message: '撤回', disabled: !store.canUndo, onClick: store.undo },
-    { key: 'redo', icon: '↪', message: '重做', disabled: !store.canRedo, onClick: store.redo },
-    { key: 'restart', icon: '↺', message: '重开', onClick: store.restart },
+    { key: 'undo', icon: '↩', message: '撤回', disabled: !gameStore.canUndo, onClick: gameStore.undo },
+    { key: 'redo', icon: '↪', message: '重做', disabled: !gameStore.canRedo, onClick: gameStore.redo },
+    { key: 'restart', icon: '↺', message: '重开', onClick: gameStore.restart },
     { key: 'hint', icon: '💡', message: '提示', onClick: hint },
 ])
 
-onMounted(play)
+onMounted(()=>{void play()})
 </script>
 
 <template>

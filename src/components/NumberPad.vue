@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useGameStore } from '@/stores/game';
-import { getSudoku } from '@/utils/getSudoku';
+import { getSudoku } from '@/utils/sudoku/cache';
 import { computed } from 'vue';
 
-const store = useGameStore()
-const sudoku = computed(() => getSudoku(store.config.boxSize))
+const gameStore = useGameStore()
+const sudoku = computed(() => getSudoku(gameStore.config.boxSize))
 const S = computed(() => sudoku.value.S)
 const B = computed(() => sudoku.value.B)
 
@@ -17,11 +17,11 @@ const gridStyle = computed(() => ({
 <template>
     <div class="num-pad-wrapper">
         <div class="num-grid" :style="gridStyle">
-            <button v-for="n in S" :key="n" class="num-btn" @click="store.inputNum(n)" title="单击填入数字">
+            <button v-for="n in S" :key="n" class="num-btn" @click="gameStore.inputNum(n)" title="单击填入数字">
                 {{ n }}
             </button>
         </div>
-        <button class="num-btn clear-btn" @click="store.inputNum(0)" title="清除当前格数字">
+        <button class="num-btn clear-btn" @click="gameStore.inputNum(0)" title="清除当前格数字">
             X
         </button>
     </div>
