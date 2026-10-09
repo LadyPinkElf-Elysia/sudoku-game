@@ -1,6 +1,6 @@
 import type { NumBoard, Position, ConflictMask, Board, Cell } from "@/types/board";
 import { makeGrid } from "../array";
-import { makeCell } from "./transfrom";
+import { makeCell } from "./transform";
 
 /**检查一组格子中有无冲突*/
 const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {

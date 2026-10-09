@@ -1,6 +1,6 @@
 import type { Sudoku } from "./factory";
 import { makeGrid, shuffle } from "../array";
-import { toRC } from "./transfrom";
+import { toRC } from "./transform";
 import { getSudoku } from "./cache";
 import type { PuzzleData } from "@/types/puzzle";
 import type { NumBoard } from "@/types/board";

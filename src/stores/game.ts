@@ -1,6 +1,6 @@
 import { GAME_CONFIG } from "@/constants/game";
 import { mapGrid } from "@/utils/array";
-import { toNum, fromPuzzle } from "@/utils/sudoku/transfrom";
+import { toNum, fromPuzzle } from "@/utils/sudoku/transform";
 import { getSudoku } from "@/utils/sudoku/cache";
 import type { Sudoku } from "@/utils/sudoku/factory";
 import { defineStore } from "pinia";
