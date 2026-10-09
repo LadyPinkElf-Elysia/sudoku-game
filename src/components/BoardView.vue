@@ -28,6 +28,7 @@ onBeforeUnmount(() => canvasStore.detach())
     width: 100%;
     max-height: 60vh;
     overflow: auto;
+    scrollbar-gutter: stable;   /* ← 新增 */
     border: 1px solid #e5e7eb;
     border-radius: 4px;
     padding: 8px;
