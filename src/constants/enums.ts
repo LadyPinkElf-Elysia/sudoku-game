@@ -7,6 +7,7 @@ export const GAME_STATUS = {
 
 export const PAGE = {
     Game:'game',
+    Difficulty: 'difficulty',
 } as const
 
 export type GameStatus = typeof GAME_STATUS[keyof typeof GAME_STATUS]

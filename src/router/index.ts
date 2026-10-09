@@ -4,8 +4,9 @@ import { createRouter, createWebHashHistory } from "vue-router";
 const router = createRouter({
     history: createWebHashHistory(),
     routes: [
-        { path: '/', redirect:{name:PAGE.Game} },
-        {path:'/game',name:PAGE.Game,component:()=>import('@/pages/GamePage.vue')}
+        { path: '/', redirect: { name: PAGE.Difficulty } },
+        { path: '/difficulty', name: PAGE.Difficulty, component: () => import('@/pages/DifficultyPage.vue') },
+        { path: '/game', name: PAGE.Game, component: () => import('@/pages/GamePage.vue') }
     ]
 })
 

@@ -10,7 +10,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 export const useGameStore = defineStore('gameStore', () => {
-    const config = ref<GameConfig>({...GAME_CONFIG})
+    const config = ref<GameConfig>({ ...GAME_CONFIG })
 
     const board = ref<Board>([])
 
@@ -20,7 +20,7 @@ export const useGameStore = defineStore('gameStore', () => {
 
     const stepPtr = ref<number>(-1)
 
-    const sudoku = computed<Sudoku>((): Sudoku => getSudoku(config.value?.boxSize ?? 3))
+    const sudoku = computed<Sudoku>((): Sudoku => getSudoku(config.value.boxSize))
 
     const numBoard = computed<NumBoard>((): NumBoard => toNum(board.value))
 
@@ -31,10 +31,7 @@ export const useGameStore = defineStore('gameStore', () => {
         return sudoku.value.isSolved(numBoard.value)
     })
 
-    const isLost = computed<boolean>((): boolean => {
-        if (!config.value) return false
-        return steps.value >= config.value.maxSteps
-    })
+    const isLost = computed<boolean>((): boolean => steps.value >= config.value.maxSteps)
 
     const isGameOver = computed<boolean>((): boolean => isWin.value || isLost.value)
 
@@ -103,14 +100,6 @@ export const useGameStore = defineStore('gameStore', () => {
         stepPtr.value = 0
     }
 
-    /**重开*/
-    const restart = (): void => {
-        if (!history.value.length) return
-        board.value = cloneBoard(history.value[0])
-        selected.value = null
-        stepPtr.value = 0
-    }
-
     /**选择格子*/
     const select = (pos: Position): void => {
         selected.value = pos
@@ -165,7 +154,7 @@ export const useGameStore = defineStore('gameStore', () => {
 
         // Actions
         startFromPuzzle, select, inputNum,
-        jump, undo, redo, restart,
+        jump, undo, redo,
 
         // 提示
         getCandidates, canPlace,

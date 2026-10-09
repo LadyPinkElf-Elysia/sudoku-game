@@ -5,7 +5,10 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 const canvasStore = useCanvasStore()
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 
-onMounted(() => canvasStore.attach(canvasEl.value))
+onMounted(() => {
+    canvasStore.resetZoom()
+    canvasStore.attach(canvasEl.value)
+})
 onBeforeUnmount(() => canvasStore.detach())
 </script>
 

@@ -4,31 +4,19 @@ import BoardView from '@/components/BoardView.vue';
 import NumberPad from '@/components/NumberPad.vue';
 import StepItems from '@/components/StepItems.vue';
 import { BOARD_ZOOM } from '@/constants/board';
-import { GAME_CONFIG } from '@/constants/game';
+import { PAGE } from '@/constants/enums';
 import { useCanvasStore } from '@/stores/canvas';
 import { useGameStore } from '@/stores/game';
 import type { ActionDef } from '@/types/actionDef';
-import { generate } from '@/utils/sudoku/generator';
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 const gameStore = useGameStore()
-
 const canvasStore=useCanvasStore()
-
-const playerConfig = ref({ ...GAME_CONFIG })
-
-const play = async (): Promise<void> => {
-    tip.value = ''
-    try {
-        const cfg = playerConfig.value
-        const { puzzle } = await generate(cfg.boxSize, cfg.blanks)
-        gameStore.startFromPuzzle(puzzle, cfg)
-    } catch (err) {
-        tip.value = err instanceof Error ? err.message : '生成失败，请重试'
-    }
-}
+const router=useRouter()
 
 const tip = ref<string>('')
+
 const hint = (): void => {
     const cell = gameStore.selectedCell
     if (!cell) { tip.value = '请选中一个格子'; return }
@@ -38,15 +26,19 @@ const hint = (): void => {
 }
 
 const actions = computed<ActionDef[]>(() => [
+    { key: 'difficulty', icon: '🎯', message: '难度', onClick: () => router.push({ name: PAGE.Difficulty }) },
     { key: 'undo', icon: '↩', message: '撤回', disabled: !gameStore.canUndo, onClick: gameStore.undo },
     { key: 'redo', icon: '↪', message: '重做', disabled: !gameStore.canRedo, onClick: gameStore.redo },
-    { key: 'restart', icon: '↺', message: '重开', onClick: gameStore.restart },
     { key: 'hint', icon: '💡', message: '提示', onClick: hint },
     { key: 'zoomOut', icon: '➖', message: '缩小', disabled: canvasStore.zoom <= BOARD_ZOOM.min, onClick: canvasStore.zoomOut },
     { key: 'zoomIn', icon: '➕', message: '放大', disabled: canvasStore.zoom >= BOARD_ZOOM.max, onClick: canvasStore.zoomIn },
 ])
 
-onMounted(()=>{void play()})
+onMounted(()=>{
+    if(!gameStore.board.length){
+        router.replace({name:PAGE.Difficulty})
+    }
+})
 </script>
 
 <template>
