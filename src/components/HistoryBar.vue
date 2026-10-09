@@ -1,18 +1,26 @@
 <script setup lang="ts">
-import StepItem from '@/components/StepItem.vue';
 import { useGameStore } from '@/stores/game';
+import { ref, watch, nextTick } from 'vue';
+import HistoryStep from './HistoryStep.vue';
 
 const gameStore = useGameStore()
+const stepsEl = ref<HTMLElement | null>(null)
+
+/** 当前步变化后把它滚进视野，否则步数多时看不到"当前步" */
+watch(() => gameStore.currentStep, async () => {
+    await nextTick()
+    stepsEl.value?.querySelector('.step-block.active')?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+})
 </script>
 
 <template>
-    <div class="history-section" v-if="gameStore.history.length">
+    <div class="history-section" v-if="gameStore.snapshots.length">
         <div class="history-label">
             📜 历史记录
-            <span class="step-counter">{{ gameStore.steps }} / {{ gameStore.history.length - 1 }}</span>
+            <span class="step-counter">{{ gameStore.currentStep }} / {{ gameStore.snapshots.length - 1 }}</span>
         </div>
-        <div class="history-steps-container">
-            <StepItem v-for="i in gameStore.history.length" :key="i - 1" :step="i - 1" />
+        <div class="history-steps-container" ref="stepsEl">
+            <HistoryStep v-for="i in gameStore.snapshots.length" :key="i - 1" :step="i - 1" />
         </div>
     </div>
 </template>

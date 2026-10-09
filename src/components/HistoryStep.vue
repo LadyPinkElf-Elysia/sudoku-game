@@ -6,8 +6,8 @@ const props = defineProps<{
 }>()
 const gameStore = useGameStore()
 const activeClass = computed(() => ({
-    active: props.step === gameStore.steps,
-    future: props.step > gameStore.steps
+    active: props.step === gameStore.currentStep,
+    future: props.step > gameStore.currentStep
 }))
 const jump = (): void => gameStore.jump(props.step)
 </script>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ActionItem from './ActionItem.vue';
-import { type ActionDef } from '@/types/actionDef';
+import { type ActionDef } from '@/types/action';
 defineProps<{
     items: ActionDef[]
 }>()

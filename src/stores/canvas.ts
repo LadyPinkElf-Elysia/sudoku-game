@@ -1,9 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, watchEffect } from 'vue'
 import { useGameStore } from './game'
-import { getSudoku } from '@/utils/sudoku/cache'
 import { BOARD_ZOOM } from '@/constants/board'
-import { getClickPos, renderBoard } from '@/utils/sudoku/canvas'
+import { getClickPos, renderBoard } from '@/utils/render/board'
 
 export const useCanvasStore = defineStore('canvasStore', () => {
     const gameStore = useGameStore()
@@ -20,19 +19,17 @@ export const useCanvasStore = defineStore('canvasStore', () => {
         const canvas = el.value
         const board = gameStore.board
         const selected = gameStore.selected
-        const conflictSet = gameStore.conflictSet
-        const boxSize = gameStore.config.boxSize
+        const conflictMask = gameStore.conflictMask
         const z = zoom.value
 
         if (!canvas || !board.length) return
 
-        const sudoku = getSudoku(boxSize)
         renderBoard({
             canvas,
             board,
             selected,
-            conflictSet,
-            boxSize: sudoku.B,
+            conflictMask,
+            boxSize: gameStore.sudoku.B,
             zoom: z,
         })
     }

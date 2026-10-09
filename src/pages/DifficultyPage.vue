@@ -1,52 +1,55 @@
 <script setup lang="ts">
 import Overlay from '@/components/Overlay.vue';
 import SpinnerIcon from '@/components/SpinnerIcon.vue';
+import ActionItems from '@/components/ActionItems.vue';
 import { PAGE } from '@/constants/pages';
-import { BLANK_RATIO, BOX_SIZE_OPTIONS, GAME_CONFIG } from '@/constants/game';
+import { BLANK_RATIO, BOX_SIZE_OPTIONS, GAME_INIT_CONFIG } from '@/constants/game';
 import { useGameStore } from '@/stores/game';
 import type { GameConfig } from '@/types/game';
-import { generate } from '@/utils/sudoku/generator';
+import { generateInWorker } from '@/utils/sudoku/workerClient';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import type { ActionDef } from '@/types/action';
+import { blankCountOf, cellCountOf } from '@/utils/sudoku/shape';
 
 const router = useRouter()
 const gameStore=useGameStore()
 
-const draft = ref({ ...GAME_CONFIG })
+const draft = ref({ ...GAME_INIT_CONFIG })
 const loading = ref(false)
 const error = ref('')
 
-const totalCells = computed(() => {
-    const S = draft.value.boxSize * draft.value.boxSize
-    return S * S
-})
+const totalCells = computed(() => cellCountOf(draft.value.boxSize))
 
-const blankCount = computed(() => Math.floor(totalCells.value * draft.value.blankRatio))
+const blankCount = computed(() => blankCountOf(draft.value.boxSize,draft.value.blankRatio))
 
 const apply = async (): Promise<void> => {
     if (loading.value) return
     error.value = ''
     loading.value = true
     try {
+        const blanks = blankCountOf(draft.value.boxSize,draft.value.blankRatio)
         const cfg: GameConfig = {
             boxSize: draft.value.boxSize,
-            maxSteps: draft.value.maxSteps,
             blankRatio: draft.value.blankRatio,
         }
-        const S = cfg.boxSize * cfg.boxSize
-        const blanks = Math.floor(S * S * cfg.blankRatio)
-        const { puzzle } = await generate(cfg.boxSize, blanks)
-        gameStore.startFromPuzzle(puzzle, cfg)
-        router.push({ name: PAGE.Game })
+        const { puzzle,solution } = await generateInWorker(cfg.boxSize, blanks)
+        gameStore.startGame(puzzle,solution, cfg)
+        router.replace({ name: PAGE.Game })
     } catch (err) {
         error.value = err instanceof Error ? err.message : '生成失败，请重试'
         loading.value=false
     }
 }
+
+const actions = computed<ActionDef[]>(() => [
+    { key: 'home', icon: '🏠', message: '主页', onClick: () => router.push({ name: PAGE.Home }) },
+    { key: 'start', icon: '▶', message: '开始游戏', disabled: loading.value, onClick: apply },
+])
 </script>
 
 <template>
-    <div class="difficulty-page">
+    <div class="page-card">
         <h2 class="title">难度选择</h2>
 
         <div class="field">
@@ -65,9 +68,7 @@ const apply = async (): Promise<void> => {
             <p class="hint">共 {{ totalCells }} 格，挖空 {{ blankCount }} 格</p>
         </div>
 
-        <div class="actions">
-            <button class="btn primary" @click="apply">开始游戏</button>
-        </div>
+        <ActionItems :items="actions" />
 
         <p v-if="error" class="error">{{ error }}</p>
 
@@ -81,51 +82,10 @@ const apply = async (): Promise<void> => {
 </template>
 
 <style scoped>
-.difficulty-page {
-    max-width: 420px;
-    margin: 20px auto;
-    padding: 20px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-}
-
 .title {
     margin: 0 0 20px;
     font-size: 1.1rem;
     color: #111827;
-}
-
-.field {
-    margin-bottom: 18px;
-}
-
-.label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 8px;
-}
-
-.select {
-    width: 100%;
-    height: 36px;
-    padding: 0 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    color: #374151;
-    background: #fff;
-    box-sizing: border-box;
-    cursor: pointer;
-}
-
-.select:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 2px #eef2ff;
 }
 
 .range {
@@ -164,29 +124,6 @@ const apply = async (): Promise<void> => {
     margin: 6px 0 0;
     font-size: 0.75rem;
     color: #9ca3af;
-}
-
-.actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 24px;
-}
-
-.btn {
-    height: 36px;
-    padding: 0 20px;
-    border-radius: 6px;
-    border: 1px solid #4f46e5;
-    background: #6366f1;
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: 0.15s;
-}
-
-.btn:hover {
-    background: #4f46e5;
 }
 
 .error {

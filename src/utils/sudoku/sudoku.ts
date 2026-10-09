@@ -1,6 +1,7 @@
 import type { NumBoard, Position, ConflictMask, Board, Cell } from "@/types/board";
-import { makeGrid } from "../array";
+import { makeGrid } from "../grid";
 import { makeCell } from "./transform";
+import { sideOf } from "./shape";
 
 /**检查一组格子中有无冲突*/
 const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
@@ -27,27 +28,41 @@ const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
 /**Sudoku工厂函数*/
 export const createSudoku = (boxSize: number) => {
     const B = boxSize
-    const S = boxSize * boxSize
+    const S = sideOf(B)
 
-    /**检查该格子所在行列宫格，判断该格子能否填入数字n*/
-    const canPlace = (grid: NumBoard, [r, c]: Position, n: number): boolean => {
-        // 行：扫一遍，有 n 就返回 false
-        for (let i = 0; i < S; i++) {
-            if (i !== c && grid[r][i] === n) return false
+    function* allRows(): Generator<Position[]> {
+        for (let r = 0; r < S; r++) {
+            const cells: Position[] = []
+            for (let c = 0; c < S; c++) cells.push([r, c])
+            yield cells
         }
-        // 列
-        for (let i = 0; i < S; i++) {
-            if (i !== r && grid[i][c] === n) return false
+    }
+
+    function* allCols(): Generator<Position[]> {
+        for (let c = 0; c < S; c++) {
+            const cells: Position[] = []
+            for (let r = 0; r < S; r++) cells.push([r, c])
+            yield cells
         }
-        // 宫
-        const sr = Math.floor(r / B) * B
-        const sc = Math.floor(c / B) * B
-        for (let i = sr; i < sr + B; i++) {
-            for (let j = sc; j < sc + B; j++) {
-                if ((i !== r || j !== c) && grid[i][j] === n) return false
+    }
+
+    function* allBoxes(): Generator<Position[]> {
+        for (let br = 0; br < S; br += B) {
+            for (let bc = 0; bc < S; bc += B) {
+                const cells: Position[] = []
+                for (let i = 0; i < B; i++)
+                    for (let j = 0; j < B; j++)
+                        cells.push([br + i, bc + j])
+                yield cells
             }
         }
-        return true
+    }
+
+    /**生成行，列，宫格等位置组*/
+    function* allGroups(): Generator<Position[]> {
+        yield* allRows()
+        yield* allCols()
+        yield* allBoxes()
     }
 
     /**检查该格子所在行列宫格，寻找该格子的可以填入的数字*/
@@ -90,51 +105,20 @@ export const createSudoku = (boxSize: number) => {
         return mask
     }
 
-    /** 盘面是否存在任何冲突 */
-    const hasConflict = (grid: NumBoard): boolean =>
-        findConflicts(grid).some(row => row.some(b => b))
+    /** 盘面是否存在任何冲突（发现即返回，不构造整张掩码） */
+    const hasConflict = (grid: NumBoard): boolean => {
+        for (const group of allGroups()) {
+            if (findGroupConflicts(grid, group).length) return true
+        }
+        return false
+    }
+
 
     /**检查棋盘有没有填满*/
-    const isFull = (grid: NumBoard): boolean =>
-        grid.every(row => row.every(v => v !== 0))
+    const isFull = (grid: NumBoard): boolean => grid.every(row => row.every(v => v !== 0))
 
     /**检查是否完成，即每个格子都填了且无冲突*/
     const isSolved = (grid: NumBoard): boolean => isFull(grid) && !hasConflict(grid)
-
-    function* allRows(): Generator<Position[]> {
-        for (let r = 0; r < S; r++) {
-            const cells: Position[] = []
-            for (let c = 0; c < S; c++) cells.push([r, c])
-            yield cells
-        }
-    }
-
-    function* allCols(): Generator<Position[]> {
-        for (let c = 0; c < S; c++) {
-            const cells: Position[] = []
-            for (let r = 0; r < S; r++) cells.push([r, c])
-            yield cells
-        }
-    }
-
-    function* allBoxes(): Generator<Position[]> {
-        for (let br = 0; br < S; br += B) {
-            for (let bc = 0; bc < S; bc += B) {
-                const cells: Position[] = []
-                for (let i = 0; i < B; i++)
-                    for (let j = 0; j < B; j++)
-                        cells.push([br + i, bc + j])
-                yield cells
-            }
-        }
-    }
-
-    /**生成行，列，宫格等位置组*/
-    function* allGroups(): Generator<Position[]> {
-        yield* allRows()
-        yield* allCols()
-        yield* allBoxes()
-    }
 
     /**检验题目是不是答案的子集*/
     const isSubset = (puzzle: NumBoard, solution: NumBoard): boolean =>
@@ -147,7 +131,6 @@ export const createSudoku = (boxSize: number) => {
         if (hasConflict(puzzle)) return false
         if (!isSubset(puzzle, solution)) return false
         if (!isSolved(solution)) return false
-
         return true
     }
 
@@ -156,7 +139,7 @@ export const createSudoku = (boxSize: number) => {
 
     return {
         S, B,
-        canPlace, candidates,
+        candidates,
         isSolved, findConflicts,
         validatePuzzle,
         emptyBoard

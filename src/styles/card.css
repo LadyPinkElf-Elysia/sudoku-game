@@ -1,0 +1,15 @@
+/* 页面外壳：白卡片容器 */
+.page-card {
+    max-width: 480px;
+    margin: 20px auto;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    box-sizing: border-box;
+}
+
+.page-card.wide {
+    max-width: 580px;
+}

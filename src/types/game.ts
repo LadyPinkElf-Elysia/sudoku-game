@@ -1,18 +1,10 @@
-import type { GameStatus } from "@/constants/game"
-import type { Board, Position, Snapshot } from "./board"
+import type { GAME_STATUS, GAME_MODE, CREATE_PHASE } from "@/constants/game"
 
 export interface GameConfig {
     boxSize: number,
-    maxSteps:number,
     blankRatio: number
 }
 
-export interface Game {
-    board: Board
-    selected: Position | null
-    status: GameStatus
-    config: GameConfig
-    history: Snapshot[]
-    stepPtr: number
-}
-
+export type GameStatus = typeof GAME_STATUS[keyof typeof GAME_STATUS]
+export type GameMode = typeof GAME_MODE[keyof typeof GAME_MODE]
+export type CreatePhase = typeof CREATE_PHASE[keyof typeof CREATE_PHASE]

@@ -1,5 +1,4 @@
-// src/utils/getSudoku.ts
-import { createSudoku, type Sudoku } from './factory'
+import { createSudoku, type Sudoku } from './sudoku'
 
 const cache = new Map<number, Sudoku>()
 

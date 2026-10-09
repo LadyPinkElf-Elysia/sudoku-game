@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { useGameStore } from '@/stores/game';
-import { getSudoku } from '@/utils/sudoku/cache';
 import { computed } from 'vue';
 
 const gameStore = useGameStore()
-const sudoku = computed(() => getSudoku(gameStore.config.boxSize))
-const S = computed(() => sudoku.value.S)
-const B = computed(() => sudoku.value.B)
+const S = computed(() => gameStore.sudoku.S)
+const B = computed(() => gameStore.sudoku.B)
 
 const gridStyle = computed(() => ({
     gridTemplateColumns: `repeat(${B.value}, minmax(0, 1fr))`

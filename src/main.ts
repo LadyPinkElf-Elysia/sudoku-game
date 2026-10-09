@@ -1,3 +1,5 @@
+import '@/styles/card.css'
+import '@/styles/form.css'
 import { createApp } from "vue";
 import App from "./App.vue";
 import { createPinia } from "pinia";

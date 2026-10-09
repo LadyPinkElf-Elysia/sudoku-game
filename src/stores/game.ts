@@ -1,55 +1,39 @@
-import { GAME_CONFIG, GAME_STATUS, type GameStatus } from "@/constants/game";
-import { mapGrid } from "@/utils/array";
+import { GAME_INIT_CONFIG, GAME_MODE, GAME_STATUS, } from "@/constants/game";
+import { makeGrid, mapGrid } from "@/utils/grid";
 import { toNum, fromPuzzle } from "@/utils/sudoku/transform";
-import { getSudoku } from "@/utils/sudoku/cache";
-import type { Sudoku } from "@/utils/sudoku/factory";
+import { getSudoku } from "@/utils/sudoku/getSudoku";
+import type { Sudoku } from "@/utils/sudoku/sudoku";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import type { Board, Position, Snapshot, NumBoard, Cell } from "@/types/board";
-import { type GameConfig, } from "@/types/game";
+import type { Board, Position, Snapshot, NumBoard, Cell, ConflictMask } from "@/types/board";
+import { type GameConfig, type GameMode, type GameStatus, } from "@/types/game";
 
 export const useGameStore = defineStore('gameStore', () => {
-    const config = ref<GameConfig>({ ...GAME_CONFIG })
-
+    const config = ref<GameConfig>({ ...GAME_INIT_CONFIG })
+    const mode = ref<GameMode>(GAME_MODE.Game)
     const board = ref<Board>([])
-
     const selected = ref<Position | null>(null)
-
-    const history = ref<Snapshot[]>([])
-
-    const stepPtr = ref<number>(-1)
+    const snapshots = ref<Snapshot[]>([])
+    const currentStep = ref<number>(0)
+    const solution = ref<NumBoard>([])
 
     const sudoku = computed<Sudoku>((): Sudoku => getSudoku(config.value.boxSize))
-
     const numBoard = computed<NumBoard>((): NumBoard => toNum(board.value))
-
-    const steps = computed(() => stepPtr.value)
-
     const isWin = computed<boolean>(() => {
+        if (mode.value !== GAME_MODE.Game) return false
         if (!numBoard.value.length) return false
         return sudoku.value.isSolved(numBoard.value)
     })
-
-    const isLost = computed<boolean>((): boolean => steps.value >= config.value.maxSteps)
-
-    const isGameOver = computed<boolean>((): boolean => isWin.value || isLost.value)
-
     const status = computed<GameStatus>((): GameStatus => {
         if (isWin.value) return GAME_STATUS.Won
-        if (isLost.value) return GAME_STATUS.Lost
         if (!board.value.length) return GAME_STATUS.Idle
         return GAME_STATUS.Playing
     })
-
     /**冲突集合*/
-    const conflictSet = computed<Set<string>>((): Set<string> => {
-        const s = new Set<string>()
-        if (!numBoard.value.length) return s
-        const mask = sudoku.value.findConflicts(numBoard.value)
-        mask.forEach((row, r) => row.forEach((b, c) => b && s.add(`${r},${c}`)))
-        return s
+    const conflictMask = computed<ConflictMask>((): ConflictMask => {
+        if (!numBoard.value.length) return makeGrid(sudoku.value.S, () => false)
+        return sudoku.value.findConflicts(numBoard.value)
     })
-
     /**选中的格子*/
     const selectedCell = computed<Cell | null>(() => {
         if (!selected.value) return null
@@ -57,53 +41,46 @@ export const useGameStore = defineStore('gameStore', () => {
         return board.value[r]?.[c] ?? null
     })
 
-    /**能否撤回*/
-    const canUndo = computed<boolean>((): boolean => !isGameOver.value && stepPtr.value > 0)
-
-    /**能否重做*/
-    const canRedo = computed<boolean>((): boolean => !isGameOver.value && stepPtr.value < history.value.length - 1)
-
-    /**消息*/
-    const message = computed<string>((): string => {
-        if (status.value === GAME_STATUS.Won) return '恭喜成功'
-        if (status.value === GAME_STATUS.Lost) return '遗憾失败'
-        if (status.value === GAME_STATUS.Playing && config.value) return `还剩${config.value.maxSteps - steps.value}步`
-        return ''
-    })
-
     const cloneBoard = (b: Board): Board => mapGrid(b, cell => ({ ...cell }))
-
     /**推入历史记录*/
     const pushHistory = (): void => {
-        history.value.splice(steps.value + 1)
-        history.value.push(cloneBoard(board.value))
-        stepPtr.value = history.value.length - 1
+        snapshots.value.splice(currentStep.value + 1)
+        snapshots.value.push(cloneBoard(board.value))
+        currentStep.value = snapshots.value.length - 1
     }
-
     /** 某格的候选数 */
     const getCandidates = (pos: Position): number[] => {
         return sudoku.value.candidates(numBoard.value, pos)
     }
-
-    /** 某格能否填 n */
-    const canPlace = (pos: Position, n: number): boolean => {
-        return sudoku.value.canPlace(numBoard.value, pos, n)
-    }
-
     /**开始游戏*/
-    const startFromPuzzle = (puzzle: NumBoard, cfg: GameConfig) => {
+    const startGame = (puzzle: NumBoard, sol: NumBoard, cfg: GameConfig) => {
+        mode.value = GAME_MODE.Game
         config.value = { ...cfg }
         board.value = fromPuzzle(puzzle, true)
+        solution.value = sol
         selected.value = null
-        history.value = [cloneBoard(board.value)]
-        stepPtr.value = 0
+        snapshots.value = [cloneBoard(board.value)]
+        currentStep.value = 0
     }
-
+    const startCreate = (boxSize: number): void => {
+        mode.value = GAME_MODE.Create
+        config.value = { boxSize, blankRatio: 0 }
+        board.value = sudoku.value.emptyBoard()
+        solution.value = []
+        selected.value = null
+        snapshots.value = [cloneBoard(board.value)]
+        currentStep.value = 0
+    }
+    const lockPuzzle = (): void => {
+        board.value = mapGrid(board.value, cell => ({ v: cell.v, lock: cell.v !== 0 }))
+        selected.value = null
+        snapshots.value = [cloneBoard(board.value)]
+        currentStep.value = 0
+    }
     /**选择格子*/
     const select = (pos: Position): void => {
         selected.value = pos
     }
-
     /**向格子输入数字*/
     const inputNum = (n: number): void => {
         if (status.value !== GAME_STATUS.Playing) return
@@ -114,49 +91,44 @@ export const useGameStore = defineStore('gameStore', () => {
 
         if (cell.lock) return
         if (cell.v === n) return
-
         cell.v = n
-
         pushHistory()
     }
-
     /**跳到指定历史步*/
     const jump = (step: number): void => {
-        if (step < 0 || step >= history.value.length) return
-        board.value = cloneBoard(history.value[step])
-        stepPtr.value = step
+        if (step < 0 || step >= snapshots.value.length) return
+        board.value = cloneBoard(snapshots.value[step])
+        currentStep.value = step
     }
-
-    /**撤销*/
-    const undo = (): void => {
-        if (!canUndo.value) return
-        jump(steps.value - 1)
-    }
-
-    /**重做*/
-    const redo = (): void => {
-        if (!canRedo.value) return
-        jump(steps.value + 1)
+    /** 作弊：直接填入答案（测试用） */
+    const cheat = (): void => {
+        if (!solution.value.length) return
+        for (let r = 0; r < board.value.length; r++) {
+            for (let c = 0; c < board.value[r].length; c++) {
+                board.value[r][c].v = solution.value[r][c]
+            }
+        }
+        pushHistory()
     }
 
     return {
         // 配置
-        config,
+        config, mode,
 
         // 状态
-        board, selected, status, message,
+        sudoku,board,numBoard, selected, status, solution,currentStep,
 
         // 派生
-        isWin, isLost, isGameOver, steps, history,
-        conflictSet, selectedCell,
-        canUndo, canRedo,
+        isWin, snapshots,
+        conflictMask, selectedCell,
 
         // Actions
-        startFromPuzzle, select, inputNum,
-        jump, undo, redo,
+        startGame, startCreate, lockPuzzle,
+        select, inputNum,
+        jump, cheat,
 
         // 提示
-        getCandidates, canPlace,
+        getCandidates,
     }
 })
 

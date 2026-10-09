@@ -1,5 +1,5 @@
 import type { NumBoard } from "@/types/board";
-import { chunk } from "../array";
+import { chunk } from "../grid";
 
 const parseNumArray = (str: string): number[] | null => {
     const tokens = str.trim().split(/[\s,，]+/).filter(Boolean)

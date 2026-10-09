@@ -1,10 +1,11 @@
 /// <reference lib="webworker" />
-import { solveAndDig } from "./solver"
+import type { GenerateRequest } from "@/types/worker"
+import { generatePuzzle } from "./generator"
 
-self.onmessage=(e:MessageEvent)=>{
+self.onmessage=(e:MessageEvent<GenerateRequest>)=>{
     try{
         const {boxSize,blanks}=e.data
-        const result=solveAndDig(boxSize,blanks)
+        const result=generatePuzzle(boxSize,blanks)
         self.postMessage({ok:true,result})
     }catch(err){
         self.postMessage({ok:false,error:(err as Error).message})
