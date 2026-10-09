@@ -1,4 +1,4 @@
-import { GAME_CONFIG } from "@/constants/game";
+import { GAME_CONFIG, GAME_STATUS, type GameStatus } from "@/constants/game";
 import { mapGrid } from "@/utils/array";
 import { toNum, fromPuzzle } from "@/utils/sudoku/transform";
 import { getSudoku } from "@/utils/sudoku/cache";
@@ -6,7 +6,7 @@ import type { Sudoku } from "@/utils/sudoku/factory";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { Board, Position, Snapshot, NumBoard, Cell } from "@/types/board";
-import { type GameConfig, type GameStatus, GAME_STATUS } from "@/types/game";
+import { type GameConfig, } from "@/types/game";
 
 export const useGameStore = defineStore('gameStore', () => {
     const config = ref<GameConfig>({ ...GAME_CONFIG })
