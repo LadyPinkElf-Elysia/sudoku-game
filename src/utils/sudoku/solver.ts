@@ -1,9 +1,9 @@
-import type { NumBoard } from "@/types/game";
 import type { Sudoku } from "./factory";
 import { makeGrid, shuffle } from "../array";
-import { toRC } from "./board";
+import { toRC } from "./transfrom";
 import { getSudoku } from "./cache";
 import type { PuzzleData } from "@/types/puzzle";
+import type { NumBoard } from "@/types/board";
 
 /** 预先填满对角线上的宫格 */
 const fillDiagonal = (grid: NumBoard, B: number, S: number): void => {

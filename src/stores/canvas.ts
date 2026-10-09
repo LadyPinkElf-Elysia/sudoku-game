@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, watchEffect } from 'vue'
 import { useGameStore } from './game'
-import { renderBoard, getClickPos } from '@/utils/canvas'
 import { getSudoku } from '@/utils/sudoku/cache'
 import { BOARD_ZOOM } from '@/constants/board'
+import { getClickPos, renderBoard } from '@/utils/sudoku/canvas'
 
 export const useCanvasStore = defineStore('canvasStore', () => {
     const gameStore = useGameStore()

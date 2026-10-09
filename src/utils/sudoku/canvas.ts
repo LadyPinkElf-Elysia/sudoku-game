@@ -1,7 +1,7 @@
 import type { RenderParams } from "@/types/canvas"
-import { makeGrid } from "./array"
-import type { Position } from "@/types/game"
 import { BOARD_COLOR, BOARD_FONT, BOARD_LINE, BOARD_SIZE } from "@/constants/board"
+import type { ConflictMask, Position } from "@/types/board"
+import { makeGrid } from "../array"
 
 /** 初始化画布：清晰度、尺寸、坐标对齐；返回画笔、边长、每格边长 */
 const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
@@ -43,7 +43,7 @@ export const renderBoard = (params: RenderParams): void => {
     if (!info) return
     const { ctx, side, cellSize } = info
 
-    const conflictMask = makeGrid(size, () => false)
+    const conflictMask:ConflictMask = makeGrid(size, () => false)
     for (const key of conflictSet) {
         const [r, c] = key.split(',').map(Number)
         conflictMask[r][c] = true
@@ -140,3 +140,4 @@ export const getClickPos = (
     if (r < 0 || r >= size || c < 0 || c >= size) return null
     return [r, c] as const
 }
+

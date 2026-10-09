@@ -1,4 +1,4 @@
-import type { NumBoard } from "./game"
+import type { NumBoard } from "./board"
 
 export interface Puzzle {
     pid?: number

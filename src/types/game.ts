@@ -1,16 +1,4 @@
-import type { GameStatus } from "@/constants/enums"
-
-export interface Cell {
-    v: number
-    lock: boolean
-}
-
-export type Board = Cell[][]
-export type NumBoard=number[][]
-export type ConflictMask=boolean[][]
-export type Snapshot = Cell[][]
-
-export type Position = readonly [row: number, col: number]
+import type { Board, Position, Snapshot } from "./board"
 
 export interface GameConfig {
     boxSize: number,
@@ -26,3 +14,12 @@ export interface Game {
     history: Snapshot[]
     stepPtr: number
 }
+
+export const GAME_STATUS = {
+    Idle: 'idle',
+    Playing: 'playing',
+    Won: 'won',
+    Lost: 'lost'
+} as const
+
+export type GameStatus = typeof GAME_STATUS[keyof typeof GAME_STATUS]

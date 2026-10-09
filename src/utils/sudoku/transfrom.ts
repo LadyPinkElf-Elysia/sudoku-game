@@ -1,4 +1,4 @@
-import type { Cell, NumBoard, Board, Position } from "@/types/game"
+import type { Board, Cell, NumBoard, Position } from "@/types/board"
 import { mapGrid } from "../array"
 
 /**数字转Cell*/
