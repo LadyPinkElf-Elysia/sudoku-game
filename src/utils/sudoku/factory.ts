@@ -1,22 +1,6 @@
 import type { Board, Cell, ConflictMask, NumBoard, Position } from "@/types/game";
-import { makeGrid, mapGrid } from "../array";
+import { makeGrid } from "../array";
 import { makeCell } from "./board";
-
-/**将数组放入集合验重，判断有无重复*/
-const dup = (arr: number[]): boolean => arr.length !== new Set(arr).size
-
-/**从起点到终点这个矩形内获得所有非空值并存储为数组*/
-const scan = (grid: NumBoard, [r1, c1]: Position, [r2, c2]: Position): number[] => {
-    const vals: number[] = []
-    for (let r = r1; r <= r2; r++) {
-        for (let c = c1; c <= c2; c++) {
-            if (grid[r][c] !== 0) {
-                vals.push(grid[r][c])
-            }
-        }
-    }
-    return vals
-}
 
 /**检查一组格子中有无冲突*/
 const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
@@ -45,34 +29,52 @@ export const createSudoku = (boxSize: number) => {
     const B = boxSize
     const S = boxSize * boxSize
 
-    const scanRow = (grid: NumBoard, r: number): number[] => scan(grid, [r, 0], [r, S - 1])
-    const scanCol = (grid: NumBoard, c: number): number[] => scan(grid, [0, c], [S - 1, c])
-    const scanBox = (grid: NumBoard, [r, c]: Position): number[] => {
+    /**检查该格子所在行列宫格，判断该格子能否填入数字n*/
+    const canPlace = (grid: NumBoard, [r, c]: Position, n: number): boolean => {
+        // 行：扫一遍，有 n 就返回 false
+        for (let i = 0; i < S; i++) {
+            if (i !== c && grid[r][i] === n) return false
+        }
+        // 列
+        for (let i = 0; i < S; i++) {
+            if (i !== r && grid[i][c] === n) return false
+        }
+        // 宫
         const sr = Math.floor(r / B) * B
         const sc = Math.floor(c / B) * B
-        return scan(grid, [sr, sc], [sr + B - 1, sc + B - 1])
-    }
-
-    const rowDup = (grid: NumBoard, r: number): boolean => dup(scanRow(grid, r))
-    const colDup = (grid: NumBoard, c: number): boolean => dup(scanCol(grid, c))
-    const boxDup = (grid: NumBoard, pos: Position): boolean => dup(scanBox(grid, pos))
-
-    /**检查该格子所在行列宫格，判断该格子能否填入数字n*/
-    const canPlace = (grid: NumBoard, pos: Position, n: number): boolean => {
-        const [r, c] = pos
-        const gridCopy = mapGrid<number,number>(grid,v=>v)
-        gridCopy[r][c] = n
-        const ok = !rowDup(gridCopy, r) && !colDup(gridCopy, c) && !boxDup(gridCopy, pos)
-        return ok
+        for (let i = sr; i < sr + B; i++) {
+            for (let j = sc; j < sc + B; j++) {
+                if ((i !== r || j !== c) && grid[i][j] === n) return false
+            }
+        }
+        return true
     }
 
     /**检查该格子所在行列宫格，寻找该格子的可以填入的数字*/
-    const candidates = (grid: NumBoard, pos: Position): number[] => {
+    const candidates = (grid: NumBoard, [r, c]: Position): number[] => {
+        if (grid[r][c] !== 0) return []
+
+        // 用一个标记数组记录哪些数字已用（比 Set 快，零哈希开销）
+        const used = new Array(S + 1).fill(false)
+
+        // 行 + 列：一次循环搞定
+        for (let i = 0; i < S; i++) {
+            if (grid[r][i] !== 0) used[grid[r][i]] = true
+            if (grid[i][c] !== 0) used[grid[i][c]] = true
+        }
+        // 宫
+        const sr = Math.floor(r / B) * B
+        const sc = Math.floor(c / B) * B
+        for (let i = sr; i < sr + B; i++) {
+            for (let j = sc; j < sc + B; j++) {
+                if (grid[i][j] !== 0) used[grid[i][j]] = true
+            }
+        }
+
+        // 挑没被标记的数字
         const res: number[] = []
         for (let n = 1; n <= S; n++) {
-            if (canPlace(grid, pos, n)) {
-                res.push(n)
-            }
+            if (!used[n]) res.push(n)
         }
         return res
     }
@@ -143,7 +145,7 @@ export const createSudoku = (boxSize: number) => {
     /**检验出题的题目和答案*/
     const validatePuzzle = (puzzle: NumBoard, solution: NumBoard): boolean => {
         if (hasConflict(puzzle)) return false
-        if(!isSubset(puzzle,solution)) return false
+        if (!isSubset(puzzle, solution)) return false
         if (!isSolved(solution)) return false
 
         return true

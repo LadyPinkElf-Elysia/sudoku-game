@@ -12,10 +12,6 @@ import { computed, ref } from "vue";
 export const useGameStore = defineStore('gameStore', () => {
     const config = ref<GameConfig>({...GAME_CONFIG})
 
-    const setConfig=(patch:Partial<GameConfig>):void=>{
-        Object.assign(config.value,patch)
-    }
-
     const board = ref<Board>([])
 
     const selected = ref<Position | null>(null)

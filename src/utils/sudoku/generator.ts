@@ -1,5 +1,4 @@
 import type { PuzzleData } from "@/types/puzzle";
-import { solveAndDig } from "./solver";
 import { DEFAULT_TIMEOUT } from "@/constants/worker-config";
 
 export const generate = (boxSize: number, blanks: number,timeoutMs=DEFAULT_TIMEOUT): Promise<PuzzleData> => {

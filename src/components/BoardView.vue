@@ -29,7 +29,6 @@ onBeforeUnmount(() => canvasStore.detach())
     border-radius: 4px;
     padding: 8px;
     display: flex;
-    justify-content: center;
     scrollbar-width: auto;
     scrollbar-color: #94a3b8 #f1f5f9;
 }
@@ -62,5 +61,6 @@ onBeforeUnmount(() => canvasStore.detach())
     cursor: pointer;
     user-select: none;
     touch-action: manipulation;
+    margin: auto;   
 }
 </style>

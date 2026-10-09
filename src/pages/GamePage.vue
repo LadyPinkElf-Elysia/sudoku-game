@@ -3,13 +3,17 @@ import ActionItems from '@/components/ActionItems.vue';
 import BoardView from '@/components/BoardView.vue';
 import NumberPad from '@/components/NumberPad.vue';
 import StepItems from '@/components/StepItems.vue';
+import { BOARD_ZOOM } from '@/constants/board';
 import { GAME_CONFIG } from '@/constants/game';
+import { useCanvasStore } from '@/stores/canvas';
 import { useGameStore } from '@/stores/game';
 import type { ActionDef } from '@/types/actionDef';
 import { generate } from '@/utils/sudoku/generator';
 import { computed, onMounted, ref } from 'vue';
 
 const gameStore = useGameStore()
+
+const canvasStore=useCanvasStore()
 
 const playerConfig = ref({ ...GAME_CONFIG })
 
@@ -38,6 +42,8 @@ const actions = computed<ActionDef[]>(() => [
     { key: 'redo', icon: '↪', message: '重做', disabled: !gameStore.canRedo, onClick: gameStore.redo },
     { key: 'restart', icon: '↺', message: '重开', onClick: gameStore.restart },
     { key: 'hint', icon: '💡', message: '提示', onClick: hint },
+    { key: 'zoomOut', icon: '➖', message: '缩小', disabled: canvasStore.zoom <= BOARD_ZOOM.min, onClick: canvasStore.zoomOut },
+    { key: 'zoomIn', icon: '➕', message: '放大', disabled: canvasStore.zoom >= BOARD_ZOOM.max, onClick: canvasStore.zoomIn },
 ])
 
 onMounted(()=>{void play()})
