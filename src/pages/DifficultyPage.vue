@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Overlay from '@/components/Overlay.vue';
 import SpinnerIcon from '@/components/SpinnerIcon.vue';
-import { PAGE } from '@/constants/enums';
+import { PAGE } from '@/constants/pages';
 import { BLANK_RATIO, BOX_SIZE_OPTIONS, GAME_CONFIG } from '@/constants/game';
 import { useGameStore } from '@/stores/game';
 import type { GameConfig } from '@/types/game';

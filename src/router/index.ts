@@ -1,4 +1,4 @@
-import { PAGE } from "@/constants/enums";
+import { PAGE } from "@/constants/pages";
 import { createRouter, createWebHashHistory } from "vue-router";
 
 const router = createRouter({

@@ -5,6 +5,15 @@ export const GAME_CONFIG = {
     blankRatio: 0.55     
 } as const
 
+export const GAME_STATUS = {
+    Idle: 'idle',
+    Playing: 'playing',
+    Won: 'won',
+    Lost: 'lost'
+} as const
+
+export type GameStatus = typeof GAME_STATUS[keyof typeof GAME_STATUS]
+
 /** 盘面大小可选值 */
 export const BOX_SIZE_OPTIONS = [3, 4, 5, 6] as const
 

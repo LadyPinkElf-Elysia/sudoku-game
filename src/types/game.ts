@@ -1,3 +1,4 @@
+import type { GameStatus } from "@/constants/game"
 import type { Board, Position, Snapshot } from "./board"
 
 export interface GameConfig {
@@ -15,11 +16,3 @@ export interface Game {
     stepPtr: number
 }
 
-export const GAME_STATUS = {
-    Idle: 'idle',
-    Playing: 'playing',
-    Won: 'won',
-    Lost: 'lost'
-} as const
-
-export type GameStatus = typeof GAME_STATUS[keyof typeof GAME_STATUS]

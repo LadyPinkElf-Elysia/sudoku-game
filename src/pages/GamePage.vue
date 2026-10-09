@@ -4,7 +4,7 @@ import BoardView from '@/components/BoardView.vue';
 import NumberPad from '@/components/NumberPad.vue';
 import StepItems from '@/components/StepItems.vue';
 import { BOARD_ZOOM } from '@/constants/board';
-import { PAGE } from '@/constants/enums';
+import { PAGE } from '@/constants/pages';
 import { useCanvasStore } from '@/stores/canvas';
 import { useGameStore } from '@/stores/game';
 import type { ActionDef } from '@/types/actionDef';
