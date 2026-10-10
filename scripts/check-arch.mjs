@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * 架构守卫 —— 《ARCHITECTURE.md》R1~R13 的可执行版本
+ * 架构守卫 —— 《ARCHITECTURE.md》R1~R14 的可执行版本
  *
  *   node scripts/check-arch.mjs           红规则（违规 exit 1）
  *   node scripts/check-arch.mjs --strict  额外考核 R11（core 必须有同名测试）
  *
  * 规则 → 检查方式：
- *   R1 R2 R3 R4 R5 R6 R9 R13  红（脚本强制）
- *   R7                        红（Math.）+ 评审（实例注入）
- *   R10                       红（死类型 / Omit·Pick 派生）+ 评审（extends 用法）
- *   R11                       黄（仅 --strict）
- *   R8 R12                    评审
+ *   R1 R2 R3 R4 R5 R6 R9 R13 R14   红（脚本强制）
+ *   R7                             红（Math.）+ 评审（实例注入）
+ *   R10                            红（死类型 / Omit·Pick 派生）+ 评审（extends 用法）
+ *   R11                            黄（仅 --strict）
+ *   R8 R12                         评审
  *
  * 改规矩：先改 ARCHITECTURE.md，再改下面「规则参数」区。
  */
@@ -29,7 +29,7 @@ const strict = process.argv.includes('--strict')
 
 /* ═════════════════ 规则参数 ═════════════════ */
 
-/** R1 顶层白名单 */
+/** R1 顶层白名单（src 内；functions/ 在仓库顶层，不属 src） */
 const TOP_ALLOW = new Set([
     'core', 'services', 'render', 'stores', 'composables', 'components',
     'pages', 'constants', 'types', 'styles', 'router', 'main.ts', 'App.vue', 'assets',
@@ -45,7 +45,7 @@ const CORE_BAN = [
 /** R13 types 是叶子层 */
 const TYPES_ALLOW = [/^\.{1,2}\//, /^@\/types\//, /^@\/constants\//]
 
-/** R6 页面只接线 */
+/** R6 页面只接线：算法与 IO 一律经 composables */
 const PAGE_ALLOW = /^(@\/(components|composables|stores|constants|types)\/|vue$|vue-router$)/
 
 /** R3 core 不得触碰的宿主能力 / 不得使用的不可控随机·时间 */
@@ -57,6 +57,10 @@ const ALGO_IN_DATA = /\bfor\s*\(|\.forEach\(|Math\./
 
 /** R10 禁止用工具类型派生「同形状的第二个名字」 */
 const TYPE_DERIVE = /\b(Omit|Pick|Partial|Required|Exclude|Extract)</
+
+/** R14 有棋盘就必须有缩放：import 了 BoardView 的 .vue 必须有 useZoom( 或 BoardOverlay */
+const BOARD_VIEW = /BoardView\.vue/
+const ZOOM_ENTRY = /useZoom\(|BoardOverlay/
 
 /** R9 预算 */
 const MAX_LINES = 200
@@ -82,6 +86,7 @@ const read = f => readFileSync(f, 'utf8')
 const stripComments = s => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
 const importsOf = code => [...code.matchAll(/from\s+['"]([^'"]+)['"]/g)].map(m => m[1])
 const under = (file, dir) => file.startsWith(dir + '/')
+const isVue = file => file.endsWith('.vue')
 const isTest = file => file.endsWith('.test.ts')
 const isCore = file => under(file, 'src/core')
 
@@ -146,6 +151,10 @@ for (const file of files) {
     if (under(file, 'src/types'))
         for (const i of imps)
             if (!TYPES_ALLOW.some(re => re.test(i))) err('R13', file, `types 层不得依赖 ${i}`)
+
+    /* ───── R14 有棋盘就必须有缩放 ───── */
+    if (isVue(file) && BOARD_VIEW.test(code) && !ZOOM_ENTRY.test(code))
+        err('R14', file, '显示棋盘的页面/组件必须提供放大/缩小（useZoom(…) 或 BoardOverlay）')
 
     /* ───── R11 core 必须可测（仅 --strict，黄） ───── */
     if (strict && isCore(file) && !isTest(file) && !files.includes(file.replace(/\.ts$/, '.test.ts')))
