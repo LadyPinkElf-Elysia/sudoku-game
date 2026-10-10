@@ -3,8 +3,8 @@ import { useRouter } from 'vue-router'
 import { GAME_MODE, GAME_STATUS } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { useGameStore } from '@/stores/game'
-import type { ActionDef } from '@/types/action'
-import { hintTextOf } from '@/utils/hint'
+import { hintTextOf } from '@/core/game/derive'
+import type { Actions } from '@/types/item'
 
 /** 游戏页流程：提示文案、进入守卫、胜利遮罩与结果按钮；每页一份 */
 export const useGameFlow = () => {
@@ -25,7 +25,7 @@ export const useGameFlow = () => {
         return { title: '🎉 恭喜完成', desc: '全部填对，太厉害了' }
     })
 
-    const resultActions: ActionDef[] = [
+    const resultActions: Actions = [
         { key: 'home', icon: '🏠', message: '回主页', onClick: () => router.replace({ name: PAGE.Home }) },
         { key: 'again', icon: '↺', message: '再来一局', onClick: () => router.replace({ name: PAGE.Difficulty }) },
     ]

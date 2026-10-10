@@ -6,10 +6,10 @@ import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
 import { BOX_SIZE_OPTIONS, CREATE_PHASE } from '@/constants/game'
 import { useGameStore } from '@/stores/game'
-import { useZoom } from '@/composables/useZoom'
-import { useCreateFlow } from '@/composables/useCreateFlow'
-import type { ActionDef } from '@/types/action'
-import type { RenderParams } from '@/types/canvas'
+import { useZoom } from '@/composables/board/useZoom'
+import { useCreateFlow } from '@/composables/game/useCreateFlow'
+import type { Actions } from '@/types/item'
+import type { BoardRenderInput } from '@/types/render'
 
 const gameStore = useGameStore()
 const { zoom, zoomIn, zoomOut, resetZoom, canZoomIn, canZoomOut } = useZoom()
@@ -26,7 +26,7 @@ const boxSize = computed<number>({
 })
 
 /** 棋盘渲染入参：一个对象喂给 BoardView */
-const boardParams = computed<Omit<RenderParams, 'canvas'>>(() => ({
+const boardParams = computed<BoardRenderInput>(() => ({
     board: gameStore.board,
     boxSize: gameStore.sudoku.B,
     selected: gameStore.selected,
@@ -35,7 +35,7 @@ const boardParams = computed<Omit<RenderParams, 'canvas'>>(() => ({
 }))
 
 /** 按钮条：两个阶段都有主页，中间那个按阶段切换 */
-const actions = computed<ActionDef[]>(() => [
+const actions = computed<Actions>(() => [
     { key: 'home', icon: '🏠', message: '主页', onClick: goHome },
     { key: 'zoomOut', icon: '➖', message: '缩小', disabled: !canZoomOut.value, onClick: zoomOut },
     { key: 'zoomIn', icon: '➕', message: '放大', disabled: !canZoomIn.value, onClick: zoomIn },
@@ -47,12 +47,12 @@ const actions = computed<ActionDef[]>(() => [
     },
 ])
 
-const successActions: ActionDef[] = [
+const successActions: Actions = [
     { key: 'home', icon: '🏠', message: '回主页', onClick: goHome },
     { key: 'again', icon: '↺', message: '再出一道', onClick: createAgain },
 ]
 
-const failActions: ActionDef[] = [
+const failActions: Actions = [
     { key: 'back', icon: '↩', message: '继续修改', onClick: backToEdit },
 ]
 </script>

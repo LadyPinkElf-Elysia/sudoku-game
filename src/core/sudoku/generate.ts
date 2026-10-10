@@ -1,17 +1,18 @@
-import type { Sudoku } from "./sudoku";
-import { makeGrid, shuffle } from "../grid";
-import { toRC } from "./transform";
-import { getSudoku } from "./getSudoku";
 import type { PuzzleData } from "@/types/puzzle";
 import type { NumBoard } from "@/types/board";
+import { toRC } from "../board/model";
+import { getSudoku } from "./rules";
+import type { Rng } from "@/types/rng";
+import { shuffle, makeGrid } from "../array";
+import type { Sudoku } from "@/types/sudoku";
 
 /** 预先填满对角线上的宫格 */
-const fillDiagonal = (grid: NumBoard, B: number, S: number): void => {
+const fillDiagonal = (grid: NumBoard, B: number, S: number,rng:Rng): void => {
     for (let b = 0; b < S; b += B + 1) {
         const sr = Math.floor(b / B) * B
         const sc = (b % B) * B
         const nums = Array.from({ length: S }, (_, i) => i + 1)
-        shuffle<number>(nums)
+        shuffle<number>(nums,rng)
         let idx = 0
         for (let r = sr; r < sr + B; r++) {
             for (let c = sc; c < sc + B; c++) {
@@ -29,12 +30,12 @@ interface Change {
 }
 
 /** 回溯生成完整解（MRV + 增量候选维护） */
-const solve = (sudoku: Sudoku): NumBoard => {
+const solve = (sudoku: Sudoku,rng:Rng): NumBoard => {
     const S = sudoku.S
     const B = sudoku.B
     const grid: NumBoard = makeGrid<number>(S, () => 0)
 
-    fillDiagonal(grid, B, S)
+    fillDiagonal(grid, B, S,rng)
 
     // 已用数字：rowUsed[r][n]=true 表示第 r 行已用 n
     const rowUsed: boolean[][] = Array.from({ length: S }, () => new Array(S + 1).fill(false))
@@ -159,7 +160,7 @@ const solve = (sudoku: Sudoku): NumBoard => {
         for (let n = 1; n <= S; n++) {
             if (cand[bestR][bestC][n]) candList.push(n)
         }
-        shuffle(candList)
+        shuffle(candList,rng)
 
         for (const n of candList) {
             const changes = place(bestR, bestC, n)
@@ -174,11 +175,11 @@ const solve = (sudoku: Sudoku): NumBoard => {
 }
 
 /** 从完整解挖掉 blanks 个 */
-const digHoles = (solution: NumBoard, blanks: number): NumBoard => {
+const digHoles = (solution: NumBoard, blanks: number,rng:Rng): NumBoard => {
     const puzzle = solution.map(row => [...row])
     const S=solution.length
     const indices = Array.from({ length: S * S }, (_, i) => i)
-    shuffle<number>(indices)
+    shuffle<number>(indices,rng)
 
     const toRemove = Math.min(Math.max(blanks, 0), S * S - 1)
     for (let i = 0; i < toRemove; i++) {
@@ -189,9 +190,9 @@ const digHoles = (solution: NumBoard, blanks: number): NumBoard => {
 }
 
 /** 对外唯一入口 */
-export const generatePuzzle = (boxSize: number, blanks: number): PuzzleData => {
+export const generatePuzzle = (boxSize: number, blanks: number,rng:Rng): PuzzleData => {
     const sudoku = getSudoku(boxSize)
-    const solution = solve(sudoku)
-    const puzzle = digHoles(solution, blanks)
+    const solution = solve(sudoku,rng)
+    const puzzle = digHoles(solution, blanks,rng)
     return { puzzle, solution }
 }

@@ -4,5 +4,3 @@ export const PAGE = {
     Create:'create',
     Home:'home',
 } as const
-
-export type Page = typeof PAGE[keyof typeof PAGE]

@@ -1,7 +1,8 @@
 import type { NumBoard, Position, ConflictMask, Board, Cell } from "@/types/board";
-import { makeGrid } from "../grid";
-import { makeCell } from "./transform";
+import { makeGrid } from "../array";
+import { makeCell } from "../board/model";
 import { sideOf } from "./shape";
+import type { Sudoku } from "@/types/sudoku";
 
 /**检查一组格子中有无冲突*/
 const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
@@ -26,7 +27,7 @@ const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
 }
 
 /**Sudoku工厂函数*/
-export const createSudoku = (boxSize: number) => {
+export const createSudoku = (boxSize: number) :Sudoku=> {
     const B = boxSize
     const S = sideOf(B)
 
@@ -66,7 +67,7 @@ export const createSudoku = (boxSize: number) => {
     }
 
     /**检查该格子所在行列宫格，寻找该格子的可以填入的数字*/
-    const candidates = (grid: NumBoard, [r, c]: Position): number[] => {
+    const getCandidates = (grid: NumBoard, [r, c]: Position): number[] => {
         if (grid[r][c] !== 0) return []
 
         // 用一个标记数组记录哪些数字已用（比 Set 快，零哈希开销）
@@ -94,9 +95,14 @@ export const createSudoku = (boxSize: number) => {
         return res
     }
 
+    /**生成一个全0的空Board*/
+    const makeEmptyBoard = (): Board => makeGrid<Cell>(S, () => makeCell(0, false))
+
+    const makeEmptyMask=():ConflictMask=>makeGrid<boolean>(S,()=>false)
+
     /**找出所有冲突格*/
     const findConflicts = (grid: NumBoard): ConflictMask => {
-        const mask: ConflictMask = makeGrid(S, () => false)
+        const mask: ConflictMask = makeEmptyMask()
         for (const group of allGroups()) {
             for (const [r, c] of findGroupConflicts(grid, group)) {
                 mask[r][c] = true
@@ -134,18 +140,25 @@ export const createSudoku = (boxSize: number) => {
         return true
     }
 
-    /**生成一个全0的空Board*/
-    const emptyBoard = (): Board => makeGrid<Cell>(S, () => makeCell(0, false))
+    
 
     return {
         S, B,
-        candidates,
+        getCandidates,
         isSolved, findConflicts,hasConflict,
         validatePuzzle,
-        emptyBoard
+        makeEmptyBoard,makeEmptyMask
     }
 }
 
-export type Sudoku = ReturnType<typeof createSudoku>
+/** 按 boxSize 缓存的 Sudoku 实例 */
+const cache = new Map<number, Sudoku>()
 
+export const getSudoku = (boxSize: number): Sudoku => {
+    const cached = cache.get(boxSize)
+    if (cached) return cached
 
+    const created = createSudoku(boxSize)
+    cache.set(boxSize, created)
+    return created
+}

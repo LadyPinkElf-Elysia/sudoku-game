@@ -4,15 +4,15 @@ import SpinnerIcon from '@/components/SpinnerIcon.vue';
 import ActionItems from '@/components/ActionItems.vue';
 import { PAGE } from '@/constants/pages';
 import { BLANK_RATIO, BOX_SIZE_OPTIONS } from '@/constants/game';
-import { useStartGame } from '@/composables/useStartGame';
+import { useStartGame } from '@/composables/game/useDifficultyFlow';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import type { ActionDef } from '@/types/action';
+import type { Actions } from '@/types/item';
 
 const router = useRouter()
 const { draft, loading, error, totalCells, blankCount, apply } = useStartGame()
 
-const actions = computed<ActionDef[]>(() => [
+const actions = computed<Actions>(() => [
     { key: 'home', icon: '🏠', message: '主页', onClick: () => router.push({ name: PAGE.Home }) },
     { key: 'start', icon: '▶', message: '开始游戏', disabled: loading.value, onClick: apply },
 ])

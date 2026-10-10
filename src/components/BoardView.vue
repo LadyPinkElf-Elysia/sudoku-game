@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { BOARD_ZOOM } from '@/constants/board'
-import { useBoardCanvas } from '@/composables/useBoardCanvas'
+import { useBoardCanvas } from '@/composables/board/useBoardCanvas'
 import type { Board, ConflictMask, Position } from '@/types/board'
 
 const props = withDefaults(

@@ -3,9 +3,9 @@ import { useRouter } from 'vue-router'
 import { GAME_INIT_CONFIG } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { useGameStore } from '@/stores/game'
-import { blankCountOf, cellCountOf } from '@/utils/sudoku/shape'
-import { generateInWorker } from '@/utils/sudoku/workerClient'
 import type { GameConfig } from '@/types/game'
+import { cellCountOf, blankCountOf } from '@/core/sudoku/shape'
+import { generateInWorker } from '@/services/sudoku/workerClient'
 
 /** 难度页：配置草稿 → 后台生成题目 → 开局并跳转；每页一份 */
 export const useStartGame = () => {

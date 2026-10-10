@@ -1,5 +1,5 @@
 import { BOARD_ZOOM } from "@/constants/board"
-import { clampZoom, zoomInOf, zoomOutOf, canZoomInFrom, canZoomOutFrom } from "@/utils/zoom"
+import { canZoomInFrom, canZoomOutFrom, clampZoom, zoomInOf, zoomOutOf } from "@/core/board/zoom"
 import { ref, computed } from "vue"
 
 export const useZoom = (initial: number = BOARD_ZOOM.default) => {
@@ -11,3 +11,5 @@ export const useZoom = (initial: number = BOARD_ZOOM.default) => {
     const canZoomOut = computed(() => canZoomOutFrom(zoom.value))
     return { zoom, zoomIn, zoomOut, resetZoom, canZoomIn, canZoomOut }
 }
+
+

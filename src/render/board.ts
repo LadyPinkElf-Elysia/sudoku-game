@@ -1,7 +1,8 @@
-import type { RenderParams } from "@/types/canvas"
-import { BOARD_COLOR, BOARD_FONT, BOARD_LINE, BOARD_SIZE } from "@/constants/board"
+import { BOARD_COLOR, BOARD_FONT, BOARD_LINE } from "@/constants/board"
 import type { Position } from "@/types/board"
-import { boardSideOf, cellSizeOf, fontPxOf, offsetToCell } from "./metrics"
+import { boardSideOf, cellSizeOf, fontPxOf, offsetToCell } from "@/core/board/metrics"
+import type { BoardRenderInput } from "@/types/render"
+
 
 /** 初始化画布：清晰度、尺寸、坐标对齐；返回画笔、边长、每格边长 */
 const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
@@ -33,8 +34,8 @@ const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
     return { ctx, side, cellSize: cellSizeOf(side, size) }
 }
 
-export const renderBoard = (params: RenderParams): void => {
-    const { canvas, board, selected, conflictMask, boxSize, zoom = 1 } = params
+export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput): void => {
+    const { board, selected, conflictMask, boxSize, zoom = 1 } = params
     if (!board.length) return
 
     const size = board.length

@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import type { Actions } from '@/types/item.ts';
 import ActionItem from './ActionItem.vue';
-import { type ActionDef } from '@/types/action';
+
 defineProps<{
-    items: ActionDef[]
+    items: Actions
 }>()
 </script>
 

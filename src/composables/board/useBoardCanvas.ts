@@ -1,7 +1,7 @@
 import { onBeforeUnmount, onMounted, watchEffect, type Ref } from 'vue'
-import { getClickPos, renderBoard } from '@/utils/render/board'
 import type { Position } from '@/types/board'
-import type { RenderParams } from '@/types/canvas'
+import { renderBoard, getClickPos } from '@/render/board'
+import type { BoardRenderInput } from '@/types/render'
 
 /**
  * 棋盘画布：绑定 canvas、随入参重绘、容器尺寸变化重绘、点击换算成行列
@@ -9,7 +9,7 @@ import type { RenderParams } from '@/types/canvas'
  */
 export const useBoardCanvas = (
     canvasEl: Ref<HTMLCanvasElement | null>,
-    input: () => Omit<RenderParams, 'canvas'>,
+    input: () => BoardRenderInput,
     onCellClick?: (pos: Position) => void,
 ) => {
     /** 按当前入参重绘；缺省值由 renderBoard 兜底 */
@@ -19,7 +19,7 @@ export const useBoardCanvas = (
         const { board, boxSize, selected, conflictMask, zoom } = input()
         if (!canvas || !board.length) return
 
-        renderBoard({ canvas, board, boxSize, selected, conflictMask, zoom })
+        renderBoard(canvas,{board, boxSize, selected, conflictMask, zoom })
     }
 
     // canvas / 棋盘 / 选中 / 冲突 / zoom 任一变化自动重绘；随组件卸载自动停止

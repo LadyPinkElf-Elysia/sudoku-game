@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { type ActionDef } from "@/types/action";
+import type { Action } from '@/types/item';
 defineProps<{
-    item: ActionDef
+    item: Action
 }>()
 </script>
 

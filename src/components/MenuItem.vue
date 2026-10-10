@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { MenuDef } from '@/types/menu';
+import type { Menu } from '@/types/item.ts';
 defineProps<{
-    item:MenuDef
+    item:Menu
 }>()
 </script>
 

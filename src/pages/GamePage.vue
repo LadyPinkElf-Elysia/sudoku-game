@@ -6,12 +6,12 @@ import Overlay from '@/components/Overlay.vue';
 import HistoryBar from '@/components/HistoryBar.vue';
 import { PAGE } from '@/constants/pages';
 import { useGameStore } from '@/stores/game';
-import { useGameFlow } from '@/composables/useGameFlow';
-import { useZoom } from '@/composables/useZoom';
-import type { ActionDef } from '@/types/action';
-import type { RenderParams } from '@/types/canvas';
+import { useGameFlow } from '@/composables/game/useGameFlow';
+import { useZoom } from '@/composables/board/useZoom';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import type { Actions } from '@/types/item';
+import type { BoardRenderInput } from '@/types/render';
 
 const gameStore = useGameStore()
 const router = useRouter()
@@ -19,7 +19,7 @@ const { zoom, zoomIn, zoomOut, canZoomIn, canZoomOut } = useZoom()
 const { tip, hint, winOverlay, resultActions } = useGameFlow()
 
 /** 棋盘渲染入参：一个对象喂给 BoardView */
-const boardParams = computed<Omit<RenderParams, 'canvas'>>(() => ({
+const boardParams = computed<BoardRenderInput>(() => ({
     board: gameStore.board,
     boxSize: gameStore.sudoku.B,
     selected: gameStore.selected,
@@ -28,7 +28,7 @@ const boardParams = computed<Omit<RenderParams, 'canvas'>>(() => ({
     // interactive 省略 → 走 BoardView 的 withDefaults(true)
 }))
 
-const actions = computed<ActionDef[]>(() => [
+const actions = computed<Actions>(() => [
     { key: 'difficulty', icon: '◀', message: '返回', onClick: () => router.replace({ name: PAGE.Difficulty }) },
     { key: 'zoomOut', icon: '➖', message: '缩小', disabled: !canZoomOut.value, onClick: zoomOut },
     { key: 'zoomIn', icon: '➕', message: '放大', disabled: !canZoomIn.value, onClick: zoomIn },

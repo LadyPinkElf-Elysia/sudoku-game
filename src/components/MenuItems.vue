@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { MenuDef } from '@/types/menu';
+import type { Menus } from '@/types/item.ts';
 import MenuItem from './MenuItem.vue';
 
 defineProps<{
-    items:MenuDef[]
+    items:Menus
 }>()
 </script>
 

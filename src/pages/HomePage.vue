@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import MenuItems from '@/components/MenuItems.vue';
 import { PAGE } from '@/constants/pages';
-import type { MenuDef } from '@/types/menu';
+import type { Menus } from '@/types/item';
 
-const menuItems: MenuDef[] = [
+const menuItems: Menus = [
     { key: 'start', icon: '▶', message: '开始游戏', routeName: PAGE.Difficulty },
     { key: 'create', icon: '✏️', message: '出题', routeName: PAGE.Create },
 ]
