@@ -1,4 +1,4 @@
-# 架构约束 v1.4（数据 · 纯函数 · 组合式）
+# 架构约束 v1.6（数据 · 纯函数 · 组合式）
 
 > **硬约束**：`scripts/check-arch.mjs` 是 R1~R14 的可执行版本（R15 为评审规则）；`pnpm guard` 违规 exit 1，`pnpm build` 已串上它。
 > **改规矩的顺序**：先改这一页 → 再改守卫脚本的「规则参数」区 → 再改代码。
@@ -29,7 +29,7 @@
     router      → constants types stores
     types       → types 自身 + constants                ← 叶子
     constants   → （无）
-    functions   → core types constants                  ← 后端；只能相对路径，不能用 @/ 别名
+    functions   → core types constants                  ← 后端；只用相对路径 import core
 
 > `core` 零 vue / 零 DOM / 零随机 → **前后端共用同一套规则**（`functions/` 直接 import `core` 做服务端校验）。
 
@@ -41,18 +41,18 @@
 
 ### R2 依赖只按矩阵向下
 `core` 只许 `@/constants`、`@/types`、`@/core` 与相对路径；越层即报错。
+**`services/` 不许 import `router` / `stores`**（因此 401 只能由 store / composable 处理）。
 
 ### R3 core 纯度
 禁 `vue` / `pinia` / `vue-router`、`window` `document` `localStorage` `navigator`、`new Worker`、
 `Math.random` / `Date.now`、`console`。随机与时间**由调用方注入**（`shuffle(arr, rng)`、`generatePuzzle(boxSize, blanks, rng)`）。
 
 ### R4 数据层不写算法
-`stores/` 内禁 `for (` / `.forEach(` / `Math.`，禁 `vue-router`。
-只做：**取值 → 调 core 的纯函数 → 写回**。
+`stores/` 内禁 `for (` / `.forEach(` / `Math.`，禁 `vue-router`。只做：**取值 → 调 core 的纯函数 → 写回**。
 
 ### R5 展示层不碰状态
 `components/` 禁 `@/stores`（状态由页面传 props，交互往外 `emit`）。
-**布局也适用**：需要读 store 的"布局"放 `pages/`（如 `pages/AppLayout.vue`）。
+**布局也适用**：需要读 store 的"布局"放 `pages/`（`pages/AppLayout.vue`）。
 
 ### R6 页面只接线
 声明 ≤ 10；只许 `vue`、`vue-router`、`@/components`、`@/composables`、`@/stores`、`@/constants`、`@/types`。
@@ -77,8 +77,8 @@
 - 单文件私有类型 → 留在原文件（例：`generate.ts` 的 `Change`）
 - **一个形状只留一份接口**：需要「少一个字段」时不要 `extends` / `Omit` 再开名字，改成把该字段变成函数参数
 - **外部资源（canvas / DOM / Worker / 定时器）用参数传，不塞进数据对象**
-- **敏感字段不进前端类型**：`uid`（登录凭据）不出现在 `Puzzle` / `SearchResult` 里
-- `extends` 只用于「不同的东西共享公共字段」（`Action` / `Menu` extends `ItemBase`）
+- **敏感字段不进前端类型**：`uid`（登录凭据）不出现在题目相关类型里；列表不下发题面串
+- `extends` 只用于「不同的东西共享公共字段」（`Action` / `Menu` extends `ItemBase`；`MyPuzzleDetail` extends `PuzzleDetail`）
 - `constants/` 只放值（`as const` / `Record`）；推导类型改成手写契约（例：`Sudoku`）
 
 ### R11 core 必须可测
@@ -93,155 +93,4 @@ vitest 是 `environment: node` → **想被测就必须下沉成 core 纯函数*
 
 ### R14 有棋盘就必须能缩放
 `.vue` 里 import 了 `BoardView`，就必须出现 `useZoom(` 或使用 `BoardOverlay`。
-按钮统一来自 **`useZoom().zoomActions`**，页面 `...zoomActions.value` spread；不设默认缩放（默认 1）。
-列表项**不渲染棋盘**。
-
-### R15 状态归位（评审规则）
-**位置放路由，过程放 state；影响数据请求的放 query，纯 UI 偏好的放本地偏好。**
-- **子页面用子路由**：难度页 `system` / `custom`（`'' → redirect` 实现"不记忆"）
-- **带参数用路径参数**：`/p/:pid`（分享落地）、`/puzzle/:pid/edit`（编辑）
-- **影响数据请求 → query**：`/search?q=&sort=&page=`、`/my-puzzles?sort=&page=`、`/login?mode=&redirect=`
-- **纯 UI 偏好 → 本地偏好**（`services/prefs.ts`）：分页浏览形态 `pagerMode`（进度条 / 滑动条）
-- **保持 state**：流程阶段（出题的题面→答案）、弹层（预览 / 答案预览 / 参考答案 / 确认框）、游戏状态
-- **布局用父路由**：`AppLayout` 作为 `/` 的父路由，主内容由 `<RouterView/>` 渲；上层只放全站共用的东西（顶栏）
-
-## 四、规则 → 检查方式
-
-| 规则 | 检查方式 |
-|---|---|
-| R1 R2 R3 R4 R5 R6 R9 R13 R14 | 守卫红规则（违规 exit 1） |
-| R7 | 红（`Math.`）+ 评审（实例注入） |
-| R10 | 红（死类型 / `Omit`·`Pick` 派生）+ 评审（`extends` 用法、敏感字段） |
-| R11 | 黄（`--strict`） |
-| R8 R12 **R15** | 评审 |
-
-## 五、例外登记
-
-    E1 core/sudoku/rules.ts 的 getSudoku：模块级 Map 记忆化（对入参可观察等价于纯函数）
-    E2 render/board.ts 的 setupCanvas：读 devicePixelRatio / 写 canvas 尺寸（canvas 适配器）
-    E3 GameStore 类型放 stores/game.ts 而不是 types/（见 R13）
-    E4 预留类型登记在守卫 RESERVED_TYPES：Page / User / SearchResult / Puzzle
-       （6C 落地后它们会被真正使用，届时从 RESERVED_TYPES 里删掉登记）
-    E5 BoardOverlay 自持 useZoom：与页面主盘 zoom 作用域不同（不同 canvas），不算违反 R7
-
-## 六、归位原则
-
-    纯静态、无格式化        → constants（GAME_COPY.win · AUTH_COPY.needLogin · PUZZLE_VISIBILITY_COPY）
-    需要按入参拼装          → core 纯函数（hintTextOf）
-    纯展示、只在模板里出现  → 留在页面 / 组件模板
-    可复用的控件定义        → 随 composable 返回，由页面 spread（zoomActions）
-    位置 / 可分享的状态     → 路由与 query（R15）
-    纯 UI 偏好              → 本地偏好（services/prefs.ts）
-    过程 / 依赖内存的状态   → state（store 或组件内）
-    全站共用的界面          → 父路由布局（AppLayout），主内容在 <RouterView/>
-
-## 七、新代码骨架
-
-```ts
-// core/xxx.ts —— 纯函数层
-import type { Position } from '@/types/board'
-export const xxxOf = (a: number, b: number): number => Math.min(a, b)
-```
-
-```ts
-// stores/xxx.ts —— 取值 → 调 core → 写回（不 for / 不 Math / 不 router）
-export const useXxxStore = defineStore('xxx', () => {
-    // 状态 ref → 派生 computed（调 core 纯函数）→ Actions
-    return { /* 注释分组 */ }
-})
-```
-
-```ts
-// composables/<域>/useXxx.ts —— 需要别的组合式实例时用参数注入
-export const useXxx = (injected?: () => void) => {
-    // store → 本地 ref → 派生 computed → 动作 → 生命周期 → return
-}
-```
-
-```vue
-<!-- pages/AppLayout.vue —— 全站顶栏 + 主内容出口（读 store，所以在 pages/） -->
-<template>
-    <div class="app-shell">
-        <header class="app-header">…数独（回主页）· 我的题目 · 用户名/登录/退出…</header>
-        <p v-if="tip" class="app-tip">{{ tip }}</p>
-        <main class="app-main"><RouterView /></main>
-    </div>
-</template>
-```
-
-```vue
-<!-- pages/DifficultyPage.vue —— 壳：子导航 + 主内容出口 -->
-<template>
-    <div class="page-card">
-        <nav class="sub-nav">…RouterLink → DifficultySystem / DifficultyCustom…</nav>
-        <main class="sub-main"><RouterView /></main>
-    </div>
-</template>
-```
-
-```ts
-// 页面：缩放按钮（R14）+ 渲染入参
-const { zoom, zoomActions } = useZoom()
-const actions = computed<Actions>(() => [ { key: 'back', … }, ...zoomActions.value ])
-const boardParams = computed<BoardRenderInput>(() => ({ board, boxSize, zoom: zoom.value }))
-```
-
-```vue
-<!-- 遮罩：只读、不动任何游戏状态 -->
-<BoardOverlay :show="!!preview" :board="previewBoard" :box-size="previewBoxSize"
-              title="参考答案" close-text="回到挑战" @close="preview = null" />
-```
-
-## 八、types/ 索引
-
-| 文件 | 导出 | 使用方 |
-|---|---|---|
-| board.ts | `Cell` `Board` `NumBoard` `ConflictMask` `Snapshot` `Position` | core / stores / render / composables / components |
-| render.ts | `BoardRenderInput` | BoardView props、页面 boardParams、useBoardCanvas、renderBoard(canvas, input) |
-| sudoku.ts | `Sudoku`（手写契约） | core/sudoku/rules 实现；generate、stores/game 使用 |
-| rng.ts | `Rng` | core/array.shuffle、core/sudoku/generate、services/sudoku/worker |
-| game.ts | `GameConfig` `GameStatus` `GameMode` `CreatePhase` | stores/game、core/game/derive、useCreateFlow、useDifficultyFlow |
-| item.ts | `ItemBase` `Action` `Actions` `Menu` `Menus`（🔸 `Menu.disabled`） | ActionItem(s) / MenuItem(s)、各页面、useGameFlow |
-| puzzle.ts | `Puzzle` `SearchResult`（**不含 uid**）`PuzzleData`（🔸 `Visibility` / `sideS` / `showSolution` / `playCount` / `createdAt` / `key`） | core/sudoku/generate、services/sudoku/workerClient、services/api |
-| worker.ts | `GenerateRequest` `GenerateResponse` | services/sudoku/worker 与 workerClient |
-| page.ts | `Page`（路由名类型） | router / AppLayout |
-| user.ts | `User`（含自己的 `uid`）（🔸 `RegisterPayload` `LoginPayload` `AuthResponse`） | stores/user、services/api |
-
-## 九、目录速览（✅ 现有 · ⛔ 规划）
-
-    src/
-      core/                 array · board/{model,ops,metrics,zoom} · sudoku/{shape,rules,generate,parse} · game/derive
-      render/board.ts       renderBoard(canvas, input) · getClickPos(canvas, e, size)
-      services/             sudoku/{worker,workerClient} · ⛔ prefs.ts（本地偏好）· ⛔ api/{client,session,userApi,puzzleApi}
-      stores/game.ts        ⛔ stores/{user,puzzle}.ts
-      composables/          board/{useBoardCanvas,useZoom} · game/{useGameFlow,useCreateFlow,useDifficultyFlow}
-                            ⛔ auth/useAuth · ⛔ puzzle/{useSearchPuzzle,useMyPuzzles,usePuzzlePreview}
-                            ⛔ game/{useCustomFlow,useEditFlow}
-      components/           ActionItem(s) · MenuItem(s) · BoardView · NumberPad · HistoryBar/Step · Overlay · SpinnerIcon
-                            ⛔ BoardOverlay · PuzzleCard · SecretField · PagerBar
-      pages/                AppLayout ⛔ · HomePage · DifficultyPage（壳）· GamePage · CreatePage
-                            difficulty/{SystemPage,CustomPage} ⛔
-                            ⛔ LoginPage · SearchPage · MyPuzzlesPage · PuzzleViewPage · EditPuzzlePage
-      constants/            board · game · pages          ⛔ user（AUTH_COPY / UID_PATTERN）· puzzle（可见性 / 文案）
-      types/                见 §八
-      styles/ router/
-
-    仓库顶层：functions/api/* · schema.sql · wrangler.toml（⛔ 6B 起）
-
-## 十、用法
-
-    pnpm guard / pnpm guard --strict / pnpm typecheck / pnpm test / pnpm format / pnpm build
-
-    后端本地联调（6B 起）：
-    pnpm add -D wrangler && pnpm wrangler d1 create sudoku-db
-    pnpm wrangler pages dev dist --d1 DB=sudoku-db --port 8788   # 后端 + 本地 D1
-    pnpm dev                                                     # 前端（/api 代理到 8788）
-
-## 十一、变更记录
-
-- v1：R1~R13
-- v1.1：＋R14（有棋盘必须有缩放）；矩阵补 `router`；＋E5；types 索引更新
-- v1.2：矩阵补 `functions`；R7 补「控件随 composable 返回」；R14 明确不设默认缩放
-- v1.3：＋R15（路由/状态归位）；R5 明确"读 store 的布局放 pages/"；骨架补 `AppLayout` 与子路由壳
-- v1.4：R10 补「敏感字段（uid）不进前端类型」；R15 补「影响数据请求→query / 纯 UI 偏好→本地偏好」；
-  目录速览补 `prefs.ts` / `api/session.ts` / `PagerBar` / `PuzzleViewPage` / `EditPuzzlePage`
+按钮统一来自 **`useZoom
