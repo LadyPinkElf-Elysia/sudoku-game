@@ -1,51 +1,48 @@
 <script setup lang="ts">
-import ActionItems from '@/components/ActionItems.vue';
-import BoardView from '@/components/BoardView.vue';
-import NumberPad from '@/components/NumberPad.vue';
-import Overlay from '@/components/Overlay.vue';
-import HistoryBar from '@/components/HistoryBar.vue';
-import { PAGE } from '@/constants/pages';
-import { useGameStore } from '@/stores/game';
-import { useGameFlow } from '@/composables/game/useGameFlow';
-import { useZoom } from '@/composables/board/useZoom';
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
-import type { Actions } from '@/types/item';
-import type { BoardRenderInput } from '@/types/render';
+import { computed } from 'vue'
+import ActionItems from '@/components/ActionItems.vue'
+import BoardOverlay from '@/components/BoardOverlay.vue'
+import BoardView from '@/components/BoardView.vue'
+import HistoryBar from '@/components/HistoryBar.vue'
+import NumberPad from '@/components/NumberPad.vue'
+import Overlay from '@/components/Overlay.vue'
+import { useGameStore } from '@/stores/game'
+import { useZoom } from '@/composables/board/useZoom'
+import { useGameFlow } from '@/composables/game/useGameFlow'
+import type { Actions } from '@/types/item'
+import type { BoardRenderInput } from '@/types/render'
 
 const gameStore = useGameStore()
-const router = useRouter()
-const { zoom, zoomIn, zoomOut, canZoomIn, canZoomOut } = useZoom()
-const { tip, hint, winOverlay, resultActions } = useGameFlow()
+const { zoom, zoomActions } = useZoom()
+const { tip, answerOpen, answerInput, leadActions, trailActions, resultActions, winOverlay } = useGameFlow()
 
-/** 棋盘渲染入参：一个对象喂给 BoardView */
+/** 操作条：左段（返回/重开）＋ 缩放 ＋ 右段（提示/参考答案/DEV 作弊） */
+const items = computed<Actions>(() => [...leadActions.value, ...zoomActions.value, ...trailActions.value])
+
+/** 游玩盘：可玩（接 cell-click），只传 board/boxSize/selected/conflictMask/zoom */
 const boardParams = computed<BoardRenderInput>(() => ({
     board: gameStore.board,
     boxSize: gameStore.sudoku.B,
     selected: gameStore.selected,
     conflictMask: gameStore.conflictMask,
     zoom: zoom.value,
-    // interactive 省略 → 走 BoardView 的 withDefaults(true)
 }))
-
-const actions = computed<Actions>(() => [
-    { key: 'difficulty', icon: '◀', message: '返回', onClick: () => router.replace({ name: PAGE.Difficulty }) },
-    { key: 'zoomOut', icon: '➖', message: '缩小', disabled: !canZoomOut.value, onClick: zoomOut },
-    { key: 'zoomIn', icon: '➕', message: '放大', disabled: !canZoomIn.value, onClick: zoomIn },
-    { key: 'hint', icon: '💡', message: '提示', onClick: hint },
-    ...(import.meta.env.DEV ? [{ key: 'answer', icon: '⚡', message: '作弊', onClick: gameStore.cheat }] : []),
-])
 </script>
-
 
 <template>
     <div class="page-card wide">
-        <ActionItems :items="actions">
+        <ActionItems :items="items">
             <template v-if="tip" #tip>{{ tip }}</template>
         </ActionItems>
-        <BoardView v-bind="boardParams" @cell-click="gameStore.select"></BoardView>
-        <HistoryBar :count="gameStore.snapshots.length" :current="gameStore.currentStep" @select="gameStore.jump"/>
-        <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.sudoku.B" @pick="gameStore.inputNum"></NumberPad>
+
+        <BoardView v-bind="boardParams" @cell-click="gameStore.select" />
+
+        <HistoryBar :count="gameStore.snapshots.length" :current="gameStore.currentStep" @select="gameStore.jump" />
+        <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.sudoku.B" @pick="gameStore.inputNum" />
+
+        <!-- 参考答案：另一块只读棋盘，关掉后进度原样保留（不碰 store） -->
+        <BoardOverlay :show="answerOpen" :input="answerInput" title="参考答案" close-text="回到挑战"
+            @close="answerOpen = false" />
 
         <Overlay :show="!!winOverlay">
             <p class="overlay-title">{{ winOverlay?.title }}</p>
@@ -64,7 +61,7 @@ const actions = computed<Actions>(() => [
 
 .overlay-desc {
     margin: 8px 0 0;
-    font-size: 0.85rem;
+    font-size: .85rem;
     color: #6b7280;
 }
 </style>

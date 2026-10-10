@@ -1,5 +1,6 @@
 import { GAME_INIT_CONFIG, GAME_MODE, GAME_STATUS } from '@/constants/game'
-import { applySolution, cloneBoard, fromPuzzle, lockGiven, toNum } from '@/core/board/model'
+import { toNum, fromPuzzle } from '@/core/board/model'
+import { cloneBoard, lockGiven, applySolution } from '@/core/board/ops'
 import { statusOf } from '@/core/game/derive'
 import { getSudoku } from '@/core/sudoku/rules'
 import type { Board, Cell, ConflictMask, NumBoard, Position, Snapshot } from '@/types/board'

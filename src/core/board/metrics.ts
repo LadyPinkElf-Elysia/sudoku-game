@@ -1,5 +1,5 @@
-import { BOARD_SIZE } from '@/constants/board'
-import type { Position } from '@/types/board'
+import { BOARD_SIZE } from '../../constants/board'
+import type { Position } from '../../types/board'
 
 /** 容器内容宽 + 缩放 → 棋盘 CSS 边长（像素） */
 export const boardSideOf = (contentWidth: number, zoom: number): number => {

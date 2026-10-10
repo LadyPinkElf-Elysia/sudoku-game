@@ -4,13 +4,13 @@ import SpinnerIcon from '@/components/SpinnerIcon.vue';
 import ActionItems from '@/components/ActionItems.vue';
 import { PAGE } from '@/constants/pages';
 import { BLANK_RATIO, BOX_SIZE_OPTIONS } from '@/constants/game';
-import { useStartGame } from '@/composables/game/useDifficultyFlow';
+import { useDifficultyFlow } from '@/composables/game/useDifficultyFlow';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Actions } from '@/types/item';
 
 const router = useRouter()
-const { draft, loading, error, totalCells, blankCount, apply } = useStartGame()
+const { draft, loading, error, totalCells, blankCount,blankPercent, apply } = useDifficultyFlow()
 
 const actions = computed<Actions>(() => [
     { key: 'home', icon: '🏠', message: '主页', onClick: () => router.push({ name: PAGE.Home }) },
@@ -32,7 +32,7 @@ const actions = computed<Actions>(() => [
         </div>
 
         <div class="field">
-            <label class="label">挖空比例:{{ Math.round(draft.blankRatio * 100) }}%</label>
+            <label class="label">挖空比例:{{ blankPercent }}%</label>
             <input class="range" type="range" :min="BLANK_RATIO.min" :max="BLANK_RATIO.max" :step="BLANK_RATIO.step"
                 v-model.number="draft.blankRatio">
             <p class="hint">共 {{ totalCells }} 格，挖空 {{ blankCount }} 格</p>

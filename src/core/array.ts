@@ -1,4 +1,4 @@
-import type { Rng } from "@/types/rng";
+import type { Rng } from "../types/rng";
 
 export const shuffle=<T>(arr:T[],rng:Rng):void=>{
     for(let i=arr.length-1;i>0;i--){

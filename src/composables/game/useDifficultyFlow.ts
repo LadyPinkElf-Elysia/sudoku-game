@@ -6,9 +6,10 @@ import { useGameStore } from '@/stores/game'
 import type { GameConfig } from '@/types/game'
 import { cellCountOf, blankCountOf } from '@/core/sudoku/shape'
 import { generateInWorker } from '@/services/sudoku/workerClient'
+import { percentOf } from '@/core/game/derive'
 
 /** 难度页：配置草稿 → 后台生成题目 → 开局并跳转；每页一份 */
-export const useStartGame = () => {
+export const useDifficultyFlow = () => {
     const gameStore = useGameStore()
     const router = useRouter()
 
@@ -18,7 +19,7 @@ export const useStartGame = () => {
 
     const totalCells = computed(() => cellCountOf(draft.value.boxSize))
     const blankCount = computed(() => blankCountOf(draft.value.boxSize, draft.value.blankRatio))
-
+    const blankPercent = computed<number>(() => percentOf(draft.value.blankRatio))
     /** 生成并开局 */
     const apply = async (): Promise<void> => {
         if (loading.value) return
@@ -36,5 +37,5 @@ export const useStartGame = () => {
         }
     }
 
-    return { draft, loading, error, totalCells, blankCount, apply }
+    return { draft, loading, error, totalCells, blankCount,blankPercent, apply }
 }

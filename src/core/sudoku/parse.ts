@@ -1,5 +1,6 @@
-import type { NumBoard } from "@/types/board";
+import type { NumBoard } from "../../types/board";
 import { chunk } from "../array";
+import { boxSizeOf } from "./shape";
 
 const parseNumArray = (str: string): number[] | null => {
     const tokens = str.trim().split(/[\s,，]+/).filter(Boolean)
@@ -30,3 +31,11 @@ export const parseNumBoard = (str: string): NumBoard | null => {
 
 /**根据NumBoard转化为字符串 */
 export const boardToStr = (board: NumBoard): string => board.flat().join(' ')
+
+/** 题面/答案串 → { 盘面, 宫边长 }；格式不合法返回 null */
+export const parsePuzzle = (str: string): { board: NumBoard; boxSize: number } | null => {
+    const board = parseNumBoard(str)
+    if (!board) return null
+    const boxSize = boxSizeOf(board.length)
+    return boxSize === null ? null : { board, boxSize }
+}

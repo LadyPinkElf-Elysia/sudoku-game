@@ -1,8 +1,8 @@
-import type { NumBoard, Position, ConflictMask, Board, Cell } from "@/types/board";
+import type { NumBoard, Position, ConflictMask, Board, Cell } from "../../types/board";
 import { makeGrid } from "../array";
 import { makeCell } from "../board/model";
 import { sideOf } from "./shape";
-import type { Sudoku } from "@/types/sudoku";
+import type { Sudoku } from "../../types/sudoku";
 
 /**检查一组格子中有无冲突*/
 const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
@@ -27,7 +27,7 @@ const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
 }
 
 /**Sudoku工厂函数*/
-export const createSudoku = (boxSize: number) :Sudoku=> {
+export const createSudoku = (boxSize: number): Sudoku => {
     const B = boxSize
     const S = sideOf(B)
 
@@ -98,7 +98,7 @@ export const createSudoku = (boxSize: number) :Sudoku=> {
     /**生成一个全0的空Board*/
     const makeEmptyBoard = (): Board => makeGrid<Cell>(S, () => makeCell(0, false))
 
-    const makeEmptyMask=():ConflictMask=>makeGrid<boolean>(S,()=>false)
+    const makeEmptyMask = (): ConflictMask => makeGrid<boolean>(S, () => false)
 
     /**找出所有冲突格*/
     const findConflicts = (grid: NumBoard): ConflictMask => {
@@ -132,22 +132,27 @@ export const createSudoku = (boxSize: number) :Sudoku=> {
             row.every((v, c) => v === 0 || v === solution[r][c])
         )
 
+    /** 两个盘面是否同形（行列都相同）—— 防 validatePuzzle 对不规则输入取越界下标 */
+    const sameShape = (a: NumBoard, b: NumBoard): boolean =>
+        a.length === b.length && a.every((row, r) => row.length === b[r].length)
+
     /**检验出题的题目和答案*/
     const validatePuzzle = (puzzle: NumBoard, solution: NumBoard): boolean => {
+        if (!sameShape(puzzle, solution)) return false
         if (hasConflict(puzzle)) return false
         if (!isSubset(puzzle, solution)) return false
         if (!isSolved(solution)) return false
         return true
     }
 
-    
+
 
     return {
         S, B,
         getCandidates,
-        isSolved, findConflicts,hasConflict,
+        isSolved, findConflicts, hasConflict,
         validatePuzzle,
-        makeEmptyBoard,makeEmptyMask
+        makeEmptyBoard, makeEmptyMask
     }
 }
 

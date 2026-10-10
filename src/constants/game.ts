@@ -15,6 +15,12 @@ export const GAME_MODE = {
     Create: 'create',
 } as const
 
+/** 逻辑驱动的静态文案（纯静态、无格式化 → 放数据层） */
+export const GAME_COPY = {
+    win: { title: '🎉 恭喜完成', desc: '全部填对，太厉害了' },
+} as const
+
+
 /** 出题页阶段 */
 export const CREATE_PHASE = {
     Puzzle: 'puzzle',

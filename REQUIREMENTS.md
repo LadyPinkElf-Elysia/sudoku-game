@@ -62,9 +62,9 @@
 | `PAGE.MyPuzzles` | `/my-puzzles` | MyPuzzlesPage | requiresAuth + `?sort=time\|hot&page=` |
 | `PAGE.Login` | `/login` | LoginPage | `?mode=sign-in\|sign-up&redirect=` |
 
-**路由/状态约定（R15）**：位置放路由、过程放 state、影响数据请求的放 query、纯 UI 偏好的放本地偏好；
+**约定（R15）**：位置放路由、过程放 state、影响数据请求的放 query、纯 UI 偏好的放本地偏好；
 `{ name: PAGE.Difficulty }` 经 `''` 子路由 redirect 落到**系统生成**；
-换排序/关键词 → `page` 重置 1；`page` 越界 → 收敛到最后一页；`pageCount ≤ 1` → 隐藏分页条；
+换排序/关键词 → `page` 重置 1；`page` 越界 → 收敛最后一页；`pageCount ≤ 1` → 隐藏分页条；
 **返回来源靠历史**（`router.back()`，无历史兜底 `/difficulty`）。
 
 ## 3. 功能需求
@@ -80,6 +80,7 @@
 
 ### FR-3 难度页 · 系统生成 ✅
 - 参数：B（3/4/5/6）、挖空比例 0.4~0.7；显示「共 N 格，挖空 M 格」。
+  （百分比**由 composable 用 core 的 `percentOf` 算好**暴露给页面 —— 页面禁 `Math.`）
 - Worker 生成（20s 超时）+ loading 遮罩；失败中文错误、可重试、`loading` 必须复位。
 - 成功：`startGame(puzzle, solution, { boxSize, blankRatio })` → `/game`。参考答案按钮：有（本地答案）。
 
@@ -107,7 +108,7 @@
 
 - 列表接口只回 `pid · title · sideS · blankCount`（**不带题面串**）。
 - 「题目预览」与「挑战」都走详情接口 `GET /api/puzzles/:pid`。
-- 排序：**时间优先 / 热度优先**（并列时按 `createdAt DESC`）；分页 **10/页**；
+- 排序：**时间优先 / 热度优先**（并列按 `createdAt DESC`）；分页 **10/页**；
   浏览形态（进度条 / 滑动条）存**本地偏好**（`services/prefs.ts`）。
 - 列表项：`标题 · S×S · 挖空 N 格 · 题目预览 · 挑战`（**不显示出题人、状态、pid、答案**）。
 - 三态：加载中 / 空结果（「没有找到题目」）/ 错误（可重试）。
@@ -176,8 +177,8 @@
 - 规则：uname 2~16 位（可中文可英文，**可重名**，仅显示名）；**密码 ≥8 位**；
   `UID_PATTERN = /^[A-Za-z0-9]{20}$/`（**大小写敏感**）；粘贴用输入框的 `@paste` 事件。
 - **登录限流（只按 uid）**：同一 uid 连续失败 **5 次锁定 10 分钟**；失败文案统一「账号 ID 或密码错误」。
-  （IP 维度限流 v1 不做，见非目标）
-- 密码 `PBKDF2-SHA256` + 每用户随机盐，**迭代 10000**（Workers CPU 限额）；会话 token 存 D1，**7 天**，`Authorization: Bearer`。
+- 密码 `PBKDF2-SHA256` + 每用户随机盐，**迭代 10000**（Workers CPU 限额）；会话 token 存 D1，**7 天**，
+  `Authorization: Bearer`。
 - 刷新静默恢复（`GET /api/me`）；**401 由 store / composable 处理**（`services/api/client.ts` 只抛错，不碰 router）。
 - **uid 敏感**：只在注册卡片与「我的账号」弹层出现；**uid 丢失且无本地保存 = 无法登录**（v1 不找回）。
 
@@ -221,7 +222,7 @@
 |---|---|---|
 | 字符串↔盘面 / S↔B / 挖空数与比例 | 纯函数 | `core/sudoku/{parse,shape}.ts` · `core/board/ops.ts` |
 | 题面/答案校验（含同尺寸） | 纯函数 | `core/sudoku/rules.ts` |
-| 盘面构造 / 缩放换算 | 纯函数 | `core/board/{model,ops,zoom}.ts` |
+| 盘面构造 / 缩放换算 / 百分比 | 纯函数 | `core/board/{model,ops,zoom}.ts` · `core/game/derive.ts` |
 | HTTP / token / 本地偏好 | 服务适配器 | `services/api/*` · `services/prefs.ts` |
 | 登录态 / 题目列表 | 数据层 | `stores/{user,puzzle}.ts` |
 | 流程编排（router / loading / 错误 / 401） | 组合式层 | `composables/{auth,puzzle,game}/*` |
@@ -296,4 +297,121 @@ CREATE TABLE puzzle_play (
 | 大盘（B=6）生成慢 | Worker + loading；玩家用缩放按钮放大 |
 | 搜索无结果 / 接口失败 | 「没有找到题目」/「加载失败，点击重试」 |
 | `page` 越界 / `pageCount ≤ 1` | 收敛到最后一页 / 隐藏分页条 |
-| `private` 被非作者访问 | 「题目
+| `private` 被非作者访问 | 「题目不存在或不可访问」 |
+| 挑战他人题且未开参考答案 | 无该按钮；胜利判定走规则 |
+| 连续登录失败 5 次 | 锁定 10 分钟；文案统一「账号 ID 或密码错误」 |
+| token 过期 / 未登录 | 401 → 清 token；灰显入口提示；直入受保护页跳登录并回跳 |
+| `?redirect=` 是外站地址 | 忽略，回主页 |
+| uid 丢失 | 无法登录（登录页提示「只存在你本地，请妥善保管」） |
+| 手输地址无棋局进 `/game` | 回 `/difficulty`（系统生成） |
+| 挑战中刷新 | 棋局丢失回难度页（v1 已知限制） |
+| 重名作者 | 无法区分（v1 已知限制，不做作者主页） |
+
+## 9. 验收用例
+
+| # | 操作 | 期望 |
+|---|---|---|
+| 1 | 任意页面看顶栏 | 都有「数独 / 我的题目 / 登录」 |
+| 2 | 游客点「我的题目」 | 提示「该功能需要登录才可以使用」，不跳转；路由变化后消失 |
+| 3 | 注册 | 看到「账号 ID」卡片，复制成功；本地保存 lastUid |
+| 4 | 重进登录页 | 账号 ID 已预填；只输密码即可登录 |
+| 5 | 换设备粘贴 uid 登录 | 成功；顶栏弹层可查看并复制自己的 uid |
+| 6 | 搜索结果 | 看不到任何 uid；列表项只有 标题/S×S/挖空/预览/挑战 |
+| 7 | 出题（标题 + 两阶段 + 挖空 45%） | 转圈后「出题完成」；`/my-puzzles` 立即可见（默认公开） |
+| 8 | 出题时挖空 10% | 提示「挖空比例需在 40%~70% 之间」，不入库 |
+| 9 | 自定义勾选「提交到我的题目」 | 展开标题输入框（必填）；提交后我的题目可见（默认私有）并提示「已保存」 |
+| 10 | 我的题目点「显示/复制/答案预览/编辑/挑战」 | 都只调一次 `mine/:rowId`；**复制 pid 不显示在界面** |
+| 11 | 我的题目：重命名 / 三态 / 参考答案开关 / 排序 / 浏览方式 | 全部生效；排序与页码进 URL，浏览方式下次仍保留 |
+| 12 | 我的题目：编辑（改题面 → 重填答案） | 校验失败有提示；成功后列表与预览同步；创建时间不变 |
+| 13 | 我的题目：删除 | 二次确认后消失（`puzzle_play` 一并清理）；列表刷新 |
+| 14 | 挑战中点参考答案（对方开启） | 遮罩只读答案；「回到挑战」关闭；**已填内容不变** |
+| 15 | 游戏页点「重开」/「返回」 | 回到初始题面 / 回到来源页（无历史则回难度页） |
+| 16 | 搜索：空 / 关键词 / 20 位 pid / 20 位 uid | 四种分流正确；pid 命中跳 `/p/:pid` |
+| 17 | 分享 `/p/:pid` 给未登录的人 | 能看到信息与只读棋盘；可挑战 |
+| 18 | 热度：同账号 1 小时内挑战两次 / 作者挑战自己的题 / 游客挑战 | 分别：只 +1 / 不计 / 不计 |
+| 19 | 连续输错密码 5 次 | 第 6 次被锁定 10 分钟 |
+| 20 | 切换排序/关键词 / 输 `?page=999` | page 自动回 1 / 收敛到最后一页 |
+| 21 | `/difficulty/custom` 直达 / 后退 / 「再来一局」类入口 | 都正常；`{ name: PAGE.Difficulty }` 落系统生成 |
+| 22 | 任意棋盘（B=6） | 缩放可用、到界变灰；不预设缩放 |
+| 23 | 在 `/create` 退出登录 | 跳 `/home`；再点「出题」被守卫送登录 |
+| 24 | `pnpm guard --strict && pnpm typecheck && pnpm typecheck:functions && pnpm test` | 全绿 |
+
+## 10. 非目标（v1）
+
+计时 / 排行 / 难度评级 / 多解检测 / 收藏 / 评论 / 离线缓存 / **uid 找回** / 改密码 / 改显示名 /
+作者主页 / 单点登录与踢下线 / 账号自助解锁 / **IP 维度限流** / 用户注销 / `/game` 刷新恢复 /
+i18n / 深色模式 / 完整 a11y。
+
+## 11. 决策记录
+
+| # | 决策 |
+|---|---|
+| 1 | 游客 = 游玩 + 搜索挑战 + 自定义 + 参考答案；注册 = + 出题 + 我的题目管理 |
+| 2 | 受限入口**灰显 + 点击提示**；顶栏**全站可见**（`AppLayout` 父路由） |
+| 3 | 后端 CF Functions + D1；PBKDF2；token 7 天；**uid 与 pid 同规则**（20 位 base62 / 唯一 / 服务端生成） |
+| 4 | **登录 = uid + 密码**；uname 仅显示名、**可重名**；注册成功必须展示并复制 uid；本地保存 lastUid |
+| 5 | **uid 敏感**：不出现在搜索结果、题目列表与出题人信息里（前端题目类型不含 uid） |
+| 6 | 可见性三态：`public`（默认，出题）/ `protected`（pid 可达）/ `private`（仅作者，404） |
+| 7 | 自定义提交默认 `private`；参考答案 `show_solution` 默认关 |
+| 8 | **入库必须 40%~70% 挖空**（出题/编辑/自定义提交）；纯自定义游玩不校验；整数比较 |
+| 9 | 热度：同一人 1 小时 1 次；**游客与作者本人不计**；并列按创建时间倒序；分页 **10/页** |
+| 10 | 排序放 query（搜索与我的题目都有）；**浏览形态存本地偏好**（`sudoku.pagerMode`） |
+| 11 | 搜索分流：空 → 公开列表；20 位串 → 先 pid（跳 `/p/:pid`）后 uid；其它 → 标题/uname 模糊 |
+| 12 | **pid 按需申请**：我的题目列表只给 `rowId`，显示/复制/预览/答案预览/编辑/挑战都走 `mine/:rowId` |
+| 13 | 编辑：不能改大小；预填题面；**答案必须重填**；编辑页无多余项；标题在列表里**重命名**；**不改创建时间** |
+| 14 | 出题/编辑：提交 → 转圈遮罩（校验 + 上传）→ 完成遮罩 |
+| 15 | 预览遮罩**无**挑战按钮；答案预览只在我的题目；遮罩**绝不写 store** |
+| 16 | 所有棋盘必须有缩放（R14）；**不设默认缩放** |
+| 17 | 难度页用**子路由**；`/difficulty` 落系统生成（不记忆） |
+| 18 | 路由/状态归位（R15）：位置放路由、过程放 state、影响数据请求放 query、UI 偏好放本地偏好、布局用父路由 |
+| 19 | 删除题目 = 硬删 + 清理 `puzzle_play`；标题必填（🔸1~40） |
+| 20 | 🔸 系统生成 / 自定义也有参考答案按钮；出题完成只留「回到主页」，编辑完成回「我的题目」；退出登录跳 `/home` |
+| 21 | **只做 uid 限流**（连败 5 次锁 10 分钟）；**密码 ≥8**；PBKDF2 迭代 **10000** |
+| 22 | 列表行标识 `rowId`（8 位 base62，落库）；pid 按需申请合并为 `GET /api/puzzles/mine/:rowId` |
+| 23 | **列表接口不带题面串**；预览/挑战/答案预览/编辑统一走详情接口 |
+| 24 | **挖空数入库时算好**（`blank_count`），列表直接返回 |
+| 25 | 自定义「提交到我的题目」可选项（默认否），勾选后展开补充项（标题必填），其余详情到「我的题目」改 |
+| 26 | `/game` 刷新不恢复棋局（v1 已知限制） |
+| 27 | 401 由 store / composable 处理（`services` 层不碰 router） |
+| 28 | 换排序/关键词时 `page` 重置 1；`page` 越界 clamp；`pageCount ≤ 1` 隐藏分页条 |
+| 29 | 游戏页操作条 =「返回」（`router.back()` 兜底 `/difficulty`）+「重开」（`jump(0)`）；胜利遮罩 =「回主页」+「重开」 |
+| 30 | 勾选提交保存成功后提示「已保存到我的题目」 |
+| 31 | 我的题目改动（PATCH/DELETE）后：清 `rowId` 缓存 + 重拉当前页列表 |
+| 32 | `?redirect=` 必须是站内路径（`/` 开头且非 `//`） |
+| 33 | localStorage 键名统一 `sudoku.` 前缀；移除未使用的 `axios` |
+| 34 | 后端类型检查用**同一个** `functions/tsconfig.json`（esbuild + tsc 双用），并串进 `build` |
+
+## 12. 分批路线
+
+| 批 | 内容 |
+|---|---|
+| 6A | core：`sameShape` · `parsePuzzle` · `boxSizeOf` · `countBlanks` · `isBlankRatioOk` · `percentOf` · 拆 `board/model.ts`+`ops.ts` · `useZoom.zoomActions` · 8 个同名测试 · 修掉 `DifficultyPage` 的 `Math.round`（消掉守卫唯一红） |
+| 6B-1 | ★ 后端打通验证：`pnpm add -D wrangler` · `functions/tsconfig.json`（单文件双用）· `wrangler types` · 一个 import core 的 ping 接口 → `wrangler pages dev` 能打包 |
+| 6B-2 | `schema.sql`（5 表）+ `wrangler.toml` + 本地 D1 建表 |
+| 6B-3 | `functions/utils/{id,auth,json}.ts`（`AUTH_ITERATIONS = 10000`） |
+| 6B-4 | auth 四接口（注册 / 登录（uid 限流） / 登出 / me） |
+| 6B-5 | puzzle 四组接口（`index` / `[pid]` / `mine/[rowId]` / `play`） |
+| 6B-6 | `typecheck:functions` 串进 `build` |
+| 6C | 前端数据层：types/constants 定稿 · `services/{prefs.ts,api/*}` · `stores/{user,puzzle}` · `pages/AppLayout.vue` + 路由重排 · 守卫 + `/login` · `SecretField` · `useAuth` · `LoginPage` · 主页瘦身 |
+| 7 | 题目页面：`BoardOverlay` · `PuzzleCard` · `PagerBar` · `SearchPage` · `MyPuzzlesPage` · `PuzzleViewPage` |
+| 8 | 难度页：壳 + `difficulty/{SystemPage,CustomPage}` + `useCustomFlow` + `useDifficultyFlow` 命名收口 |
+| 9 | 管理闭环：出题保存 · `EditPuzzlePage` · 重命名 · 三态 · 参考答案开关 · 删除 · 游戏页「返回/重开/参考答案」 |
+
+## 13. 工程注记
+
+```
+· 后端类型检查：同一个 functions/tsconfig.json（esbuild 读 paths；tsc -p 检查）
+  → "typecheck:functions": "tsc --noEmit -p functions/tsconfig.json"，并串进 build
+· wrangler types 生成 worker-configuration.d.ts（提交进仓库，供 D1 类型）
+· 本地开发：pnpm add -D wrangler；.gitignore 追加 .wrangler/
+· vite.config.ts 加 server.proxy['/api'] = 'http://127.0.0.1:8788'
+· 移除未使用的 axios（dependencies）
+· 限流：login_attempt 只按 uid（连败 5 次锁 10 分钟），成功登录清零
+· rowId：8 位 base62 + UNIQUE 查重；pid：20 位 base62 同理
+· blankCount：入库 / PATCH 时用 core 的 countBlanks 算好写列
+· 前端缓存：mine/:rowId 详情按 rowId 缓存在 stores/puzzle.ts；PATCH/DELETE 后清缓存 + 重拉当前页
+· localStorage 键：sudoku.token / sudoku.lastUid / sudoku.pagerMode
+· 6C 落地后把 Page / User / SearchResult / Puzzle 从守卫 RESERVED_TYPES 里移除登记
+· README.md 恢复极简版（介绍 + 命令 + 指向两份文档）
+· 守卫现况：唯一红是 DifficultyPage 的 Math.round（6A 修）→ 之后 `guard --strict` 应为 红 0 / 黄 0
+```

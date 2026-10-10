@@ -5,8 +5,7 @@ import { PAGE } from '@/constants/pages'
 import { useGameStore } from '@/stores/game'
 import type { NumBoard } from '@/types/board'
 import type { CreatePhase } from '@/types/game'
-import { isBlankBoard } from '@/core/board/model'
-
+import { isBlankBoard } from '@/core/board/ops'
 
 /**
  * 出题页流程：题面 → 答案两阶段的状态机、校验与提交

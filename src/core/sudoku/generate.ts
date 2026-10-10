@@ -1,10 +1,10 @@
-import type { PuzzleData } from "@/types/puzzle";
-import type { NumBoard } from "@/types/board";
+import type { PuzzleData } from "../../types/puzzle";
+import type { NumBoard } from "../../types/board";
 import { toRC } from "../board/model";
 import { getSudoku } from "./rules";
-import type { Rng } from "@/types/rng";
+import type { Rng } from "../../types/rng";
 import { shuffle, makeGrid } from "../array";
-import type { Sudoku } from "@/types/sudoku";
+import type { Sudoku } from "../../types/sudoku";
 
 /** 预先填满对角线上的宫格 */
 const fillDiagonal = (grid: NumBoard, B: number, S: number,rng:Rng): void => {

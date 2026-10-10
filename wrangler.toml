@@ -1,0 +1,10 @@
+name = "sudoku"                        # 项目名（将来部署到 Cloudflare 时的名字）
+pages_build_output_dir = "dist"        # 前端静态产物在哪（pnpm build / vite build 的输出）
+                                        # → wrangler pages dev 会同时伺服 dist(静态) + functions(接口)
+compatibility_date = "2025-01-01"      # Workers 运行时的"API 版本日期"：写死它，避免 Cloudflare
+                                        # 日后升级行为变化导致你的代码表现不一致
+
+[[d1_databases]]                       # D1（SQLite）数据库绑定
+binding = "DB"                          # ★ 代码里访问数据库的变量名：env.DB
+database_name = "sudoku-db"            # 云端库名
+database_id = "placeholder"            # 云端库 id（现在还没建库，先占位）
