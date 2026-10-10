@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 /文件/
 .wrangler/
+.dev.vars
+.env.local
+.env.*.local
