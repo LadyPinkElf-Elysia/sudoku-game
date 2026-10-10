@@ -3,44 +3,14 @@ import Overlay from '@/components/Overlay.vue';
 import SpinnerIcon from '@/components/SpinnerIcon.vue';
 import ActionItems from '@/components/ActionItems.vue';
 import { PAGE } from '@/constants/pages';
-import { BLANK_RATIO, BOX_SIZE_OPTIONS, GAME_INIT_CONFIG } from '@/constants/game';
-import { useGameStore } from '@/stores/game';
-import type { GameConfig } from '@/types/game';
-import { generateInWorker } from '@/utils/sudoku/workerClient';
-import { computed, ref } from 'vue';
+import { BLANK_RATIO, BOX_SIZE_OPTIONS } from '@/constants/game';
+import { useStartGame } from '@/composables/useStartGame';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { ActionDef } from '@/types/action';
-import { blankCountOf, cellCountOf } from '@/utils/sudoku/shape';
 
 const router = useRouter()
-const gameStore=useGameStore()
-
-const draft = ref({ ...GAME_INIT_CONFIG })
-const loading = ref(false)
-const error = ref('')
-
-const totalCells = computed(() => cellCountOf(draft.value.boxSize))
-
-const blankCount = computed(() => blankCountOf(draft.value.boxSize,draft.value.blankRatio))
-
-const apply = async (): Promise<void> => {
-    if (loading.value) return
-    error.value = ''
-    loading.value = true
-    try {
-        const blanks = blankCountOf(draft.value.boxSize,draft.value.blankRatio)
-        const cfg: GameConfig = {
-            boxSize: draft.value.boxSize,
-            blankRatio: draft.value.blankRatio,
-        }
-        const { puzzle,solution } = await generateInWorker(cfg.boxSize, blanks)
-        gameStore.startGame(puzzle,solution, cfg)
-        router.replace({ name: PAGE.Game })
-    } catch (err) {
-        error.value = err instanceof Error ? err.message : '生成失败，请重试'
-        loading.value=false
-    }
-}
+const { draft, loading, error, totalCells, blankCount, apply } = useStartGame()
 
 const actions = computed<ActionDef[]>(() => [
     { key: 'home', icon: '🏠', message: '主页', onClick: () => router.push({ name: PAGE.Home }) },

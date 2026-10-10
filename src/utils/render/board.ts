@@ -1,6 +1,7 @@
 import type { RenderParams } from "@/types/canvas"
 import { BOARD_COLOR, BOARD_FONT, BOARD_LINE, BOARD_SIZE } from "@/constants/board"
 import type { Position } from "@/types/board"
+import { boardSideOf, cellSizeOf, fontPxOf, offsetToCell } from "./metrics"
 
 /** 初始化画布：清晰度、尺寸、坐标对齐；返回画笔、边长、每格边长 */
 const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
@@ -11,17 +12,16 @@ const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
     const parentStyle = getComputedStyle(parent)
     const padX = parseFloat(parentStyle.paddingLeft) + parseFloat(parentStyle.paddingRight)
     const contentWidth = parent.clientWidth - padX
-    
-    const base = Math.max(contentWidth * BOARD_SIZE.widthRatio, BOARD_SIZE.minSide)
-    const side = Math.round(Math.min(base, BOARD_SIZE.maxSide) * zoom)
+
+    const side = boardSideOf(contentWidth, zoom)
     const pixel = Math.round(side * dpr)
 
     if (canvas.width !== pixel) {
         canvas.width = pixel
         canvas.height = pixel
-        canvas.style.width = `${side}px`
-        canvas.style.height = `${side}px`
     }
+    canvas.style.width = `${side}px`
+    canvas.style.height = `${side}px`
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
@@ -30,7 +30,7 @@ const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 
-    return { ctx, side, cellSize: side / size }
+    return { ctx, side, cellSize: cellSizeOf(side, size) }
 }
 
 export const renderBoard = (params: RenderParams): void => {
@@ -43,7 +43,7 @@ export const renderBoard = (params: RenderParams): void => {
     const { ctx, side, cellSize } = info
 
 
-    const fontSize = Math.max(BOARD_SIZE.minFontSize, Math.floor(cellSize * BOARD_SIZE.fontSizeRatio))
+    const fontSize = fontPxOf(cellSize)
     const fontGiven = `${BOARD_FONT.given} ${fontSize}px ${BOARD_FONT.family}`
     const fontPlayer = `${BOARD_FONT.player} ${fontSize}px ${BOARD_FONT.family}`
 
@@ -55,7 +55,7 @@ export const renderBoard = (params: RenderParams): void => {
         const x = c * cellSize
         const y = r * cellSize
         const isSelected = !!selected && selected[0] === r && selected[1] === c
-        const isConflict = conflictMask[r][c]
+        const isConflict = conflictMask?.[r]?.[c] ?? false
 
         // 底色
         ctx.fillStyle = isConflict ? BOARD_COLOR.conflictBg : BOARD_COLOR.bg
@@ -119,19 +119,9 @@ export const renderBoard = (params: RenderParams): void => {
 }
 
 /** 点击位置 → 行列坐标；越界返回 null */
-export const getClickPos = (
-    canvas: HTMLCanvasElement,
-    e: MouseEvent,
-    size: number,
-): Position | null => {
+export const getClickPos = (canvas: HTMLCanvasElement, e: MouseEvent, size: number,): Position | null => {
     const rect = canvas.getBoundingClientRect()
     if (!rect.width) return null
-
-    const cellSize = rect.width / size
-    const c = Math.floor((e.clientX - rect.left) / cellSize)
-    const r = Math.floor((e.clientY - rect.top) / cellSize)
-
-    if (r < 0 || r >= size || c < 0 || c >= size) return null
-    return [r, c] as const
+    return offsetToCell(e.clientX - rect.left, e.clientY - rect.top, rect.width, size)
 }
 

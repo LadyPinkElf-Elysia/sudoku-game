@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useGameStore } from '@/stores/game'
 const props = defineProps<{
     step: number
+    current:number
 }>()
-const gameStore = useGameStore()
 const activeClass = computed(() => ({
-    active: props.step === gameStore.currentStep,
-    future: props.step > gameStore.currentStep
+    active: props.step === props.current,
+    future: props.step > props.current
 }))
-const jump = (): void => gameStore.jump(props.step)
+const emit=defineEmits<{
+    select:[step:number]
+}>()
 </script>
 
 <template>
-    <button class="step-block" :class="activeClass" @click="jump">
+    <button class="step-block" :class="activeClass" @click="emit('select',step)">
         {{ step }}步
     </button>
 </template>

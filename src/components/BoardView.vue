@@ -1,15 +1,26 @@
 <script setup lang="ts">
-import { useCanvasStore } from '@/stores/canvas'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { ref } from "vue";
+import { BOARD_ZOOM } from '@/constants/board'
+import { useBoardCanvas } from '@/composables/useBoardCanvas'
+import type { Board, ConflictMask, Position } from '@/types/board'
 
-const canvasStore = useCanvasStore()
+const props = withDefaults(
+    defineProps<{
+        board: Board
+        boxSize: number
+        selected?: Position | null
+        conflictMask?: ConflictMask
+        zoom?: number
+        interactive?: boolean
+    }>(),
+    { selected: null, zoom: BOARD_ZOOM.default, interactive: true },
+)
+
+const emit = defineEmits<{ 'cell-click': [pos: Position] }>()
+
 const canvasEl = ref<HTMLCanvasElement | null>(null)
+const { onCanvasClick } = useBoardCanvas(canvasEl, () => props, pos => emit('cell-click', pos))
 
-onMounted(() => {
-    canvasStore.resetZoom()
-    canvasStore.attach(canvasEl.value)
-})
-onBeforeUnmount(() => canvasStore.detach())
 </script>
 
 <template>
@@ -17,7 +28,8 @@ onBeforeUnmount(() => canvasStore.detach())
         <canvas
             ref="canvasEl"
             class="board-canvas"
-            @click="canvasStore.handleClick"
+            @click="onCanvasClick"
+            :class="{ 'is-interactive': interactive }"
         ></canvas>
     </div>
 </template>
@@ -62,9 +74,14 @@ onBeforeUnmount(() => canvasStore.detach())
     display: block;
     background: #fff;
     border-radius: 4px;
-    cursor: pointer;
     user-select: none;
     touch-action: manipulation;
     margin: auto;   
 }
+
+/* 预览（interactive=false）不显示手型 */
+.board-canvas.is-interactive {
+    cursor: pointer;
+}
+
 </style>

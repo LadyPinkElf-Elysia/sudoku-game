@@ -7,6 +7,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { Board, Position, Snapshot, NumBoard, Cell, ConflictMask } from "@/types/board";
 import { type GameConfig, type GameMode, type GameStatus, } from "@/types/game";
+import { cloneBoard } from "@/utils/board";
 
 export const useGameStore = defineStore('gameStore', () => {
     const config = ref<GameConfig>({ ...GAME_INIT_CONFIG })
@@ -40,8 +41,6 @@ export const useGameStore = defineStore('gameStore', () => {
         const [r, c] = selected.value
         return board.value[r]?.[c] ?? null
     })
-
-    const cloneBoard = (b: Board): Board => mapGrid(b, cell => ({ ...cell }))
     /**推入历史记录*/
     const pushHistory = (): void => {
         snapshots.value.splice(currentStep.value + 1)

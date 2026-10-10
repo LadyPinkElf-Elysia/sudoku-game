@@ -140,7 +140,7 @@ export const createSudoku = (boxSize: number) => {
     return {
         S, B,
         candidates,
-        isSolved, findConflicts,
+        isSolved, findConflicts,hasConflict,
         validatePuzzle,
         emptyBoard
     }

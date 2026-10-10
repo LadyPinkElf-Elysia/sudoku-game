@@ -4,9 +4,10 @@ import type { Board, ConflictMask, Position } from "./board"
 export interface RenderParams {
     canvas: HTMLCanvasElement
     board: Board
-    selected: Position | null
-    conflictMask: ConflictMask
     boxSize: number
-    /** 缩放倍数，默认 1 */
+
+    selected?: Position | null
+    conflictMask?: ConflictMask
     zoom?: number
+    interactive?: boolean
 }
