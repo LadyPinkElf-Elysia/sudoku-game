@@ -17,6 +17,9 @@ export const AUTH_COPY = {
     uidLabel: '账号 ID',
     /** 顶栏「👤 用户名」tooltip：登录后唯一的「我的」入口里有什么 */
     meTitle: '我的（账号 ID + 我的题目）',
+    /** 显示名内联重命名（「我的」页账号区：名字右边） */
+    rename: '重命名',
+    renamePlaceholder: `改名（${UNAME_MIN}~${UNAME_MAX} 位中英文 / 数字 / 下划线）`,
     uidHint: '登录需要它，请保存到安全的地方（只存在你本地）',
     needAuth: '请先登录',
     sessionExpired: '登录已过期，请重新登录',

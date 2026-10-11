@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { onUnauthorized } from '@/services/api/client'
-import { login as apiLogin, logout as apiLogout, me as apiMe, register as apiRegister } from '@/services/api/userApi'
+import { login as apiLogin, logout as apiLogout, me as apiMe, register as apiRegister, updateMe as apiUpdateMe } from '@/services/api/userApi'
 import type { LoginPayload, RegisterPayload, User } from '@/types/user'
 
 export const useUserStore = defineStore('userStore', () => {
@@ -30,5 +30,10 @@ export const useUserStore = defineStore('userStore', () => {
         try { profile.value = await apiMe() } catch { profile.value = null }
     })())
 
-    return { profile, isGuest, uname, uid, register, login, logout, restore }
+    /** 改显示名：落库成功后就地更新登录态里的 uname */
+    const rename = async (uname: string): Promise<void> => {
+        profile.value = await apiUpdateMe(uname)
+    }
+
+    return { profile, isGuest, uname, uid, register, login, logout, restore, rename }
 })

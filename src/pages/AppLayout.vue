@@ -3,7 +3,7 @@ import { PAGE } from '@/constants/pages'
 import { AUTH_COPY } from '@/constants/user'
 import { useAccountMenu } from '@/composables/auth/useAccountMenu'
 
-const { isGuest, uname, showNav, logout } = useAccountMenu()
+const { isGuest, uname, showNav } = useAccountMenu()
 </script>
 
 <template>
@@ -14,19 +14,16 @@ const { isGuest, uname, showNav, logout } = useAccountMenu()
 
             <span class="app-title">数独</span>
 
-            <!-- 右侧账号位：游客「👤 登录」→ 登录页；登录后「👤 用户名」→「我的」页 + 退出；登录页自己就是入口 → 隐藏 -->
+            <!-- 右侧账号位：游客「👤 登录」→ 登录页；登录后「👤 用户名」→「我的」页（退出在「我的」页账号区）；登录页自己就是入口 → 隐藏 -->
             <nav v-if="showNav" class="app-nav">
                 <RouterLink v-if="isGuest" :to="{ name: PAGE.Login }" class="nav-item nav-user">
                     👤 {{ AUTH_COPY.login }}
                 </RouterLink>
 
-                <template v-else>
-                    <RouterLink :to="{ name: PAGE.MyPuzzles }" class="nav-item nav-user"
-                        :title="AUTH_COPY.meTitle">
-                        👤 {{ uname }}
-                    </RouterLink>
-                    <button type="button" class="nav-item" @click="logout">{{ AUTH_COPY.logout }}</button>
-                </template>
+                <RouterLink v-else :to="{ name: PAGE.MyPuzzles }" class="nav-item nav-user"
+                    :title="AUTH_COPY.meTitle">
+                    👤 {{ uname }}
+                </RouterLink>
             </nav>
         </header>
 

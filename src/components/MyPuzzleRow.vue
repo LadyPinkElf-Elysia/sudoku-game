@@ -74,7 +74,7 @@ watch(() => props.controls.renaming, async (on) => {
         <MyPuzzleFields :visibility="item.visibility" :solution-on="item.showSolution"
             :on-visibility="controls.onVisibility" :on-solution="controls.onSolution" />
 
-        <!-- 竖排：预览（纯文字，不用按钮框） -->
+        <!-- 题目预览 / 答案预览：同一行（纯文字，不用按钮框） -->
         <p class="row-links">
             <button class="text-btn" type="button" @click="controls.onPreview(false)">{{ MINE_COPY.preview }}</button>
             <button class="text-btn" type="button" @click="controls.onPreview(true)">{{ MINE_COPY.answerPreview }}</button>
@@ -149,32 +149,16 @@ watch(() => props.controls.renaming, async (on) => {
     word-break: break-all;
 }
 
-/* 预览竖排（纯文字，无按钮框） */
+/* 题目预览 / 答案预览同一行（纯文字，无按钮框） */
 .row-links {
     margin: 0;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    align-items: center;
+    gap: 12px;
 }
 
 .row-challenge {
     margin-top: 2px;
-}
-
-/* 文字型操作（重命名 / 删除 / 编辑 / 题目预览 / 答案预览）：无边框、无底色 */
-.text-btn {
-    border: none;
-    background: none;
-    padding: 0;
-    color: #4f46e5;
-    font-size: 0.78rem;
-    font-family: inherit;
-    cursor: pointer;
-}
-
-.text-btn:hover {
-    text-decoration: underline;
 }
 </style>
 

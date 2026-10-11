@@ -37,7 +37,7 @@
   所以 `@click.prevent` 拦不住导航。）
 - **全站顶栏**（`AppLayout`，外壳带整页外框）：任意页面可见**左侧常驻「🏠 回到主页」**（标题左边，登录页也在）
   与「数独（**居中**，纯标题、不可点）」；右侧账号位——游客「👤 登录」（→ `/login`）、登录后「👤 用户名」
-  （→ `/my-puzzles`：账号 ID + 我的题目）+「退出」；**不设「我的题目」入口**（已并入头像）；登录页隐藏右侧那组
+  （→ `/my-puzzles`：账号区 + 我的题目）；**不设「我的题目」入口**（已并入头像）；登录页隐藏右侧那组
 - **兜底守卫**：直入 `/create`、`/my-puzzles`、`/puzzle/:pid/edit` → 跳 `/login?redirect=…`，登录后回跳
 - **`redirect` 安全**：只接受站内路径（`startsWith('/')` 且不以 `//` 开头），否则忽略
 - 游客**没有 uid**
@@ -77,11 +77,11 @@
 
 ### FR-1 全站顶栏（AppLayout）✅
 - **左侧常驻「🏠 回到主页」**（标题左边的按钮）→ 任何页面（含登录页）一键回主页；**「数独」是纯标题、不可点**。
-- **居中**「数独」= 纯标题、不可点；右侧账号位：游客「👤 登录」（→ `/login`）、登录后「👤 用户名」+「退出」。
+- **居中**「数独」= 纯标题、不可点；右侧账号位：游客「👤 登录」（→ `/login`）、登录后「👤 用户名」（→「我的」页；**退出已移到那里**）。
 - **顶栏不设「我的题目」入口**：游客点头像即去登录页；需要登录的功能各自在页内提示（如主页「出题」灰显）。
 - 点「👤 用户名」（登录后）→ 进入「我的」页（页首账号区显示 uid，默认遮蔽；值右侧裸图标 👁 睁/闭 + 📋 复制）；
   tooltip：我的（账号 ID + 我的题目）。
-- 退出登录 → 🔸 主动跳 `/home`；登录页隐藏右侧那组。
+- 退出登录：在「我的」页账号区（**显示名左边**）→ 🔸 主动跳 `/home`；**顶栏不再放退出**；登录页隐藏右侧那组。
 
 ### FR-2 主页 ✅
 - 三入口：开始游戏（→ `/difficulty`）、出题（游客灰 + 本页提示条）、搜索题目（→ `/search`）。
@@ -132,6 +132,7 @@
 
 ### FR-7 我的题目（需登录）✅
 页首「**账号区**」：显示名 + uid（**默认遮蔽** `uid ▮▮▮▮…`；值右侧裸图标组 👁 睁/闭 + 📋 复制，与 pid 同规则；**明文时保留 `uid ` 前缀** → `uid <值>`）。
+账号区一行：**左「退出」· 中「👤 显示名」· 右「重命名」**（点了名字就地变输入框，回车 / 失焦提交、Esc 取消，2~16 位复校）→ `PATCH /api/me`。
 页头：左上「浏览方式」、右上「排序（时间 / 热度）」——**都是下拉**；底部 `PagerBar`（10/页）。
 
     [ 标题 · 重命名 ]                                          [ 删除 · 编辑 ]
@@ -139,8 +140,7 @@
     [ 盘面大小 S×S · 挖空 N 格 · 创建时间 YYYY/M/D HH:mm · 热度 N ]
     [ pid ▮▮▮▮… 👁 📋 ]  └ 👁 / 📋 = 值右侧裸图标（`ValueIcons`：无按钮框、无文字）
     [ 可见性 ▾ 🌐公开 | 🔗受保护 | 🔒私有 ]  [ 参考答案 ▾ 开 | 关 ]        ← 同一行；两个下拉等宽（`.row-select` 7rem）
-    [ 题目预览 ]
-    [ 答案预览 ]                                                ← 竖排文字（无按钮框）
+    [ 题目预览 ]  [ 答案预览 ]                                   ← 同一行（纯文字，无按钮框）
     [ ▶ 挑战 ]                                                  ← 本行唯一保留的按钮
 
 - **列表接口**只回元信息：`rowId · title · sideS · blankCount · visibility · showSolution · playCount · createdAt`
@@ -192,7 +192,7 @@
   返回 `{ token, user }` → **展示「账号 ID」卡片（uid + 📋 复制 + 「我已保存，开始使用」）** →
   本地保存 `token` + `lastUid` → 回跳 redirect。
 - **登录**：填「账号 ID」(自动预填 lastUid) + 密码 → `POST /api/login { uid, password }` → 回跳。
-- 规则：uname 2~16 位（可中文可英文，**可重名**，仅显示名）；**密码 ≥8 位**；
+- 规则：uname 2~16 位（可中文可英文，**可重名**，仅显示名；**可改** → `PATCH /api/me`）；**密码 ≥8 位**；
   `UID_PATTERN = /^[A-Za-z0-9]{20}$/`（**大小写敏感**）；uid 输入框绑 `@paste`：粘贴自动去掉空白，不做大小写转换。
 - **登录限流（只按 uid）**：同一 uid 连续失败 **5 次锁定 10 分钟**；失败文案统一「账号 ID 或密码错误」。
 - 密码 `PBKDF2-SHA256` + 每用户随机盐，**迭代 10000**（Workers CPU 限额）；会话 token 存 D1，**7 天**，
@@ -300,6 +300,7 @@ CREATE TABLE puzzle_play (
 | POST | `/api/login` | 公开 | `{uid, password}` → `{token, user}`；**uid 限流**（连败 5 次锁 10 分钟）；错误统一「账号 ID 或密码错误」 |
 | POST | `/api/logout` | Bearer | 删 session |
 | GET | `/api/me` | Bearer | 恢复登录态 |
+| PATCH | `/api/me` | Bearer | **改显示名**（`{uname}`，2~16 位复校；uname 仅显示名、**可重名** → 不做唯一性校验） |
 | GET | `/api/puzzles` | 公开 | `?keyword=&uid=&sort=time\|hot&limit=10&offset=` → **搜索列表**：只回公开题，`{ items: pid · title · sideS · blankCount · playCount · createdAt · uname, total }`<br>`?mine=1`（Bearer）→ **我的题目列表**：`{ items: rowId · title · sideS · blankCount · visibility · showSolution · playCount · createdAt, total }` |
 | GET | `/api/puzzles/:pid` | 公开 | 三态判定（private 非作者 404）；返回 `pid · title · uname · sideS · blankCount · createdAt · puzzleText · solutionText?`（答案仅当 `show_solution=1` 或我是作者） |
 | GET | `/api/puzzles/mine/:rowId` | Bearer·作者 | **作者态详情**：`pid · rowId · title · uname · sideS · blankCount · visibility · showSolution · playCount · createdAt · puzzleText · solutionText` |
@@ -333,7 +334,7 @@ CREATE TABLE puzzle_play (
 
 | # | 操作 | 期望 | 现状 |
 |---|---|---|---|
-| 1 | 任意页面看顶栏 | 都有「回到主页」+「数独」+ 右侧账号位（游客「👤 登录」/ 登录后「👤 用户名 · 退出」） | ✅ |
+| 1 | 任意页面看顶栏 | 都有「回到主页」+「数独」+ 右侧账号位（游客「👤 登录」/ 登录后「👤 用户名」，**顶栏没有退出**） | ✅ |
 | 2 | 游客点「我的题目」 | 提示「该功能需要登录才可以使用」，不跳转；路由变化后消失 | ✅ |
 | 3 | 注册 | 看到「账号 ID」卡片，复制成功；本地保存 lastUid | ✅ |
 | 4 | 重进登录页 | 账号 ID 已预填；只输密码即可登录 | ✅ |
@@ -360,7 +361,7 @@ CREATE TABLE puzzle_play (
 
 ## 10. 非目标（v1）
 
-计时 / 排行 / 难度评级 / 多解检测 / 收藏 / 评论 / 离线缓存 / **uid 找回** / 改密码 / 改显示名 /
+计时 / 排行 / 难度评级 / 多解检测 / 收藏 / 评论 / 离线缓存 / **uid 找回** / 改密码 /
 作者主页 / 单点登录与踢下线 / 账号自助解锁 / **IP 维度限流** / 用户注销 / `/game` 刷新恢复 /
 i18n / 深色模式 / 完整 a11y。
 
@@ -413,8 +414,9 @@ i18n / 深色模式 / 完整 a11y。
 | 47 | 「浏览方式」与「排序」统一成**下拉**（不再用切换按钮）：`PAGER_MODE_OPTIONS` 与 `SORT_OPTIONS` 同形；`useListQuery` 的 `togglePagerMode` → `changePagerMode(值)`；全局 `.mode-btn` 样式删除 |
 | 48 | 搜索列表**补回 `playCount` / `createdAt`**（排序有「时间 / 热度」却看不见值）：后端公开搜索 SQL 加 `p.play_count` / `p.created_at`，`SearchResult` 加两字段，卡片行显示「盘面大小 · 挖空 · 创建时间 · 热度」（与「我的题目」行同标签） |
 | 49 | 时间/热度**兜底**（新前端 + 旧后端也不会出现 `Invalid Date · 热度 undefined`）：`createdAt` 缺失 → 显示当前时间（`createdAt || Date.now()`），有记录就按记录；格式 `YYYY/M/D HH:mm`（24 小时制）；`playCount` 缺失 → `0`；搜索卡片与「我的题目」行**同一规则**（标签：`盘面大小` / `挖空` / `创建时间` / `热度`） |
-| 50 | 「我的题目」行内**不再堆图标按钮**：标题旁「重命名」（点了标题就地变输入框，回车/失焦提交、Esc 取消）；右上角纯文字「删除 · 编辑」（左删除右编辑）；**可见性与参考答案改下拉**（`PUZZLE_VISIBILITY_OPTIONS` / `SOLUTION_OPTIONS`，与决策 47 同形）；题目预览 / 答案预览改**竖排文字**；只保留「挑战」按钮；行内控件闭包由 composable 提供（R5：组件不碰 store / 路由）；**可见性与参考答案同一行、两个下拉等宽**（拆到 `MyPuzzleFields`，满足 R9 单文件 ≤200 行） | ✅ |
+| 50 | 「我的题目」行内**不再堆图标按钮**：标题旁「重命名」（点了标题就地变输入框，回车/失焦提交、Esc 取消）；右上角纯文字「删除 · 编辑」（左删除右编辑）；**可见性与参考答案改下拉**（`PUZZLE_VISIBILITY_OPTIONS` / `SOLUTION_OPTIONS`，与决策 47 同形）；题目预览 / 答案预览改**纯文字**；只保留「挑战」按钮；行内控件闭包由 composable 提供（R5：组件不碰 store / 路由）；**可见性与参考答案同一行、两个下拉等宽**（拆到 `MyPuzzleFields`，满足 R9 单文件 ≤200 行） | ✅ |
 | 51 | `VISIBILITY` 常量**归位**：`constants/game.ts` → `constants/puzzle.ts`（可见性是题目属性，与其文案、下拉项同文件），同时满足 R2「constants 之间不得互相 import」 | ✅ |
+| 52 | **退出登录移到「我的」页账号区（显示名左边），顶栏不再放退出**；显示名右边「重命名」= **改显示名**（就地变输入框）→ 新增 **`PATCH /api/me`**（`{uname}` 走 `UNAME_PATTERN` 复校；uname 仅显示名、可重名 → 不做唯一性）、`uname` 从「非目标」移出；前端 `stores/user.rename` + `useAccountPanel`（R6：页面只接线） | ✅ |
 | 42 | 路由守卫改 **async**：受保护页冷启动/直接开 URL 时先 `await userStore.restore()`（store 内 memo 化，无 token 立即返回）再判登录态 → 已登录用户刷新/收藏 `#/my-puzzles` 不再被弹回登录页；其余页面仍即时渲染（不等待）|
 | 43 | 顶栏左侧常驻「🏠 回到主页」（三栏 grid 第 1 列原本空着）；「数独」保持纯标题（回主页只留这一个入口） |
 | 44 | 难度壳的默认 Tab 用**守卫**补（`to.name === PAGE.Difficulty` → `{ name: PAGE.DifficultySystem }`）：原先靠子路由 `{ path: '', redirect }`，**按 name 跳父路由时不触发** → 点「开始游戏」会停在 `/difficulty`（两个 Tab 都不高亮、内容空） |

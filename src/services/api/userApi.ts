@@ -29,3 +29,9 @@ export const me = async (): Promise<User | null> => {
     const res = await request<{ user: User }>('/me')
     return res.user
 }
+
+/** 改显示名（PATCH /api/me）：返回改完的自己 */
+export const updateMe = async (uname: string): Promise<User> => {
+    const res = await request<{ user: User }>('/me', { method: 'PATCH', body: { uname } })
+    return res.user
+}

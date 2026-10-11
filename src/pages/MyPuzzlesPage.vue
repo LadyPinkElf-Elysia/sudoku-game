@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import ActionItems from '@/components/ActionItems.vue'
 import BoardOverlay from '@/components/BoardOverlay.vue'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
@@ -8,9 +8,9 @@ import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import ValueIcons from '@/components/ValueIcons.vue'
 import { MINE_COPY, PAGER_MODE_OPTIONS, SORT_OPTIONS } from '@/constants/puzzle'
-import { useClipboard } from '@/composables/useClipboard'
+import { AUTH_COPY, UNAME_MAX } from '@/constants/user'
+import { useAccountPanel } from '@/composables/auth/useAccountPanel'
 import { useMyPuzzles } from '@/composables/puzzle/useMyPuzzles'
-import { useUserStore } from '@/stores/user'
 import type { ListSort } from '@/types/puzzle'
 
 const {
@@ -21,29 +21,41 @@ const {
     removeOpen, removeActions,
 } = useMyPuzzles()
 
-/** 账号区（FR-1 / FR-12）：uid 与 pid 同规则 —— 默认遮蔽，点 👁 显示 / 📋 复制（复制不显示在界面） */
-const userStore = useUserStore()
-const { copied: uidCopied, copy: copyUidText } = useClipboard()
-const uidShown = ref(false)
-const uname = computed<string>(() => userStore.uname)
-/** 明文时也带 `uid ` 前缀（与遮蔽态 `uid ▮▮▮▮…` 一致，值不会突然换模样） */
-const uidText = computed<string>(() => (uidShown.value ? `${MINE_COPY.uidTag} ${userStore.uid}` : MINE_COPY.uidHidden))
-/** 账号区：uid 右侧的裸图标组（👁 睁/闭 + 📋 复制） */
-const uidIcons = computed(() => ({
-    revealed: uidShown.value,
-    eyeLabel: uidShown.value ? MINE_COPY.hideUid : MINE_COPY.showUid,
-    copyIcon: uidCopied.value ? '✅' : '📋',
-    copyLabel: uidCopied.value ? MINE_COPY.copied : MINE_COPY.copyUid,
-    onToggle: () => { uidShown.value = !uidShown.value },
-    onCopy: () => { void copyUidText(userStore.uid) },
-}))
+/** 账号区（FR-1 / FR-12）：退出在名字左边、名字右边就地重命名、uid 遮蔽 + 👁/📋 */
+const {
+    uname, uidText, uidIcons,
+    renaming, renameText, renameError, startRename, onRenameInput, commitRename, cancelRename,
+    logout,
+} = useAccountPanel()
+
+/** 进入改名时自动聚焦输入框 */
+const nameBox = ref<HTMLInputElement | null>(null)
+watch(renaming, async (on) => {
+    if (!on) return
+    await nextTick()
+    nameBox.value?.focus()
+})
 </script>
 
 <template>
     <div class="page-card wide">
-        <!-- 账号区（FR-1 / FR-12）：uid 与 pid 同规则 —— 默认遮蔽，右侧裸图标 👁 睁/闭 + 📋 复制 -->
+        <!-- 账号区（FR-1 / FR-12）：退出在名字左边；名字右边「重命名」点了就地变输入框 -->
         <section class="account">
-            <p class="account-name">👤 {{ uname }}</p>
+            <p class="account-row">
+                <button class="text-btn" type="button" @click="logout">{{ AUTH_COPY.logout }}</button>
+
+                <input v-if="renaming" ref="nameBox" class="input account-rename" :value="renameText"
+                    :maxlength="UNAME_MAX" :placeholder="AUTH_COPY.renamePlaceholder"
+                    @input="onRenameInput(($event.target as HTMLInputElement).value)"
+                    @keyup.enter="commitRename()" @keyup.esc="cancelRename()" @blur="commitRename()">
+                <template v-else>
+                    <span class="account-name">👤 {{ uname }}</span>
+                    <button class="text-btn" type="button" @click="startRename">{{ AUTH_COPY.rename }}</button>
+                </template>
+            </p>
+
+            <p v-if="renameError" class="hint">{{ renameError }}</p>
+
             <p class="account-uid">
                 <span>{{ uidText }}</span>
                 <ValueIcons v-bind="uidIcons" />
@@ -116,11 +128,31 @@ const uidIcons = computed(() => ({
     text-align: center;
 }
 
-.account-name {
+/* 账号区：一行「退出 · 名字 · 重命名」，下面是 uid */
+.account-row {
     margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.account-name {
     font-size: 0.95rem;
     font-weight: 600;
     color: #111827;
+}
+
+/* 账号区的文字操作比列表行略大一点 */
+.account-row .text-btn {
+    font-size: 0.85rem;
+}
+
+.account-rename {
+    flex: 0 1 11rem;
+    height: 30px;
+    font-size: 0.9rem;
 }
 
 .account-uid {

@@ -124,6 +124,21 @@
     cursor: pointer;
 }
 
+/* 文字型操作（重命名 / 删除 / 编辑 / 题目预览 / 答案预览 / 退出…）：无边框、无底色，只像链接 */
+.text-btn {
+    border: none;
+    background: none;
+    padding: 0;
+    color: #4f46e5;
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.text-btn:hover {
+    text-decoration: underline;
+}
+
 /* 列表容器 */
 .list {
     list-style: none;
