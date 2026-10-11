@@ -7,4 +7,4 @@ compatibility_date = "2026-10-11"      # Workers 运行时的"API 版本日期"�
 [[d1_databases]]                       # D1（SQLite）数据库绑定
 binding = "DB"                          # ★ 代码里访问数据库的变量名：env.DB
 database_name = "sudoku-db"            # 云端库名
-database_id = "placeholdercaeffb49-5123-4867-a851-d03e0d97f558"            # 云端库 id（现在还没建库，先占位）
+database_id = "caeffb49-5123-4867-a851-d03e0d97f558"            # 云端库 id（现在还没建库，先占位）
