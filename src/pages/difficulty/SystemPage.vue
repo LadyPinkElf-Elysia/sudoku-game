@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
 import ActionItems from '@/components/ActionItems.vue';
 import LoadingOverlay from '@/components/LoadingOverlay.vue';
 import { BLANK_RATIO, BOX_SIZE_OPTIONS } from '@/constants/game';
-import { PAGE } from '@/constants/pages';
 import { useDifficultyFlow } from '@/composables/game/useDifficultyFlow';
 import type { Actions } from '@/types/item';
 
-const router = useRouter()
 const { draft, loading, error, totalCells, blankCount, blankPercent, apply } = useDifficultyFlow()
 
+/** 回主页只走顶栏那一个入口，这里只留开局 */
 const actions = computed<Actions>(() => [
-    { key: 'home', icon: '🏠', message: '主页', onClick: () => router.push({ name: PAGE.Home }) },
     { key: 'start', icon: '▶', message: '开始游戏', disabled: loading.value, onClick: apply },
 ])
 </script>

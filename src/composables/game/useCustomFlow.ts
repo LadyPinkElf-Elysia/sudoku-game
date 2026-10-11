@@ -87,8 +87,6 @@ export const useCustomFlow = () => {
         return true
     }
 
-    const goHome = (): void => { void router.replace({ name: PAGE.Home }) }
-
     /** 开始游戏：校验 →（可选）提交 → 开局 → /game */
     const apply = async (): Promise<void> => {
         if (loading.value) return
@@ -119,8 +117,8 @@ export const useCustomFlow = () => {
         }
     }
 
+    /** 回主页只走顶栏那一个入口，这里只留开局 */
     const actions = computed<Actions>(() => [
-        { key: 'home', icon: '🏠', message: '主页', onClick: goHome },
         { key: 'start', icon: '▶', message: '开始游戏', disabled: loading.value, onClick: apply },
     ])
 

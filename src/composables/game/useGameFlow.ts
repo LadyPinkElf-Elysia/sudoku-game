@@ -50,8 +50,8 @@ export const useGameFlow = () => {
             ? [{ key: 'cheat', icon: '⚡', message: '作弊', onClick: gameStore.cheat }]
             : []),
     ])
+    /** 通关遮罩：只留重开（回主页走顶栏） */
     const resultActions: Actions = [
-        { key: 'home', icon: '🏠', message: '回主页', onClick: () => router.replace({ name: PAGE.Home }) },
         { key: 'restart', icon: '↺', message: '重开', onClick: restart },
     ]
     const winOverlay = computed(() => (gameStore.status === GAME_STATUS.Won ? GAME_COPY.win : null))

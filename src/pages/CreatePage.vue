@@ -16,7 +16,7 @@ const gameStore = useGameStore()
 const { zoom, zoomIn, zoomOut, resetZoom, canZoomIn, canZoomOut } = useZoom()
 const {
     phase, title, errorMsg, loading, showSuccess, showFail,
-    changeBoxSize, goHome,
+    changeBoxSize, goMine,
     submitPuzzle, submitSolution, backToEdit,
 } = useCreateFlow(resetZoom)
 
@@ -35,9 +35,8 @@ const boardParams = computed<BoardRenderInput>(() => ({
     zoom: zoom.value,
 }))
 
-/** 按钮条：两个阶段都有主页，中间那个按阶段切换 */
+/** 按钮条：缩放 + 按阶段提交（回主页只走顶栏那一个入口） */
 const actions = computed<Actions>(() => [
-    { key: 'home', icon: '🏠', message: '主页', onClick: goHome },
     { key: 'zoomOut', icon: '➖', message: '缩小', disabled: !canZoomOut.value, onClick: zoomOut },
     { key: 'zoomIn', icon: '➕', message: '放大', disabled: !canZoomIn.value, onClick: zoomIn },
     {
@@ -48,9 +47,9 @@ const actions = computed<Actions>(() => [
     },
 ])
 
-/** 出题完成：🔸 只留「回到主页」 */
+/** 出题完成：只留「去我的题目」（🔸 刚保存的题就在那儿；回主页走顶栏那一个入口） */
 const successActions: Actions = [
-    { key: 'home', icon: '🏠', message: '回主页', onClick: goHome },
+    { key: 'goMine', icon: '📋', message: '去我的题目', onClick: goMine },
 ]
 
 const failActions: Actions = [
@@ -84,7 +83,7 @@ const failActions: Actions = [
         <!-- 提交：转圈（校验 + 上传） -->
         <LoadingOverlay :show="loading" title="正在提交题目…" />
 
-        <!-- 成功：只留「回到主页」 -->
+        <!-- 成功：只留「去我的题目」 -->
         <Overlay :show="showSuccess">
             <p class="overlay-title">🎉 出题完成</p>
             <p class="overlay-desc">题目已通过验证并保存</p>

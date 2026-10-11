@@ -62,7 +62,8 @@ export const useCreateFlow = (resetZoom: () => void) => {
         title.value = custom || defaultTitleOf(b)
     }
 
-    const goHome = (): void => { void router.replace({ name: PAGE.Home }) }
+    /** 出题完成 → 去「我的题目」（与编辑完成一致；回主页走顶栏那一个入口） */
+    const goMine = (): void => { void router.replace({ name: PAGE.MyPuzzles }) }
 
     /** 提交题面 → 非空 + 无冲突 + 40%~70% → 锁题进入填答案阶段 */
     const submitPuzzle = (): void => {
@@ -128,7 +129,7 @@ export const useCreateFlow = (resetZoom: () => void) => {
 
     return {
         phase, title, errorMsg, loading, showSuccess, showFail,
-        changeBoxSize, goHome,
+        changeBoxSize, goMine,
         submitPuzzle, submitSolution, backToEdit,
     }
 }
