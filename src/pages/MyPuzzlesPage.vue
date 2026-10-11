@@ -39,11 +39,9 @@ watch(renaming, async (on) => {
 
 <template>
     <div class="page-card wide">
-        <!-- 账号区（FR-1 / FR-12）：退出在名字左边；名字右边「重命名」点了就地变输入框 -->
+        <!-- 账号区（FR-1 / FR-12）：一行「👤 显示名 · 重命名 · 退出」；点「重命名」名字就地变输入框 -->
         <section class="account">
             <p class="account-row">
-                <button class="text-btn" type="button" @click="logout">{{ AUTH_COPY.logout }}</button>
-
                 <input v-if="renaming" ref="nameBox" class="input account-rename" :value="renameText"
                     :maxlength="UNAME_MAX" :placeholder="AUTH_COPY.renamePlaceholder"
                     @input="onRenameInput(($event.target as HTMLInputElement).value)"
@@ -52,6 +50,8 @@ watch(renaming, async (on) => {
                     <span class="account-name">👤 {{ uname }}</span>
                     <button class="text-btn" type="button" @click="startRename">{{ AUTH_COPY.rename }}</button>
                 </template>
+
+                <button class="text-btn" type="button" @click="logout">{{ AUTH_COPY.logout }}</button>
             </p>
 
             <p v-if="renameError" class="hint">{{ renameError }}</p>
