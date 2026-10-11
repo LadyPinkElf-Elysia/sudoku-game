@@ -1,4 +1,5 @@
-import { TITLE_MAX, VISIBILITY } from '../../../src/constants/game'
+import { TITLE_MAX } from '../../../src/constants/game'
+import { VISIBILITY } from '../../../src/constants/puzzle'
 import { requireUser } from '../../utils/auth'
 import { fail, json } from '../../utils/json'
 import { checkPuzzle } from '../../utils/puzzle'

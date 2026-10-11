@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { TITLE_MAX, VISIBILITY } from '@/constants/game'
+import { TITLE_MAX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
-import { MINE_COPY, PUZZLE_VISIBILITY_COPY } from '@/constants/puzzle'
+import { MINE_COPY } from '@/constants/puzzle'
 import { useClipboard } from '@/composables/useClipboard'
 import { useListQuery } from '@/composables/useListQuery'
 import { parsePuzzle } from '@/core/sudoku/parse'
@@ -11,7 +11,7 @@ import { remove as removePuzzle, update as updatePuzzle } from '@/services/api/p
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
 import { usePuzzlePreview } from './usePuzzlePreview'
-import type { Action, Actions, ValueIconsProps } from '@/types/item'
+import type { Actions, MyPuzzleRowControls, ValueIconsProps } from '@/types/item'
 import type { MyPuzzle, MyPuzzleDetail, Visibility } from '@/types/puzzle'
 
 /** 我的题目页（FR-7 / FR-13）：列表分页→useListQuery，预览→usePuzzlePreview；
@@ -33,8 +33,8 @@ export const useMyPuzzles = () => {
     const busy = ref(false)
     /** 已明文显示过 pid 的行（默认遮蔽） */
     const revealed = ref<string[]>([])
-    /** 重命名 / 删除确认弹层 */
-    const renameOpen = ref(false)
+    /** 正在内联重命名的 rowId（'' = 无）；删除仍走二次确认弹层 */
+    const renaming = ref('')
     const renameText = ref('')
     const removeOpen = ref(false)
     /** 当前操作的目标行 */
@@ -93,16 +93,16 @@ export const useMyPuzzles = () => {
         }
     }
 
-    /** 三态循环：公开 → 受保护 → 私有 → 公开 */
-    const cycleVisibility = async (item: MyPuzzle): Promise<void> => {
-        const next: Visibility = item.visibility === VISIBILITY.Public ? VISIBILITY.Protected
-            : item.visibility === VISIBILITY.Protected ? VISIBILITY.Private
-                : VISIBILITY.Public
-        await patch(item.rowId, { visibility: next })
+    /** 可见性下拉：值真的变了才 PATCH */
+    const setVisibility = async (item: MyPuzzle, value: Visibility): Promise<void> => {
+        if (value === item.visibility) return
+        await patch(item.rowId, { visibility: value })
     }
 
-    const toggleSolution = async (item: MyPuzzle): Promise<void> => {
-        await patch(item.rowId, { showSolution: !item.showSolution })
+    /** 参考答案下拉（开 / 关） */
+    const setSolution = async (item: MyPuzzle, on: boolean): Promise<void> => {
+        if (on === item.showSolution) return
+        await patch(item.rowId, { showSolution: on })
     }
 
     /** 题目 / 答案预览（只读遮罩；不写任何游戏状态） */
@@ -130,11 +130,15 @@ export const useMyPuzzles = () => {
         if (detail) await router.push({ name: PAGE.EditPuzzle, params: { pid: detail.pid } })
     }
 
-    const saveRename = async (): Promise<void> => {
+    /** 内联重命名：点标题旁「重命名」→ 标题变输入框；回车 / 失焦提交，Esc 取消 */
+    const startRename = (item: MyPuzzle): void => { renaming.value = item.rowId; renameText.value = item.title }
+    const cancelRename = (): void => { renaming.value = '' }
+    const commitRename = async (): Promise<void> => {
+        const rowId = renaming.value
         const name = renameText.value.trim()
-        if (!name || name.length > TITLE_MAX) return
-        await patch(target.value, { title: name })
-        renameOpen.value = false
+        renaming.value = ''
+        if (!rowId || !name || name.length > TITLE_MAX) return
+        await patch(rowId, { title: name })
     }
 
     const confirmRemove = async (): Promise<void> => {
@@ -160,26 +164,24 @@ export const useMyPuzzles = () => {
         onCopy: () => { void copyPid(item.rowId) },
     })
 
-    /** 每行一条按钮条（闭包随行；components 只负责画） */
-    const actionsFor = (item: MyPuzzle): Actions => {
+    /** 每行一套行内控件（闭包随行；components 只负责画） */
+    const controlsFor = (item: MyPuzzle): MyPuzzleRowControls => {
         const id = item.rowId
-        const actions: Action[] = [
-            { key: 'vis', icon: '🔄', message: PUZZLE_VISIBILITY_COPY[item.visibility], onClick: () => { void cycleVisibility(item) } },
-            { key: 'sol', icon: '🗝', message: item.showSolution ? MINE_COPY.solutionOn : MINE_COPY.solutionOff, onClick: () => { void toggleSolution(item) } },
-            { key: 'preview', icon: '🔍', message: MINE_COPY.preview, onClick: () => openPreview(id, false) },
-            { key: 'answer', icon: '📖', message: MINE_COPY.answerPreview, onClick: () => openPreview(id, true) },
-            { key: 'challenge', icon: '▶', message: MINE_COPY.challenge, onClick: () => { void challenge(id) } },
-            { key: 'edit', icon: '✏️', message: MINE_COPY.edit, onClick: () => { void openEdit(id) } },
-            { key: 'rename', icon: '🏷', message: MINE_COPY.rename, onClick: () => { target.value = id; renameText.value = item.title; renameOpen.value = true } },
-            { key: 'remove', icon: '🗑', message: MINE_COPY.remove, onClick: () => { target.value = id; removeOpen.value = true } },
-        ]
-        return actions
+        return {
+            renaming: renaming.value === id,
+            renameText: renameText.value,
+            onRenameStart: () => startRename(item),
+            onRenameInput: (text) => { renameText.value = text },
+            onRenameCommit: () => { void commitRename() },
+            onRenameCancel: cancelRename,
+            onVisibility: (value) => { void setVisibility(item, value) },
+            onSolution: (on) => { void setSolution(item, on) },
+            onPreview: (answer) => openPreview(id, answer),
+            onChallenge: () => { void challenge(id) },
+            onEdit: () => { void openEdit(id) },
+            onRemove: () => { target.value = id; removeOpen.value = true },
+        }
     }
-
-    const renameActions = computed<Actions>(() => [
-        { key: 'save', icon: '✅', message: MINE_COPY.save, onClick: () => { void saveRename() } },
-        { key: 'cancel', icon: '↩', message: MINE_COPY.cancel, onClick: () => { renameOpen.value = false } },
-    ])
     const removeActions = computed<Actions>(() => [
         { key: 'remove', icon: '🗑', message: MINE_COPY.remove, onClick: () => { void confirmRemove() } },
         { key: 'cancel', icon: '↩', message: MINE_COPY.cancel, onClick: () => { removeOpen.value = false } },
@@ -188,9 +190,8 @@ export const useMyPuzzles = () => {
     return {
         ...list,
         items, loading, error, empty, pageCount, busy,
-        pidTextOf, pidIconsOf, actionsFor, goCreate,
+        pidTextOf, pidIconsOf, controlsFor, goCreate,
         ...preview,
-        renameOpen, renameText, renameActions,
         removeOpen, removeActions,
     }
 }

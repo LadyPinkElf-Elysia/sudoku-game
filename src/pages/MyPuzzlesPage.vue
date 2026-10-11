@@ -7,7 +7,6 @@ import MyPuzzleRow from '@/components/MyPuzzleRow.vue'
 import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import ValueIcons from '@/components/ValueIcons.vue'
-import { TITLE_MAX } from '@/constants/game'
 import { MINE_COPY, PAGER_MODE_OPTIONS, SORT_OPTIONS } from '@/constants/puzzle'
 import { useClipboard } from '@/composables/useClipboard'
 import { useMyPuzzles } from '@/composables/puzzle/useMyPuzzles'
@@ -17,9 +16,8 @@ import type { ListSort } from '@/types/puzzle'
 const {
     items, loading, error, empty, pageCount, busy,
     sort, page, pagerMode, changePagerMode, changeSort, changePage, retry,
-    pidTextOf, pidIconsOf, actionsFor, goCreate,
+    pidTextOf, pidIconsOf, controlsFor, goCreate,
     previewOpen, previewTitle, previewInput, closePreview,
-    renameOpen, renameText, renameActions,
     removeOpen, removeActions,
 } = useMyPuzzles()
 
@@ -83,7 +81,7 @@ const uidIcons = computed(() => ({
 
         <ul v-else class="list">
             <li v-for="item in items" :key="item.rowId">
-                <MyPuzzleRow :item="item" :pid-text="pidTextOf(item)" :pid-icons="pidIconsOf(item)" :actions="actionsFor(item)" />
+                <MyPuzzleRow :item="item" :pid-text="pidTextOf(item)" :pid-icons="pidIconsOf(item)" :controls="controlsFor(item)" />
             </li>
         </ul>
 
@@ -92,14 +90,6 @@ const uidIcons = computed(() => ({
         <!-- 题目预览 / 答案预览：同一块只读遮罩 -->
         <BoardOverlay :show="previewOpen" :input="previewInput" :title="previewTitle" close-text="返回"
             @close="closePreview" />
-
-        <!-- 重命名（小弹层） -->
-        <Overlay :show="renameOpen">
-            <p class="overlay-title">{{ MINE_COPY.rename }}</p>
-            <input class="input rename-input" v-model="renameText" :maxlength="TITLE_MAX"
-                :placeholder="MINE_COPY.renamePlaceholder">
-            <ActionItems :items="renameActions" />
-        </Overlay>
 
         <!-- 删除：二次确认 -->
         <Overlay :show="removeOpen">
@@ -139,10 +129,6 @@ const uidIcons = computed(() => ({
     font-size: 0.8rem;
     color: #4b5563;
     word-break: break-all;
-}
-
-.rename-input {
-    margin: 10px 0 4px;
 }
 
 .go-create {

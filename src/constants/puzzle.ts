@@ -27,12 +27,38 @@ export const PAGER_MODE_OPTIONS = [
 /** 本地偏好键名（services/prefs.ts 会补 sudoku. 前缀） */
 export const PREF_KEY_PAGER_MODE = 'pagerMode'
 
-/** 可见性徽标文案（我的题目行内 / 三态切换按钮） */
+/** 题目可见性（题目的属性 → 归位到 puzzle；下拉项与文案都在本文件） */
+export const VISIBILITY = {
+    Public: 'public',
+    Protected: 'protected',
+    Private: 'private',
+} as const
+
+/** 可见性徽标文案（我的题目行内 / 可见性下拉项） */
 export const PUZZLE_VISIBILITY_COPY = {
     public: '🌐 公开',
     protected: '🔗 受保护',
     private: '🔒 私有',
 } as const
+
+/** 可见性下拉项（我的题目行内：三态改成下拉，不再用循环按钮） */
+export const PUZZLE_VISIBILITY_OPTIONS = [
+    { value: VISIBILITY.Public, label: PUZZLE_VISIBILITY_COPY.public },
+    { value: VISIBILITY.Protected, label: PUZZLE_VISIBILITY_COPY.protected },
+    { value: VISIBILITY.Private, label: PUZZLE_VISIBILITY_COPY.private },
+] as const
+
+/** 参考答案下拉值（布尔用 on / off 便于 <select> 绑定） */
+export const SOLUTION_VALUE = {
+    On: 'on',
+    Off: 'off',
+} as const
+
+/** 参考答案下拉项 */
+export const SOLUTION_OPTIONS = [
+    { value: SOLUTION_VALUE.On, label: '开' },
+    { value: SOLUTION_VALUE.Off, label: '关' },
+] as const
 
 /** 搜索页文案 */
 export const SEARCH_COPY = {
@@ -74,8 +100,9 @@ export const MINE_COPY = {
     hidePid: '隐藏 pid',
     copyPid: '复制 pid',
     copied: '已复制',
-    solutionOn: '参考答案：开',
-    solutionOff: '参考答案：关',
+    /** 行内控件标签（竖排：标签 + 下拉） */
+    visibilityLabel: '可见性',
+    solutionLabel: '参考答案',
     save: '保存',
     cancel: '取消',
 } as const

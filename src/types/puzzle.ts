@@ -1,4 +1,4 @@
-import type { VISIBILITY } from "@/constants/game"
+import type { VISIBILITY } from "@/constants/puzzle"
 import type { PAGER_MODE, SORT } from "@/constants/puzzle"
 import type { NumBoard } from "./board"
 

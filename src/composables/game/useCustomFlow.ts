@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CUSTOM_COPY, RATIO_COPY, TITLE_MAX, VISIBILITY } from '@/constants/game'
+import { CUSTOM_COPY, RATIO_COPY, TITLE_MAX } from '@/constants/game'
+import { VISIBILITY } from '@/constants/puzzle'
 import { PAGE } from '@/constants/pages'
 import { countBlanks, isBlankBoard } from '@/core/board/ops'
 import { percentOf } from '@/core/game/derive'

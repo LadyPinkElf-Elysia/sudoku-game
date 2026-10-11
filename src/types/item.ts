@@ -1,4 +1,5 @@
 import type { Page } from './page'
+import type { Visibility } from './puzzle'
 
 /** 展示项公共字段：按钮条（ActionItems）与菜单（MenuItems）共用 */
 export interface ItemBase {
@@ -28,6 +29,28 @@ export interface ValueIconsProps {
 }
 
 export type Actions=Action[]
+
+/**
+ * 「我的题目」行内控件：组件只负责画（R5：不碰 store / 路由），闭包由 composable 提供。
+ * 行内不再堆图标按钮 —— 可见性 / 参考答案是下拉，预览与重命名是文字。
+ */
+export interface MyPuzzleRowControls {
+    /** 该行是否正在内联重命名（是 → 标题位置换成输入框） */
+    renaming: boolean
+    /** 内联输入框的当前文本 */
+    renameText: string
+    onRenameStart: () => void
+    onRenameInput: (text: string) => void
+    onRenameCommit: () => void
+    onRenameCancel: () => void
+    onVisibility: (value: Visibility) => void
+    onSolution: (on: boolean) => void
+    /** answer = false 题目预览 / true 答案预览 */
+    onPreview: (answer: boolean) => void
+    onChallenge: () => void
+    onEdit: () => void
+    onRemove: () => void
+}
 
 /** 首页菜单一项：MenuItems / MenuItem（routeName 必须是 PAGE 里的路由名） */
 export interface Menu extends ItemBase {

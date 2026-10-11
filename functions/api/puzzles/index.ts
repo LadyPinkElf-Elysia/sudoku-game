@@ -1,4 +1,4 @@
-import { VISIBILITY } from '../../../src/constants/game'
+import { VISIBILITY } from '../../../src/constants/puzzle'
 import { requireUser } from '../../utils/auth'
 import { makePid, makeRowId, makeUniqueId } from '../../utils/id'
 import { fail, json } from '../../utils/json'

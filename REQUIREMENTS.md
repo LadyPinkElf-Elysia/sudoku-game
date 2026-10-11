@@ -27,7 +27,7 @@
 | 系统生成开局 · 自定义开局（临时挑战） | ✅ | ✅ |
 | 搜索 / 落地页 `/p/:pid` / 预览 / 挑战 / 参考答案 | ✅ | ✅ |
 | 出题（新建） | ⛔ 入口灰 + 点击提示 | ✅ |
-| 我的题目（预览 / 答案预览 / 挑战 / 重命名 / 三态 / 编辑 / 删除） | ⛔ 需登录（游客点顶栏「👤 登录」→ 登录页） | ✅ |
+| 我的题目（预览 / 答案预览 / 挑战 / 重命名 / 可见性下拉 / 编辑 / 删除） | ⛔ 需登录（游客点顶栏「👤 登录」→ 登录页） | ✅ |
 | 注册 / 登录 | ✅ | 退出登录 |
 
 - **灰显规则**：不用 HTML `disabled` → `aria-disabled` + `.is-disabled` —— 灰显态**不渲染 RouterLink**，
@@ -134,15 +134,21 @@
 页首「**账号区**」：显示名 + uid（**默认遮蔽** `uid ▮▮▮▮…`；值右侧裸图标组 👁 睁/闭 + 📋 复制，与 pid 同规则；**明文时保留 `uid ` 前缀** → `uid <值>`）。
 页头：左上「浏览方式」、右上「排序（时间 / 热度）」——**都是下拉**；底部 `PagerBar`（10/页）。
 
-    [ 标题 ✏️重命名 ] [ 盘面大小 S×S ] [ 🌐公开 | 🔗受保护 | 🔒私有（可切换）] [ 创建时间 YYYY/M/D HH:mm ] [ 挖空 N 格 ] [ 热度 N ]
-    [ pid ▮▮▮▮… 👁 📋 ] [ 题目预览 ] [ 答案预览 ] [ 挑战 ] [ 参考答案 开关 ] [ 编辑 ] [ 删除 ]
-      └ 👁 / 📋 = 值右侧裸图标（`ValueIcons`：无按钮框、无文字）；👁 睁/闭两态切换
+    [ 标题 · 重命名 ]                                          [ 删除 · 编辑 ]
+      └ 点「重命名」→ 标题就地变成输入框（回车 / 失焦提交，Esc 取消）；右上角纯文字，左删除右编辑
+    [ 盘面大小 S×S · 挖空 N 格 · 创建时间 YYYY/M/D HH:mm · 热度 N ]
+    [ pid ▮▮▮▮… 👁 📋 ]  └ 👁 / 📋 = 值右侧裸图标（`ValueIcons`：无按钮框、无文字）
+    [ 可见性 ▾ 🌐公开 | 🔗受保护 | 🔒私有 ]                      ← 竖排控件：下拉（不再是三态按钮）
+    [ 参考答案 ▾ 开 | 关 ]
+    [ 题目预览 ]
+    [ 答案预览 ]                                                ← 竖排文字（无按钮框）
+    [ ▶ 挑战 ]                                                  ← 本行唯一保留的按钮
 
 - **列表接口**只回元信息：`rowId · title · sideS · blankCount · visibility · showSolution · playCount · createdAt`
   （**不带 pid、不带题面串/答案串**）+ `total`。
 - **「显示 pid / 复制 pid / 题目预览 / 答案预览 / 编辑 / 挑战」统一走 `GET /api/puzzles/mine/:rowId`**
   （一次拿全 pid + 题面 + 答案；前端按 rowId 缓存）；**复制 pid 不显示在界面**，直接进剪贴板。
-- 重命名（小弹层）→ `PATCH { title }`；三态 → `PATCH { visibility }`；开关 → `PATCH { showSolution }`；
+- 重命名**行内**（点标题旁「重命名」→ 标题变输入框）→ `PATCH { title }`；可见性 / 参考答案**下拉** → `PATCH { visibility }` / `{ showSolution }`；
   删除 → 二次确认 → `DELETE`（连带清理 `puzzle_play`）。
 - **改动后**：清该 `rowId` 的缓存 + 重拉当前页列表。
 - 挑战自己的题**不计热度**；作者不受可见性限制。空态：「你还没有出过题，去出题 →」。
@@ -408,6 +414,8 @@ i18n / 深色模式 / 完整 a11y。
 | 47 | 「浏览方式」与「排序」统一成**下拉**（不再用切换按钮）：`PAGER_MODE_OPTIONS` 与 `SORT_OPTIONS` 同形；`useListQuery` 的 `togglePagerMode` → `changePagerMode(值)`；全局 `.mode-btn` 样式删除 |
 | 48 | 搜索列表**补回 `playCount` / `createdAt`**（排序有「时间 / 热度」却看不见值）：后端公开搜索 SQL 加 `p.play_count` / `p.created_at`，`SearchResult` 加两字段，卡片行显示「盘面大小 · 挖空 · 创建时间 · 热度」（与「我的题目」行同标签） |
 | 49 | 时间/热度**兜底**（新前端 + 旧后端也不会出现 `Invalid Date · 热度 undefined`）：`createdAt` 缺失 → 显示当前时间（`createdAt || Date.now()`），有记录就按记录；格式 `YYYY/M/D HH:mm`（24 小时制）；`playCount` 缺失 → `0`；搜索卡片与「我的题目」行**同一规则**（标签：`盘面大小` / `挖空` / `创建时间` / `热度`） |
+| 50 | 「我的题目」行内**不再堆图标按钮**：标题旁「重命名」（点了标题就地变输入框，回车/失焦提交、Esc 取消）；右上角纯文字「删除 · 编辑」（左删除右编辑）；**可见性与参考答案改下拉**（`PUZZLE_VISIBILITY_OPTIONS` / `SOLUTION_OPTIONS`，与决策 47 同形）；题目预览 / 答案预览改**竖排文字**；只保留「挑战」按钮；行内控件闭包由 composable 提供（R5：组件不碰 store / 路由） | ✅ |
+| 51 | `VISIBILITY` 常量**归位**：`constants/game.ts` → `constants/puzzle.ts`（可见性是题目属性，与其文案、下拉项同文件），同时满足 R2「constants 之间不得互相 import」 | ✅ |
 | 42 | 路由守卫改 **async**：受保护页冷启动/直接开 URL 时先 `await userStore.restore()`（store 内 memo 化，无 token 立即返回）再判登录态 → 已登录用户刷新/收藏 `#/my-puzzles` 不再被弹回登录页；其余页面仍即时渲染（不等待）|
 | 43 | 顶栏左侧常驻「🏠 回到主页」（三栏 grid 第 1 列原本空着）；「数独」保持纯标题（回主页只留这一个入口） |
 | 44 | 难度壳的默认 Tab 用**守卫**补（`to.name === PAGE.Difficulty` → `{ name: PAGE.DifficultySystem }`）：原先靠子路由 `{ path: '', redirect }`，**按 name 跳父路由时不触发** → 点「开始游戏」会停在 `/difficulty`（两个 Tab 都不高亮、内容空） |

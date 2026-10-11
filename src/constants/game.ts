@@ -20,13 +20,6 @@ export const GAME_COPY = {
     win: { title: '🎉 恭喜完成', desc: '全部填对，太厉害了' },
 } as const
 
-/** 可见性：public 可搜索 / protected 凭 pid 可达 / private 仅作者 */
-export const VISIBILITY = {
-    Public: 'public',
-    Protected: 'protected',
-    Private: 'private'
-} as const
-
 /** 出题页阶段 */
 export const CREATE_PHASE = {
     Puzzle: 'puzzle',
