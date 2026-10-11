@@ -8,7 +8,7 @@ import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import ValueIcons from '@/components/ValueIcons.vue'
 import { TITLE_MAX } from '@/constants/game'
-import { MINE_COPY, SORT_OPTIONS } from '@/constants/puzzle'
+import { MINE_COPY, PAGER_MODE_OPTIONS, SORT_OPTIONS } from '@/constants/puzzle'
 import { useClipboard } from '@/composables/useClipboard'
 import { useMyPuzzles } from '@/composables/puzzle/useMyPuzzles'
 import { useUserStore } from '@/stores/user'
@@ -16,7 +16,7 @@ import type { ListSort } from '@/types/puzzle'
 
 const {
     items, loading, error, empty, pageCount, busy,
-    sort, page, pagerMode, pagerModeLabel, togglePagerMode, changeSort, changePage, retry,
+    sort, page, pagerMode, changePagerMode, changeSort, changePage, retry,
     pidTextOf, pidIconsOf, actionsFor, goCreate,
     previewOpen, previewTitle, previewInput, closePreview,
     renameOpen, renameText, renameActions,
@@ -54,9 +54,13 @@ const uidIcons = computed(() => ({
 
         <!-- 页头：左上「浏览方式」、右上「排序」 -->
         <div class="list-bar">
-            <button class="mode-btn" type="button" @click="togglePagerMode">
-                浏览方式：{{ pagerModeLabel }}
-            </button>
+            <label class="sort-box">
+                浏览方式
+                <select class="select is-sm" :value="pagerMode"
+                    @change="changePagerMode(($event.target as HTMLSelectElement).value)">
+                    <option v-for="opt in PAGER_MODE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+            </label>
             <label class="sort-box">
                 排序
                 <select class="select is-sm" :value="sort"
@@ -110,7 +114,7 @@ const uidIcons = computed(() => ({
 </template>
 
 <style scoped>
-/* .list-bar / .mode-btn / .sort-box / .state / .retry / .list / .input / .overlay-* 都在全局 */
+/* .list-bar / .sort-box / .select(.is-sm) / .state / .retry / .list / .input / .overlay-* 都在全局 */
 
 /* 账号区：显示名 + uid（默认遮蔽，点 👁 才明文） */
 .account {

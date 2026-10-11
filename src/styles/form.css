@@ -103,23 +103,6 @@
     margin: 12px 0 0;
 }
 
-.mode-btn {
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: #fff;
-    color: #374151;
-    font-size: 0.78rem;
-    font-family: inherit;
-    padding: 4px 10px;
-    cursor: pointer;
-    transition: 0.15s;
-}
-
-.mode-btn:hover {
-    background: #eef2ff;
-    border-color: #6366f1;
-}
-
 .sort-box {
     display: inline-flex;
     align-items: center;

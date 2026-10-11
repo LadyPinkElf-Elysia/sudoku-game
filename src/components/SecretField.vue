@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import EyeGlyph from './EyeGlyph.vue';
 
 defineProps<{
     /** 字段标题 */
@@ -12,7 +13,7 @@ defineProps<{
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-/** 默认遮蔽，点 👁 切明文 */
+/** 默认遮蔽，点眼睛切明文（睁/闭图标来自 EyeGlyph，全站一套） */
 const visible = ref(false);
 const toggle = (): void => { visible.value = !visible.value };
 </script>
@@ -24,8 +25,9 @@ const toggle = (): void => { visible.value = !visible.value };
         <span class="control">
             <input class="input" :type="visible ? 'text' : 'password'" :value="modelValue" spellcheck="false"
                 autocomplete="off" @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)">
-            <button type="button" class="eye" :aria-label="visible ? '隐藏密码' : '显示密码'" @click="toggle">{{ visible ? '🙈'
-                : '👁' }}</button>
+            <button type="button" class="eye" :aria-label="visible ? '隐藏密码' : '显示密码'" @click="toggle">
+                <EyeGlyph :revealed="visible" />
+            </button>
         </span>
 
         <span v-if="hint" class="hint">{{ hint }}</span>

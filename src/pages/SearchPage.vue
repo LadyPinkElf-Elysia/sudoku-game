@@ -3,13 +3,13 @@ import BoardOverlay from '@/components/BoardOverlay.vue'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import PuzzleCard from '@/components/PuzzleCard.vue'
-import { SEARCH_COPY, SORT_OPTIONS } from '@/constants/puzzle'
+import { PAGER_MODE_OPTIONS, SEARCH_COPY, SORT_OPTIONS } from '@/constants/puzzle'
 import { useSearchPuzzle } from '@/composables/puzzle/useSearchPuzzle'
 import type { ListSort } from '@/types/puzzle'
 
 const {
     keyword, sort, page, pageCount, items, loading, error, empty, authorLabel,
-    pagerMode, pagerModeLabel, togglePagerMode,
+    pagerMode, changePagerMode,
     onSearch, changeSort, changePage, retry,
     previewOpen, previewInput, previewLoading, openPreview, closePreview, challenge,
 } = useSearchPuzzle()
@@ -25,9 +25,13 @@ const {
 
         <!-- 主内容：左上「浏览方式」 / 右上「排序」 -->
         <div class="list-bar">
-            <button class="mode-btn" type="button" @click="togglePagerMode">
-                {{ SEARCH_COPY.browseLabel }}：{{ pagerModeLabel }}
-            </button>
+            <label class="sort-box">
+                {{ SEARCH_COPY.browseLabel }}
+                <select class="select is-sm" :value="pagerMode"
+                    @change="changePagerMode(($event.target as HTMLSelectElement).value)">
+                    <option v-for="opt in PAGER_MODE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+            </label>
             <label class="sort-box">
                 {{ SEARCH_COPY.sortLabel }}
                 <select class="select is-sm" :value="sort"
@@ -65,7 +69,7 @@ const {
 </template>
 
 <style scoped>
-/* .input / .select(.is-sm) / .state / .retry / .list / .list-bar / .mode-btn / .sort-box 都在全局 */
+/* .input / .select(.is-sm) / .state / .retry / .list / .list-bar / .sort-box 都在全局 */
 
 .search-form {
     display: flex;

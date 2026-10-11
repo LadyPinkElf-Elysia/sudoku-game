@@ -18,10 +18,11 @@ export const PAGER_MODE = {
     Slider: 'slider',
 } as const
 
-export const PAGER_MODE_COPY = {
-    bar: '进度条',
-    slider: '滑动条',
-} as const
+/** 浏览方式下拉项（与 SORT_OPTIONS 同形：value 来自 PAGER_MODE） */
+export const PAGER_MODE_OPTIONS = [
+    { value: PAGER_MODE.Bar, label: '进度条' },
+    { value: PAGER_MODE.Slider, label: '滑动条' },
+] as const
 
 /** 本地偏好键名（services/prefs.ts 会补 sudoku. 前缀） */
 export const PREF_KEY_PAGER_MODE = 'pagerMode'

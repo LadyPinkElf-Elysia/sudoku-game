@@ -1,6 +1,6 @@
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { PAGER_MODE, PAGER_MODE_COPY, PREF_KEY_PAGER_MODE, SORT } from '@/constants/puzzle'
+import { PAGER_MODE, PREF_KEY_PAGER_MODE, SORT } from '@/constants/puzzle'
 import { clampPage } from '@/core/page'
 import { readPref, writePref } from '@/services/prefs'
 import type { Page } from '@/types/page'
@@ -31,13 +31,12 @@ export const useListQuery = (opts: ListQueryOptions) => {
     const sort = ref<ListSort>(SORT.Time)
     const page = ref(1)
 
-    /** 分页形态：纯 UI 偏好，存本地（不进 URL） */
+    /** 分页形态：纯 UI 偏好，存本地（不进 URL）；由「浏览方式」下拉选择 */
     const pagerMode = ref<PagerMode>(
         readPref(PREF_KEY_PAGER_MODE) === PAGER_MODE.Slider ? PAGER_MODE.Slider : PAGER_MODE.Bar)
-    const pagerModeLabel = computed<string>(() => PAGER_MODE_COPY[pagerMode.value])
 
-    const togglePagerMode = (): void => {
-        pagerMode.value = pagerMode.value === PAGER_MODE.Bar ? PAGER_MODE.Slider : PAGER_MODE.Bar
+    const changePagerMode = (value: string): void => {
+        pagerMode.value = value === PAGER_MODE.Slider ? PAGER_MODE.Slider : PAGER_MODE.Bar
         writePref(PREF_KEY_PAGER_MODE, pagerMode.value)
     }
 
@@ -76,7 +75,7 @@ export const useListQuery = (opts: ListQueryOptions) => {
 
     return {
         keyword, sort, page,
-        pagerMode, pagerModeLabel, togglePagerMode,
+        pagerMode, changePagerMode,
         onSearch, changeSort, changePage, retry,
     }
 }
