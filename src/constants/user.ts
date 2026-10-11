@@ -11,7 +11,6 @@ export const PASSWORD_MIN = 8
 /** 账号相关静态文案（后端返回、前端直接展示；需要按入参拼装的另说） */
 export const AUTH_COPY = {
     needLogin: '该功能需要登录才可以使用',
-    myPuzzles: '我的题目',
     login: '登录',
     register: '注册',
     logout: '退出',

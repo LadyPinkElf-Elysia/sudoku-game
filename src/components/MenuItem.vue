@@ -58,7 +58,7 @@ const emit = defineEmits<{ blocked: [] }>()
     border-color: #6366f1;
 }
 
-/* 灰显：不导航，只冒泡 blocked（视觉对齐 AppLayout 的 .nav-item.is-disabled） */
+/* 灰显：不导航，只冒泡 blocked */
 .menu-btn.is-disabled {
     opacity: 0.45;
     cursor: not-allowed;

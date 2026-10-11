@@ -3,25 +3,23 @@ import { PAGE } from '@/constants/pages'
 import { AUTH_COPY } from '@/constants/user'
 import { useAccountMenu } from '@/composables/auth/useAccountMenu'
 
-const { isGuest, uname, tip, showNav, onMineBlocked, logout } = useAccountMenu()
+const { isGuest, uname, showNav, logout } = useAccountMenu()
 </script>
 
 <template>
     <div class="app-shell">
         <header class="app-header">
+            <!-- 常驻「回到主页」：三栏 grid 第 1 列（标题左边）—— 任何页面（含登录页）都能回主页 -->
+            <RouterLink :to="{ name: PAGE.Home }" class="nav-item nav-home">回到主页</RouterLink>
+
             <RouterLink :to="{ name: PAGE.Home }" class="app-title">数独</RouterLink>
 
+            <!-- 右侧账号位：游客「👤 登录」→ 登录页；登录后「👤 用户名」→「我的」页 + 退出；登录页自己就是入口 → 隐藏 -->
             <nav v-if="showNav" class="app-nav">
-                <!-- 游客：灰显「我的题目」（不导航，只出提示条）+ 去登录 -->
-                <button v-if="isGuest" type="button" class="nav-item is-disabled" aria-disabled="true"
-                    :title="AUTH_COPY.needLogin" @click="onMineBlocked">
-                    {{ AUTH_COPY.myPuzzles }}
-                </button>
-                <RouterLink v-if="isGuest" :to="{ name: PAGE.Login }" class="nav-item is-primary">
-                    {{ AUTH_COPY.login }}
+                <RouterLink v-if="isGuest" :to="{ name: PAGE.Login }" class="nav-item nav-user">
+                    👤 {{ AUTH_COPY.login }}
                 </RouterLink>
 
-                <!-- 登录后：只留这一个入口「👤 用户名」→「我的」页（账号 ID + 我的题目）+ 退出 -->
                 <template v-else>
                     <RouterLink :to="{ name: PAGE.MyPuzzles }" class="nav-item nav-user"
                         :title="AUTH_COPY.meTitle">
@@ -31,8 +29,6 @@ const { isGuest, uname, tip, showNav, onMineBlocked, logout } = useAccountMenu()
                 </template>
             </nav>
         </header>
-
-        <p v-if="tip" class="app-tip">{{ tip }}</p>
 
         <main class="app-main">
             <RouterView />
@@ -108,23 +104,7 @@ const { isGuest, uname, tip, showNav, onMineBlocked, logout } = useAccountMenu()
     border-color: #6366f1;
 }
 
-.nav-item.is-primary {
-    background: #6366f1;
-    border-color: #4f46e5;
-    color: #fff;
-    font-weight: 600;
-}
-
-.nav-item.is-disabled {
-    opacity: .45;
-    cursor: not-allowed;
-}
-
-.nav-item.is-disabled:hover {
-    background: #fff;
-    border-color: #d1d5db;
-}
-
+/* 账号位（游客「👤 登录」/ 登录后「👤 用户名」）：名字长了省略号，别把标题挤偏 */
 .nav-user {
     max-width: 130px;
     overflow: hidden;
@@ -132,15 +112,10 @@ const { isGuest, uname, tip, showNav, onMineBlocked, logout } = useAccountMenu()
     white-space: nowrap;
 }
 
-.app-tip {
-    margin: 0 0 8px;
-    padding: 6px 12px;
-    border-radius: 8px;
-    background: #eef2ff;
-    border: 1px solid #c7d2fe;
-    color: #4f46e5;
-    font-size: .85rem;
-    text-align: center;
+/* 「回到主页」固定在标题左边（第 1 列），左对齐 */
+.nav-home {
+    grid-column: 1;
+    justify-self: start;
 }
 
 .app-main {
