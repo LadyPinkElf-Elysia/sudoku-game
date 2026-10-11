@@ -1,7 +1,11 @@
+import { UID_LENGTH } from '../../src/constants/user'
+
 const BASE62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+/** rowId 长度（后端专属：前端只透传，不校验） */
+const ROW_ID_LENGTH = 8
 
 /** 生成 len 位 base62 随机串（拒绝采样，无取模偏差；用 crypto 不用 Math.random） */
-export const makeId = (len = 20): string => {
+export const makeId = (len: number): string => {
     const out: string[] = []
     while (out.length < len) {
         for (const b of crypto.getRandomValues(new Uint8Array(len))) {
@@ -12,9 +16,9 @@ export const makeId = (len = 20): string => {
     return out.join('')
 }
 
-export const makeUid = (): string => makeId(20)      // 用户 uid
-export const makePid = (): string => makeId(20)      // 题目 pid
-export const makeRowId = (): string => makeId(8)     // 我的题目列表行标识
+export const makeUid = (): string => makeId(UID_LENGTH)       // 用户 uid
+export const makePid = (): string => makeId(UID_LENGTH)       // 题目 pid（与 uid 同规则）
+export const makeRowId = (): string => makeId(ROW_ID_LENGTH)  // 我的题目列表行标识
 
 /** 带查重的生成：命中已存在就重生成 */
 export const makeUniqueId = async (

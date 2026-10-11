@@ -1,6 +1,14 @@
 export const PAGE = {
-    Game:'game',
+    Home: 'home',
     Difficulty: 'difficulty',
-    Create:'create',
-    Home:'home',
+    DifficultySystem: 'difficulty-system',
+    DifficultyCustom: 'difficulty-custom',
+    Game: 'game',
+    Create: 'create',
+    EditPuzzle: 'edit-puzzle',
+    PuzzleView: 'puzzle-view',
+    Search: 'search',
+    MyPuzzles: 'my-puzzles',
+    Login: 'login',
 } as const
+

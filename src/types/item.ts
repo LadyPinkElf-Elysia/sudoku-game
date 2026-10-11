@@ -16,6 +16,7 @@ export type Actions=Action[]
 /** 首页菜单一项：MenuItems / MenuItem */
 export interface Menu extends ItemBase {
     routeName: string
+    disabled?: boolean
 }
 
 export type Menus=Menu[]

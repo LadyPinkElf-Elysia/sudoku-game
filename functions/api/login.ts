@@ -1,18 +1,19 @@
+import { AUTH_COPY, UID_PATTERN } from '../../src/constants/user'
 import { hashPassword, makeToken, safeEqual, LOCK_MS, MAX_FAILS, SESSION_TTL } from '../utils/auth'
 import { fail, json } from '../utils/json'
+import { toPublicUser } from '../utils/user'
 import type { Env } from '../types'
 
 interface Payload { uid?: string; password?: string }
-const BAD = '账号 ID 或密码错误'
-const UID_RE = /^[A-Za-z0-9]{20}$/
+const MIN_MS = 60_000
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     let body: Payload
-    try { body = await request.json<Payload>() } catch { return fail('请求格式错误') }
+    try { body = await request.json<Payload>() } catch { return fail(AUTH_COPY.badPayload) }
 
     const uid = (body.uid ?? '').trim()
     const password = body.password ?? ''
-    if (!UID_RE.test(uid) || !password) return fail(BAD, 401)      // 不区分"账号不存在/密码错"，防枚举
+    if (!UID_PATTERN.test(uid) || !password) return fail(AUTH_COPY.badCredentials, 401)
 
     const now = Date.now()
     const attempt = await env.DB.prepare(
@@ -20,8 +21,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     ).bind(uid).first<{ fails: number; locked_until: number }>()
 
     if (attempt && attempt.locked_until > now) {
-        const mins = Math.ceil((attempt.locked_until - now) / 60_000)
-        return fail(`尝试次数过多，请 ${mins} 分钟后再试`, 429)
+        const mins = Math.ceil((attempt.locked_until - now) / MIN_MS)
+        return fail(`尝试次数过多，请 ${mins} 分钟后再试`, 429)   // 后端专属文案（前端不会出现同句）
     }
 
     /** 失败：累加计数（到阈值就锁定 10 分钟） */
@@ -34,7 +35,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
                                             locked_until = excluded.locked_until,
                                             last_at = excluded.last_at`,
         ).bind(uid, locked ? 0 : fails, locked, now).run()
-        return fail(BAD, 401)
+        return fail(AUTH_COPY.badCredentials, 401)
     }
 
     const user = await env.DB.prepare(
@@ -51,5 +52,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         'INSERT INTO session (token, uid, created_at, expires_at) VALUES (?,?,?,?)',
     ).bind(token, uid, now, now + SESSION_TTL).run()
 
-    return json({ token, user: { uid: user.uid, uname: user.uname, isGuest: false } })
+    return json({ token, user: toPublicUser(user.uid, user.uname) })
 }

@@ -1,7 +1,7 @@
 /** 游戏配置默认值 boxSize = 宫边长 B，盘面边长 S = B² */
 export const GAME_INIT_CONFIG = {
     boxSize: 3,
-    blankRatio: 0.5     
+    blankRatio: 0.5
 } as const
 
 export const GAME_STATUS = {
@@ -20,6 +20,12 @@ export const GAME_COPY = {
     win: { title: '🎉 恭喜完成', desc: '全部填对，太厉害了' },
 } as const
 
+/** 可见性：public 可搜索 / protected 凭 pid 可达 / private 仅作者 */
+export const VISIBILITY = {
+    Public: 'public',
+    Protected: 'protected',
+    Private: 'private'
+} as const
 
 /** 出题页阶段 */
 export const CREATE_PHASE = {
@@ -34,8 +40,11 @@ export const BOX_SIZE_OPTIONS = [3, 4, 5, 6] as const
 export const BLANK_RATIO = {
     min: 0.4,
     max: 0.7,
-    step:0.01
+    step: 0.01
 } as const
 
 /** 超时上限*/
 export const DEFAULT_TIMEOUT = 20000
+
+/** 题目标题长度上限 */
+export const TITLE_MAX = 40

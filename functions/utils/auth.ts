@@ -1,3 +1,4 @@
+import { AUTH_COPY } from '../../src/constants/user'
 import type { Env } from '../types'
 import { fail } from './json'
 
@@ -46,7 +47,7 @@ export const requireUser = async (
     env: Env,
 ): Promise<{ uid: string; uname: string } | Response> => {
     const token = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '')
-    if (!token) return fail('请先登录', 401)
+    if (!token) return fail(AUTH_COPY.needAuth, 401)
 
     const row = await env.DB.prepare(
         'SELECT u.uid AS uid, u.uname AS uname FROM session s JOIN user u ON u.uid = s.uid WHERE s.token = ? AND s.expires_at > ?',
@@ -54,6 +55,6 @@ export const requireUser = async (
         .bind(token, Date.now())
         .first<{ uid: string; uname: string }>()
 
-    if (!row) return fail('登录已过期，请重新登录', 401)
+    if (!row) return fail(AUTH_COPY.sessionExpired, 401)
     return row
 }
