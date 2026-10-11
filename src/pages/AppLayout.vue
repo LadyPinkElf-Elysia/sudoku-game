@@ -12,22 +12,19 @@ const { isGuest, uname, tip, showNav, onMineBlocked, logout } = useAccountMenu()
             <RouterLink :to="{ name: PAGE.Home }" class="app-title">数独</RouterLink>
 
             <nav v-if="showNav" class="app-nav">
-                <!-- 游客：灰显 button（不导航，只出提示条）；登录后才是 RouterLink -->
-                <RouterLink v-if="!isGuest" :to="{ name: PAGE.MyPuzzles }" class="nav-item">
-                    {{ AUTH_COPY.myPuzzles }}
-                </RouterLink>
-                <button v-else type="button" class="nav-item is-disabled" aria-disabled="true"
+                <!-- 游客：灰显「我的题目」（不导航，只出提示条）+ 去登录 -->
+                <button v-if="isGuest" type="button" class="nav-item is-disabled" aria-disabled="true"
                     :title="AUTH_COPY.needLogin" @click="onMineBlocked">
                     {{ AUTH_COPY.myPuzzles }}
                 </button>
-
                 <RouterLink v-if="isGuest" :to="{ name: PAGE.Login }" class="nav-item is-primary">
                     {{ AUTH_COPY.login }}
                 </RouterLink>
+
+                <!-- 登录后：只留这一个入口「👤 用户名」→「我的」页（账号 ID + 我的题目）+ 退出 -->
                 <template v-else>
-                    <!-- 点「👤 用户名」→ 进「我的」页（账号区可显示 / 复制 uid） -->
                     <RouterLink :to="{ name: PAGE.MyPuzzles }" class="nav-item nav-user"
-                        :title="AUTH_COPY.uidLabel">
+                        :title="AUTH_COPY.meTitle">
                         👤 {{ uname }}
                     </RouterLink>
                     <button type="button" class="nav-item" @click="logout">{{ AUTH_COPY.logout }}</button>

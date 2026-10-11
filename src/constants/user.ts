@@ -16,6 +16,8 @@ export const AUTH_COPY = {
     register: '注册',
     logout: '退出',
     uidLabel: '账号 ID',
+    /** 顶栏「👤 用户名」tooltip：登录后唯一的「我的」入口里有什么 */
+    meTitle: '我的（账号 ID + 我的题目）',
     uidHint: '登录需要它，请保存到安全的地方（只存在你本地）',
     needAuth: '请先登录',
     sessionExpired: '登录已过期，请重新登录',
