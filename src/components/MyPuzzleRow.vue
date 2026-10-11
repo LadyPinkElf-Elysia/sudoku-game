@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import ActionItems from './ActionItems.vue';
+import ValueIcons from './ValueIcons.vue';
 import { PUZZLE_VISIBILITY_COPY } from '@/constants/puzzle';
-import type { Actions } from '@/types/item';
+import type { Actions, ValueIconsProps } from '@/types/item';
 import type { MyPuzzle } from '@/types/puzzle';
 
 const props = defineProps<{
     item: MyPuzzle
     /** 已按「显示 / 遮蔽」算好的 pid 文本 */
     pidText: string
-    /** 本行按钮（闭包由页面/composable 提供） */
+    /** pid 右侧的裸图标组参数（👁 睁/闭 + 📋 复制，由 composable 现算） */
+    pidIcons: ValueIconsProps
+    /** 本行其余按钮（闭包由页面/composable 提供） */
     actions: Actions
 }>()
 
@@ -26,7 +29,10 @@ const createdText = computed<string>(() => new Date(props.item.createdAt).toLoca
             {{ visibilityText }} · {{ createdText }} · 热度 {{ item.playCount }}
         </p>
 
-        <p class="row-pid">{{ pidText }}</p>
+        <p class="row-pid">
+            <span>{{ pidText }}</span>
+            <ValueIcons v-bind="pidIcons" />
+        </p>
 
         <ActionItems :items="actions" />
     </article>

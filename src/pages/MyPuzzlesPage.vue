@@ -6,18 +6,18 @@ import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import MyPuzzleRow from '@/components/MyPuzzleRow.vue'
 import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
+import ValueIcons from '@/components/ValueIcons.vue'
 import { TITLE_MAX } from '@/constants/game'
 import { MINE_COPY, SORT_OPTIONS } from '@/constants/puzzle'
 import { useClipboard } from '@/composables/useClipboard'
 import { useMyPuzzles } from '@/composables/puzzle/useMyPuzzles'
 import { useUserStore } from '@/stores/user'
-import type { Actions } from '@/types/item'
 import type { ListSort } from '@/types/puzzle'
 
 const {
     items, loading, error, empty, pageCount, busy,
     sort, page, pagerMode, pagerModeLabel, togglePagerMode, changeSort, changePage, retry,
-    pidTextOf, actionsFor, goCreate,
+    pidTextOf, pidIconsOf, actionsFor, goCreate,
     previewOpen, previewTitle, previewInput, closePreview,
     renameOpen, renameText, renameActions,
     removeOpen, removeActions,
@@ -29,23 +29,26 @@ const { copied: uidCopied, copy: copyUidText } = useClipboard()
 const uidShown = ref(false)
 const uname = computed<string>(() => userStore.uname)
 const uidText = computed<string>(() => (uidShown.value ? userStore.uid : MINE_COPY.uidHidden))
-const uidActions = computed<Actions>(() => [
-    { key: 'uid', icon: '👁', message: MINE_COPY.showUid, onClick: () => { uidShown.value = true } },
-    {
-        key: 'uidCopy', icon: '📋',
-        message: uidCopied.value ? MINE_COPY.copied : MINE_COPY.copyUid,
-        onClick: () => { void copyUidText(userStore.uid) },
-    },
-])
+/** 账号区：uid 右侧的裸图标组（👁 睁/闭 + 📋 复制） */
+const uidIcons = computed(() => ({
+    revealed: uidShown.value,
+    eyeLabel: uidShown.value ? MINE_COPY.hideUid : MINE_COPY.showUid,
+    copyIcon: uidCopied.value ? '✅' : '📋',
+    copyLabel: uidCopied.value ? MINE_COPY.copied : MINE_COPY.copyUid,
+    onToggle: () => { uidShown.value = !uidShown.value },
+    onCopy: () => { void copyUidText(userStore.uid) },
+}))
 </script>
 
 <template>
     <div class="page-card wide">
-        <!-- 账号区（FR-1 / FR-12）：uid 与 pid 同规则 —— 默认遮蔽，点 👁 显示 / 📋 复制 -->
+        <!-- 账号区（FR-1 / FR-12）：uid 与 pid 同规则 —— 默认遮蔽，右侧裸图标 👁 睁/闭 + 📋 复制 -->
         <section class="account">
             <p class="account-name">👤 {{ uname }}</p>
-            <p class="account-uid">{{ uidText }}</p>
-            <ActionItems :items="uidActions" />
+            <p class="account-uid">
+                <span>{{ uidText }}</span>
+                <ValueIcons v-bind="uidIcons" />
+            </p>
         </section>
 
         <!-- 页头：左上「浏览方式」、右上「排序」 -->
@@ -75,7 +78,7 @@ const uidActions = computed<Actions>(() => [
 
         <ul v-else class="list">
             <li v-for="item in items" :key="item.rowId">
-                <MyPuzzleRow :item="item" :pid-text="pidTextOf(item)" :actions="actionsFor(item)" />
+                <MyPuzzleRow :item="item" :pid-text="pidTextOf(item)" :pid-icons="pidIconsOf(item)" :actions="actionsFor(item)" />
             </li>
         </ul>
 

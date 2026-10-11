@@ -13,6 +13,20 @@ export interface Action extends ItemBase {
     onClick: () => void
 }
 
+/** 值右侧裸图标组（ValueIcons）的参数：uid / pid 的 👁 睁/闭 + 📋 复制 */
+export interface ValueIconsProps {
+    /** 值当前是否已明文 */
+    revealed: boolean
+    /** 眼睛的提示（显示 / 隐藏） */
+    eyeLabel: string
+    /** 复制按钮的提示（复制 / 已复制） */
+    copyLabel: string
+    /** 复制图标（📋 → 复制成功后 ✅） */
+    copyIcon: string
+    onToggle: () => void
+    onCopy: () => void
+}
+
 export type Actions=Action[]
 
 /** 首页菜单一项：MenuItems / MenuItem（routeName 必须是 PAGE 里的路由名） */

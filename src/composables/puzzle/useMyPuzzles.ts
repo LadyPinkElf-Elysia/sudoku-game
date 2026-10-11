@@ -11,7 +11,7 @@ import { remove as removePuzzle, update as updatePuzzle } from '@/services/api/p
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
 import { usePuzzlePreview } from './usePuzzlePreview'
-import type { Action, Actions } from '@/types/item'
+import type { Action, Actions, ValueIconsProps } from '@/types/item'
 import type { MyPuzzle, MyPuzzleDetail, Visibility } from '@/types/puzzle'
 
 /** 我的题目页（FR-7 / FR-13）：列表分页→useListQuery，预览→usePuzzlePreview；
@@ -49,24 +49,24 @@ export const useMyPuzzles = () => {
     const detailOf = (rowId: string): Promise<MyPuzzleDetail | null> => puzzleStore.detailOf(rowId)
 
     /** 改动后：清该行缓存 + 重拉当前页 */
-    const afterChange = (rowId: string): void => {
-        puzzleStore.dropDetail(rowId)
-        list.retry()
-    }
+    const afterChange = (rowId: string): void => { puzzleStore.dropDetail(rowId); list.retry() }
 
     const goCreate = (): void => { void router.push({ name: PAGE.Create }) }
 
-    /** pid 文本：默认遮蔽，点过「显示 pid」才明文 */
+    /** pid 文本：默认遮蔽，点过眼睛才明文 */
     const pidTextOf = (item: MyPuzzle): string => {
         const detail = puzzleStore.details[item.rowId]
-        return detail && revealed.value.includes(item.rowId) ? detail.pid : MINE_COPY.pidHidden
+        return detail && isRevealed(item.rowId) ? detail.pid : MINE_COPY.pidHidden
     }
 
-    /** 显示 pid（顺带把详情放进缓存） */
-    const showPid = async (rowId: string): Promise<void> => {
+    /** 本行 pid 是否已明文（`ValueIcons` 的 👁 睁/闭据此切换） */
+    const isRevealed = (rowId: string): boolean => revealed.value.includes(rowId)
+
+    /** 显示 / 隐藏 pid 两态切换（导入时顺带缓存详情） */
+    const togglePid = async (rowId: string): Promise<void> => {
+        if (isRevealed(rowId)) { revealed.value = revealed.value.filter((id) => id !== rowId); return }
         const detail = await detailOf(rowId)
-        if (!detail) return
-        if (!revealed.value.includes(rowId)) revealed.value = [...revealed.value, rowId]
+        if (detail) revealed.value = [...revealed.value, rowId]
     }
 
     /** 复制 pid：不进界面，直接进剪贴板 */
@@ -150,24 +150,28 @@ export const useMyPuzzles = () => {
         }
     }
 
+    /** 该行 pid 右侧的裸图标组参数（👁 睁/闭 + 📋 复制） */
+    const pidIconsOf = (item: MyPuzzle): ValueIconsProps => ({
+        revealed: isRevealed(item.rowId),
+        eyeLabel: isRevealed(item.rowId) ? MINE_COPY.hidePid : MINE_COPY.showPid,
+        copyIcon: copied.value ? '✅' : '📋',
+        copyLabel: copied.value ? MINE_COPY.copied : MINE_COPY.copyPid,
+        onToggle: () => { void togglePid(item.rowId) },
+        onCopy: () => { void copyPid(item.rowId) },
+    })
+
     /** 每行一条按钮条（闭包随行；components 只负责画） */
     const actionsFor = (item: MyPuzzle): Actions => {
         const id = item.rowId
         const actions: Action[] = [
-            { key: 'pid', icon: '👁', message: MINE_COPY.showPid, onClick: () => { void showPid(id) } },
-            { key: 'copy', icon: '📋', message: copied.value ? MINE_COPY.copied : MINE_COPY.copyPid, onClick: () => { void copyPid(id) } },
             { key: 'vis', icon: '🔄', message: PUZZLE_VISIBILITY_COPY[item.visibility], onClick: () => { void cycleVisibility(item) } },
             { key: 'sol', icon: '🗝', message: item.showSolution ? MINE_COPY.solutionOn : MINE_COPY.solutionOff, onClick: () => { void toggleSolution(item) } },
             { key: 'preview', icon: '🔍', message: MINE_COPY.preview, onClick: () => openPreview(id, false) },
             { key: 'answer', icon: '📖', message: MINE_COPY.answerPreview, onClick: () => openPreview(id, true) },
             { key: 'challenge', icon: '▶', message: MINE_COPY.challenge, onClick: () => { void challenge(id) } },
             { key: 'edit', icon: '✏️', message: MINE_COPY.edit, onClick: () => { void openEdit(id) } },
-            { key: 'rename', icon: '🏷', message: MINE_COPY.rename, onClick: () => {
-                target.value = id; renameText.value = item.title; renameOpen.value = true
-            } },
-            { key: 'remove', icon: '🗑', message: MINE_COPY.remove, onClick: () => {
-                target.value = id; removeOpen.value = true
-            } },
+            { key: 'rename', icon: '🏷', message: MINE_COPY.rename, onClick: () => { target.value = id; renameText.value = item.title; renameOpen.value = true } },
+            { key: 'remove', icon: '🗑', message: MINE_COPY.remove, onClick: () => { target.value = id; removeOpen.value = true } },
         ]
         return actions
     }
@@ -184,7 +188,7 @@ export const useMyPuzzles = () => {
     return {
         ...list,
         items, loading, error, empty, pageCount, busy,
-        pidTextOf, actionsFor, goCreate,
+        pidTextOf, pidIconsOf, actionsFor, goCreate,
         ...preview,
         renameOpen, renameText, renameActions,
         removeOpen, removeActions,
