@@ -14,7 +14,9 @@ const emit = defineEmits<{ blocked: [] }>()
     <nav class="menu-list">
         <MenuItem v-for="item in items" :item="item" :key="item.key" @blocked="emit('blocked')"></MenuItem>
     </nav>
-    <p class="menu-tip"><slot name="tip"></slot></p>
+    <p class="menu-tip">
+        <slot name="tip"></slot>
+    </p>
 </template>
 
 <style scoped>

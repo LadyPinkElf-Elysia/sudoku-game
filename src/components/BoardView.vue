@@ -25,12 +25,8 @@ const { onCanvasClick } = useBoardCanvas(canvasEl, () => props, pos => emit('cel
 
 <template>
     <div class="board-scroll-container">
-        <canvas
-            ref="canvasEl"
-            class="board-canvas"
-            @click="onCanvasClick"
-            :class="{ 'is-interactive': interactive }"
-        ></canvas>
+        <canvas ref="canvasEl" class="board-canvas" @click="onCanvasClick"
+            :class="{ 'is-interactive': interactive }"></canvas>
     </div>
 </template>
 
@@ -40,7 +36,8 @@ const { onCanvasClick } = useBoardCanvas(canvasEl, () => props, pos => emit('cel
     width: 100%;
     max-height: 60vh;
     overflow: auto;
-    scrollbar-gutter: stable;   /* ← 新增 */
+    scrollbar-gutter: stable;
+    /* ← 新增 */
     border: 1px solid #e5e7eb;
     border-radius: 4px;
     padding: 8px;
@@ -76,12 +73,11 @@ const { onCanvasClick } = useBoardCanvas(canvasEl, () => props, pos => emit('cel
     border-radius: 4px;
     user-select: none;
     touch-action: manipulation;
-    margin: auto;   
+    margin: auto;
 }
 
 /* 预览（interactive=false）不显示手型 */
 .board-canvas.is-interactive {
     cursor: pointer;
 }
-
 </style>

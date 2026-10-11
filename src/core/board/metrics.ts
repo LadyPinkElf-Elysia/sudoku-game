@@ -28,3 +28,11 @@ export const offsetToCell = (
     if (r < 0 || r >= gridSize || c < 0 || c >= gridSize) return null
     return [r, c] as const
 }
+
+/** 格坐标 → 所在宫的左上角（宫起点行列） */
+export const boxOriginOf = (row: number, col: number, boxSize: number): Position =>
+    [Math.floor(row / boxSize) * boxSize, Math.floor(col / boxSize) * boxSize]
+
+/** 格坐标 → 宫序号（行优先，取值 0 ~ B*B-1） */
+export const boxIndexAt = (row: number, col: number, boxSize: number): number =>
+    Math.floor(row / boxSize) * boxSize + Math.floor(col / boxSize)

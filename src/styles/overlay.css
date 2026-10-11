@@ -1,0 +1,26 @@
+/* 遮罩内的标题 / 说明 / 账号卡（Overlay 与 BoardOverlay 共用） */
+
+.overlay-title {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #111827;
+}
+
+.overlay-desc {
+    margin: 8px 0 0;
+    font-size: 0.82rem;
+    color: #6b7280;
+}
+
+.uid-card {
+    margin: 10px 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.8rem;
+    word-break: break-all;
+    user-select: all;
+    color: #111827;
+}

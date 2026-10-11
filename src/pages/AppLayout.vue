@@ -52,7 +52,7 @@ const cardActions = computed<Actions>(() => [
             <RouterView />
         </main>
 
-        <!-- 点「👤 用户名」：查看 / 复制自己的账号 ID -->
+        <!-- 点「👤 用户名」：查看 / 复制自己的账号 ID（.overlay-* / .uid-card 来自全局） -->
         <Overlay :show="cardOpen">
             <p class="overlay-title">我的账号</p>
             <p class="overlay-desc">{{ AUTH_COPY.uidHint }}</p>
@@ -87,7 +87,6 @@ const cardActions = computed<Actions>(() => [
     border-bottom: 1px solid #f3f4f6;
 }
 
-/* ★ 数独：居中 + 加宽字距 */
 .app-title {
     grid-column: 2;
     justify-self: center;
@@ -110,31 +109,62 @@ const cardActions = computed<Actions>(() => [
 }
 
 .nav-item {
-    height: 30px; padding: 0 10px; display: inline-flex; align-items: center;
-    border: 1px solid #d1d5db; border-radius: 8px; background: #fff;
-    color: #374151; font-size: .82rem; font-family: inherit;
-    text-decoration: none; cursor: pointer; transition: .15s;
+    height: 30px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    font-size: .82rem;
+    font-family: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: .15s;
 }
-.nav-item:hover { background: #eef2ff; border-color: #6366f1; }
-.nav-item.is-primary { background: #6366f1; border-color: #4f46e5; color: #fff; font-weight: 600; }
-.nav-item.is-disabled { opacity: .45; cursor: not-allowed; }
-.nav-item.is-disabled:hover { background: #fff; border-color: #d1d5db; }
-.nav-user { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.nav-item:hover {
+    background: #eef2ff;
+    border-color: #6366f1;
+}
+
+.nav-item.is-primary {
+    background: #6366f1;
+    border-color: #4f46e5;
+    color: #fff;
+    font-weight: 600;
+}
+
+.nav-item.is-disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.nav-item.is-disabled:hover {
+    background: #fff;
+    border-color: #d1d5db;
+}
+
+.nav-user {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
 .app-tip {
-    margin: 0 0 8px; padding: 6px 12px; border-radius: 8px;
-    background: #eef2ff; border: 1px solid #c7d2fe; color: #4f46e5;
-    font-size: .85rem; text-align: center;
+    margin: 0 0 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    color: #4f46e5;
+    font-size: .85rem;
+    text-align: center;
 }
 
-.app-main { min-height: 200px; }
-
-.overlay-title { margin: 0; font-size: 1.05rem; color: #111827; }
-.overlay-desc { margin: 8px 0 0; font-size: .8rem; color: #6b7280; }
-.uid-card {
-    margin: 10px 0; padding: 8px 10px; border-radius: 8px;
-    background: #f9fafb; border: 1px dashed #d1d5db;
-    font-family: ui-monospace, Menlo, monospace; font-size: .8rem;
-    word-break: break-all; user-select: all; color: #111827;
+.app-main {
+    min-height: 200px;
 }
 </style>

@@ -1,5 +1,6 @@
 import type { NumBoard, Position, ConflictMask, Board, Cell } from "../../types/board";
 import { makeGrid } from "../array";
+import { boxOriginOf } from "../board/metrics";
 import { makeCell } from "../board/model";
 import { sideOf } from "./shape";
 import type { Sudoku } from "../../types/sudoku";
@@ -78,9 +79,8 @@ export const createSudoku = (boxSize: number): Sudoku => {
             if (grid[r][i] !== 0) used[grid[r][i]] = true
             if (grid[i][c] !== 0) used[grid[i][c]] = true
         }
-        // 宫
-        const sr = Math.floor(r / B) * B
-        const sc = Math.floor(c / B) * B
+        // 宫（宫起点来自 core/board/metrics，避免各处重算）
+        const [sr, sc] = boxOriginOf(r, c, B)
         for (let i = sr; i < sr + B; i++) {
             for (let j = sc; j < sc + B; j++) {
                 if (grid[i][j] !== 0) used[grid[i][j]] = true

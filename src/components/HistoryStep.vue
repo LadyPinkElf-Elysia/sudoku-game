@@ -2,19 +2,19 @@
 import { computed } from 'vue'
 const props = defineProps<{
     step: number
-    current:number
+    current: number
 }>()
 const activeClass = computed(() => ({
     active: props.step === props.current,
     future: props.step > props.current
 }))
-const emit=defineEmits<{
-    select:[step:number]
+const emit = defineEmits<{
+    select: [step: number]
 }>()
 </script>
 
 <template>
-    <button class="step-block" :class="activeClass" @click="emit('select',step)">
+    <button class="step-block" :class="activeClass" @click="emit('select', step)">
         {{ step }}步
     </button>
 </template>

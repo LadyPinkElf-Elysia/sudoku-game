@@ -1,8 +1,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { GAME_COPY, GAME_MODE, GAME_STATUS } from '@/constants/game'   // ① GAME_COPY
+import { GAME_COPY, GAME_MODE, GAME_STATUS } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { useGameStore } from '@/stores/game'
+import { usePuzzleStore } from '@/stores/puzzle'
 import { fromPuzzle } from '@/core/board/model'
 import { hintTextOf } from '@/core/game/derive'
 import type { Actions } from '@/types/item'
@@ -10,13 +11,14 @@ import type { BoardRenderInput } from '@/types/render'
 
 export const useGameFlow = () => {
     const gameStore = useGameStore()
+    const puzzleStore = usePuzzleStore()
     const router = useRouter()
 
     const tip = ref('')
     /** 参考答案遮罩开关 */
     const answerOpen = ref(false)
 
-    /** ② 遮罩里的只读盘：由答案生成一块独立 Board（与游玩盘无关），整对象交给 BoardOverlay */
+    /** 遮罩里的只读盘：由答案生成一块独立 Board（与游玩盘无关），整对象交给 BoardOverlay */
     const answerInput = computed<BoardRenderInput>(() => ({
         board: gameStore.solution.length ? fromPuzzle(gameStore.solution, true) : [],
         boxSize: gameStore.sudoku.B,
@@ -28,7 +30,7 @@ export const useGameFlow = () => {
     }
     const restart = (): void => {
         gameStore.jump(0)
-        answerOpen.value = false            // ③ 重开时收起遮罩
+        answerOpen.value = false            // 重开时收起遮罩
     }
     const hint = (): void => {
         const cands = gameStore.selected ? gameStore.getCandidates(gameStore.selected) : []
@@ -36,7 +38,7 @@ export const useGameFlow = () => {
     }
 
     const leadActions = computed<Actions>(() => [
-        { key: 'back',    icon: '◀', message: '返回', onClick: goBack },
+        { key: 'back', icon: '◀', message: '返回', onClick: goBack },
         { key: 'restart', icon: '↺', message: '重开', onClick: restart },
     ])
     const trailActions = computed<Actions>(() => [
@@ -49,15 +51,19 @@ export const useGameFlow = () => {
             : []),
     ])
     const resultActions: Actions = [
-        { key: 'home',    icon: '🏠', message: '回主页', onClick: () => router.replace({ name: PAGE.Home }) },
-        { key: 'restart', icon: '↺', message: '重开',   onClick: restart },
+        { key: 'home', icon: '🏠', message: '回主页', onClick: () => router.replace({ name: PAGE.Home }) },
+        { key: 'restart', icon: '↺', message: '重开', onClick: restart },
     ]
     const winOverlay = computed(() => (gameStore.status === GAME_STATUS.Won ? GAME_COPY.win : null))
 
     onMounted(() => {
         if (gameStore.mode !== GAME_MODE.Game || !gameStore.board.length) {
             router.replace({ name: PAGE.Difficulty })
+            return
         }
+        // 自定义「提交到我的题目」成功后的轻提示（一次性，取走即清）
+        const saved = puzzleStore.takeSavedTip()
+        if (saved) tip.value = saved
     })
 
     return { tip, answerOpen, answerInput, leadActions, trailActions, resultActions, winOverlay }

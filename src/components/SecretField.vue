@@ -22,11 +22,10 @@ const toggle = (): void => { visible.value = !visible.value };
         <span class="label">{{ label }}</span>
 
         <span class="control">
-            <input class="input" :type="visible ? 'text' : 'password'" :value="modelValue"
-                spellcheck="false" autocomplete="off"
-                @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)">
-            <button type="button" class="eye" :aria-label="visible ? '隐藏密码' : '显示密码'"
-                @click="toggle">{{ visible ? '🙈' : '👁' }}</button>
+            <input class="input" :type="visible ? 'text' : 'password'" :value="modelValue" spellcheck="false"
+                autocomplete="off" @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)">
+            <button type="button" class="eye" :aria-label="visible ? '隐藏密码' : '显示密码'" @click="toggle">{{ visible ? '🙈'
+                : '👁' }}</button>
         </span>
 
         <span v-if="hint" class="hint">{{ hint }}</span>
@@ -34,39 +33,15 @@ const toggle = (): void => { visible.value = !visible.value };
 </template>
 
 <style scoped>
-.field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.label {
-    font-size: 0.78rem;
-    color: #6b7280;
-    font-weight: 600;
-}
-
+/* .field / .label / .input / .hint 来自 styles/form.css（全局） */
 .control {
     position: relative;
     display: block;
 }
 
+/* 仅布局微调：右侧给 👁 留位（scoped 优先级高于全局 .input） */
 .input {
-    width: 100%;
-    box-sizing: border-box;
-    height: 36px;
-    padding: 0 38px 0 10px;      /* 右侧给 👁 留位 */
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    color: #111827;
-    outline: none;
-    transition: 0.15s;
-}
-
-.input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px #eef2ff;
+    padding-right: 38px;
 }
 
 .eye {
@@ -86,11 +61,5 @@ const toggle = (): void => { visible.value = !visible.value };
 
 .eye:hover {
     background: #eef2ff;
-}
-
-.hint {
-    font-size: 0.72rem;
-    color: #9ca3af;
-    line-height: 1.4;
 }
 </style>

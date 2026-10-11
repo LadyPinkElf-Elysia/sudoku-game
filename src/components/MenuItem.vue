@@ -23,8 +23,8 @@ const emit = defineEmits<{ blocked: [] }>()
       所以它的 guardEvent 检查 e.defaultPrevented 时我们的 preventDefault 还没执行 → 拦不住导航。
       这里改用 button，物理上无法导航。
     -->
-    <button v-else type="button" class="menu-btn is-disabled" aria-disabled="true"
-        :title="AUTH_COPY.needLogin" @click="emit('blocked')">
+    <button v-else type="button" class="menu-btn is-disabled" aria-disabled="true" :title="AUTH_COPY.needLogin"
+        @click="emit('blocked')">
         <span v-if="item.icon" class="icon">{{ item.icon }}</span>
         <span class="message">{{ item.message }}</span>
     </button>
@@ -44,7 +44,8 @@ const emit = defineEmits<{ blocked: [] }>()
     color: #374151;
     font-size: 0.95rem;
     font-weight: 500;
-    font-family: inherit;      /* button 默认字体与标题不同，抹平 */
+    font-family: inherit;
+    /* button 默认字体与标题不同，抹平 */
     text-align: left;
     text-decoration: none;
     cursor: pointer;

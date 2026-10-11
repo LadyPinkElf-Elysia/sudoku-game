@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-const props=defineProps<{
-    max:number
-    columns:number
+const props = defineProps<{
+    max: number
+    columns: number
 }>()
 
-const emit=defineEmits<{
-    pick:[n:number]
+const emit = defineEmits<{
+    pick: [n: number]
 }>()
 
 /** 布局是纯样式，数据全部来自 props */
@@ -20,11 +20,11 @@ const gridStyle = computed(() => ({
 <template>
     <div class="num-pad-wrapper">
         <div class="num-grid" :style="gridStyle">
-            <button v-for="n in max" :key="n" class="num-btn" @click="emit('pick',n)" title="单击填入数字">
+            <button v-for="n in max" :key="n" class="num-btn" @click="emit('pick', n)" title="单击填入数字">
                 {{ n }}
             </button>
         </div>
-        <button class="num-btn clear-btn" @click="emit('pick',0)" title="清除当前格数字">
+        <button class="num-btn clear-btn" @click="emit('pick', 0)" title="清除当前格数字">
             X
         </button>
     </div>

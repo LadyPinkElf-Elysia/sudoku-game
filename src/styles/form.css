@@ -1,29 +1,152 @@
-/* 表单行：标签 + 控件（多个页面共用） */
-.field { margin-bottom: 18px; }
+/* 表单与列表共用的控件、提示文案（全局类：各页面直接按类名用，不再各写一份） */
 
-.label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 8px;
+/* 字段：标签 + 控件（纵向） */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 18px;
 }
 
+.label {
+    font-size: 0.78rem;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+/* 输入框：统一规格（页面只保留“布局微调”，如 flex:1 / 右侧给图标留位） */
+.input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #111827;
+    outline: none;
+    transition: 0.15s;
+}
+
+.input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px #eef2ff;
+}
+
+/* 下拉框：默认表单规格（撑满一行）；列表页的紧凑版加 .is-sm */
 .select {
     width: 100%;
     height: 36px;
     padding: 0 10px;
     border: 1px solid #d1d5db;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 0.9rem;
     color: #374151;
     background: #fff;
     box-sizing: border-box;
     cursor: pointer;
+    outline: none;
+    transition: 0.15s;
 }
 
 .select:focus {
-    outline: none;
     border-color: #6366f1;
     box-shadow: 0 0 0 2px #eef2ff;
+}
+
+.select.is-sm {
+    width: auto;
+    height: 28px;
+    padding: 0 6px;
+    font-size: 0.78rem;
+}
+
+/* 说明文字 */
+.hint {
+    font-size: 0.72rem;
+    color: #9ca3af;
+    line-height: 1.4;
+}
+
+/* 页面级提示文案：加载中 / 空结果 / 错误 */
+.state {
+    margin: 16px 0 0;
+    font-size: 0.85rem;
+    color: #6b7280;
+    text-align: center;
+}
+
+.state.is-error {
+    color: #b91c1c;
+}
+
+/* 表单错误条 */
+.form-error {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 0.82rem;
+    text-align: center;
+}
+
+/* ───────── 列表页公共（搜索 / 我的题目） ───────── */
+
+/* 工具条：左上「浏览方式」 / 右上「排序」 */
+.list-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 12px 0 0;
+}
+
+.mode-btn {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    font-size: 0.78rem;
+    font-family: inherit;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+.mode-btn:hover {
+    background: #eef2ff;
+    border-color: #6366f1;
+}
+
+.sort-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+
+/* 错误态里的「重试」小按钮 */
+.retry {
+    margin-left: 6px;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 0.78rem;
+    font-family: inherit;
+    padding: 2px 8px;
+    cursor: pointer;
+}
+
+/* 列表容器 */
+.list {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }

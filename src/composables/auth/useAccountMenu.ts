@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PAGE } from '@/constants/pages'
 import { AUTH_COPY } from '@/constants/user'
+import { useClipboard } from '@/composables/useClipboard'
 import { useUserStore } from '@/stores/user'
 
 /**
@@ -14,6 +15,7 @@ export const useAccountMenu = () => {
     const userStore = useUserStore()
     const router = useRouter()
     const route = useRoute()
+    const { copied, copy } = useClipboard()
 
     /** 未登录点灰显入口的提示；路由一变就清掉（无需 timer） */
     const tip = ref('')
@@ -27,17 +29,11 @@ export const useAccountMenu = () => {
 
     /** 用户名弹层 */
     const cardOpen = ref(false)
-    const copied = ref(false)
     const openCard = (): void => { copied.value = false; cardOpen.value = true }
     const closeCard = (): void => { cardOpen.value = false }
 
     const copyUid = async (): Promise<void> => {
-        try {
-            await navigator.clipboard.writeText(userStore.uid)
-            copied.value = true
-        } catch {
-            tip.value = AUTH_COPY.copyFailed
-        }
+        if (!(await copy(userStore.uid))) tip.value = AUTH_COPY.copyFailed
     }
 
     const logout = async (): Promise<void> => {
@@ -50,6 +46,8 @@ export const useAccountMenu = () => {
     const uname = computed<string>(() => userStore.uname)
     const uid = computed<string>(() => userStore.uid)
 
-    return { isGuest, uname, uid, tip, showNav, onMineBlocked,
-        cardOpen, copied, openCard, closeCard, copyUid, logout }
+    return {
+        isGuest, uname, uid, tip, showNav, onMineBlocked,
+        cardOpen, copied, openCard, closeCard, copyUid, logout
+    }
 }

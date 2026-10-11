@@ -20,13 +20,13 @@ defineProps<{
     gap: 4px;
     height: 32px;
     padding: 0 12px;
-    border-radius: 6px;          
-    border: 1px solid #d1d5db;   
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
     background: #fff;
     cursor: pointer;
     color: #374151;
     font-size: 0.85rem;
-    font-weight: 500;            
+    font-weight: 500;
     transition: 0.15s;
 }
 

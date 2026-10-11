@@ -53,12 +53,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return json({ items: results, total: counted?.n ?? 0 })
 }
 
+/** 可见性白名单：只认三态常量，其它一律回落 public */
+const visibilityOf = (raw: unknown): string =>
+    raw === VISIBILITY.Private ? VISIBILITY.Private
+        : raw === VISIBILITY.Protected ? VISIBILITY.Protected
+            : VISIBILITY.Public
+
 /** POST：新建（服务端复校：格式 / 同尺寸 / 非空 / 40~70% / 题面答案一致） */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const me = await requireUser(request, env)
     if (me instanceof Response) return me
 
-    let body: { title?: string; puzzleText?: string; solutionText?: string }
+    let body: { title?: string; puzzleText?: string; solutionText?: string; visibility?: string }
     try { body = await request.json() } catch { return fail('请求格式错误') }
 
     const checked = checkPuzzle(body.puzzleText ?? '', body.solutionText ?? '')
@@ -66,6 +72,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
     const title = (body.title ?? '').trim()
     if (!title) return fail('标题必填')
+
+    const visibility = visibilityOf(body.visibility)
 
     const pid = await makeUniqueId(makePid, async id =>
         !!(await env.DB.prepare('SELECT 1 FROM puzzle WHERE pid = ?').bind(id).first()))
@@ -78,10 +86,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
                              visibility, show_solution, play_count, created_at)
          VALUES (?,?,?,?,?,?,?,?,?,0,0,?)`,
     ).bind(pid, rowId, me.uid, title, checked.puzzleText, checked.solutionText,
-        checked.sideS, checked.blanks, VISIBILITY.Public, now).run()
+        checked.sideS, checked.blanks, visibility, now).run()
 
     return json({
         pid, rowId, title, sideS: checked.sideS, blankCount: checked.blanks,
-        visibility: VISIBILITY.Public, createdAt: now,
+        visibility, createdAt: now,
     })
 }

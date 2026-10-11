@@ -1,13 +1,17 @@
 import { GAME_INIT_CONFIG, GAME_MODE, GAME_STATUS } from '@/constants/game'
 import { toNum, fromPuzzle } from '@/core/board/model'
-import { cloneBoard, lockGiven, applySolution } from '@/core/board/ops'
+import { cloneBoard, lockGiven, applySolution, countBlanks } from '@/core/board/ops'
 import { statusOf } from '@/core/game/derive'
+import { cellCountOf } from '@/core/sudoku/shape'
 import { getSudoku } from '@/core/sudoku/rules'
 import type { Board, Cell, ConflictMask, NumBoard, Position, Snapshot } from '@/types/board'
-import type { GameConfig, GameMode, GameStatus } from '@/types/game'
+import type { GameConfig, GameMeta, GameMode, GameStatus } from '@/types/game'
 import type { Sudoku } from '@/types/sudoku'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+
+/** 系统生成 / 自定义开局没有来源信息 */
+const EMPTY_META: GameMeta = { pid: '', title: '', uname: '' }
 
 export const useGameStore = defineStore('gameStore', () => {
     const config = ref<GameConfig>({ ...GAME_INIT_CONFIG })
@@ -17,6 +21,8 @@ export const useGameStore = defineStore('gameStore', () => {
     const snapshots = ref<Snapshot[]>([])
     const currentStep = ref<number>(0)
     const solution = ref<NumBoard>([])
+    /** 当前盘面来源（FR-11 题目信息行） */
+    const meta = ref<GameMeta>({ ...EMPTY_META })
 
     const sudoku = computed<Sudoku>(() => getSudoku(config.value.boxSize))
     const numBoard = computed<NumBoard>(() => toNum(board.value))
@@ -37,6 +43,12 @@ export const useGameStore = defineStore('gameStore', () => {
         const [r, c] = selected.value
         return board.value[r]?.[c] ?? null
     })
+    /** 重置历史：清选中 + 以当前盘面为第 0 步（开局/重建/锁题共用） */
+    const resetHistory = (): void => {
+        selected.value = null
+        snapshots.value = [cloneBoard(board.value)]
+        currentStep.value = 0
+    }
     /** 推入历史记录 */
     const pushHistory = (): void => {
         snapshots.value.splice(currentStep.value + 1)
@@ -47,31 +59,31 @@ export const useGameStore = defineStore('gameStore', () => {
     const getCandidates = (pos: Position): number[] =>
         sudoku.value.getCandidates(numBoard.value, pos)
 
-    /** 开始游戏 */
-    const startGame = (puzzle: NumBoard, sol: NumBoard, cfg: GameConfig) => {
+    /** 开始游戏：source 给了才有「标题 · 出题人」信息行 */
+    const startGame = (puzzle: NumBoard, sol: NumBoard, cfg: GameConfig, source?: GameMeta) => {
         mode.value = GAME_MODE.Game
         config.value = { ...cfg }
         board.value = fromPuzzle(puzzle, true)
         solution.value = sol
-        selected.value = null
-        snapshots.value = [cloneBoard(board.value)]
-        currentStep.value = 0
+        meta.value = source ? { ...source } : { ...EMPTY_META }
+        resetHistory()
     }
-    const startCreate = (boxSize: number): void => {
+    /** 进入出题/编辑：puzzle 给了就预填（不锁定 → 可增量改） */
+    const startCreate = (boxSize: number, puzzle?: NumBoard): void => {
         mode.value = GAME_MODE.Create
-        config.value = { boxSize, blankRatio: 0 }
-        board.value = sudoku.value.makeEmptyBoard()
+        config.value = {
+            boxSize,
+            blankRatio: puzzle ? countBlanks(puzzle) / cellCountOf(boxSize) : 0,
+        }
+        board.value = puzzle ? fromPuzzle(puzzle, false) : sudoku.value.makeEmptyBoard()
         solution.value = []
-        selected.value = null
-        snapshots.value = [cloneBoard(board.value)]
-        currentStep.value = 0
+        meta.value = { ...EMPTY_META }
+        resetHistory()
     }
     /** 提交题面：锁定规则在 core，这里只写回 */
     const lockPuzzle = (): void => {
         board.value = lockGiven(board.value)
-        selected.value = null
-        snapshots.value = [cloneBoard(board.value)]
-        currentStep.value = 0
+        resetHistory()
     }
     /** 选择格子 */
     const select = (pos: Position): void => {
@@ -108,7 +120,7 @@ export const useGameStore = defineStore('gameStore', () => {
         config, mode,
 
         // 状态
-        sudoku, board, numBoard, selected, status, solution, currentStep,
+        sudoku, board, numBoard, selected, status, solution, currentStep, meta,
 
         // 派生
         isWin, snapshots,
@@ -123,5 +135,3 @@ export const useGameStore = defineStore('gameStore', () => {
         getCandidates,
     }
 })
-
-

@@ -35,6 +35,7 @@ onMounted(() => { void load(String(route.params.pid ?? '')) })
 
 <template>
     <div class="page-card wide">
+        <!-- .state 来自全局 styles/form.css -->
         <p v-if="loading" class="state">加载中…</p>
         <p v-else-if="error" class="state is-error">{{ error }}</p>
 
@@ -59,16 +60,5 @@ onMounted(() => { void load(String(route.params.pid ?? '')) })
     margin: 6px 0 12px;
     font-size: 0.78rem;
     color: #6b7280;
-}
-
-.state {
-    margin: 16px 0;
-    font-size: 0.85rem;
-    color: #6b7280;
-    text-align: center;
-}
-
-.state.is-error {
-    color: #b91c1c;
 }
 </style>

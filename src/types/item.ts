@@ -15,7 +15,7 @@ export interface Action extends ItemBase {
 
 export type Actions=Action[]
 
-/** 首页菜单一项：MenuItems / MenuItem */
+/** 首页菜单一项：MenuItems / MenuItem（routeName 必须是 PAGE 里的路由名） */
 export interface Menu extends ItemBase {
     routeName: Page
     disabled?: boolean

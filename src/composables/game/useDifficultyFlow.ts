@@ -37,5 +37,5 @@ export const useDifficultyFlow = () => {
         }
     }
 
-    return { draft, loading, error, totalCells, blankCount,blankPercent, apply }
+    return { draft, loading, error, totalCells, blankCount, blankPercent, apply }
 }

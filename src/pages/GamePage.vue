@@ -19,6 +19,14 @@ const { tip, answerOpen, answerInput, leadActions, trailActions, resultActions, 
 /** 操作条：左段（返回/重开）＋ 缩放 ＋ 右段（提示/参考答案/DEV 作弊） */
 const items = computed<Actions>(() => [...leadActions.value, ...zoomActions.value, ...trailActions.value])
 
+/** 题目信息行：挑战/自有题显示「标题 · 出题人」，否则显示「系统生成 S×S」 */
+const infoText = computed<string>(() => {
+    const meta = gameStore.meta
+    if (meta.title) return `${meta.title} · ${meta.uname}`
+    const s = gameStore.sudoku.S
+    return `系统生成 ${s}×${s}`
+})
+
 /** 游玩盘：可玩（接 cell-click），只传 board/boxSize/selected/conflictMask/zoom */
 const boardParams = computed<BoardRenderInput>(() => ({
     board: gameStore.board,
@@ -31,6 +39,8 @@ const boardParams = computed<BoardRenderInput>(() => ({
 
 <template>
     <div class="page-card wide">
+        <p class="game-info">{{ infoText }}</p>
+
         <ActionItems :items="items">
             <template v-if="tip" #tip>{{ tip }}</template>
         </ActionItems>
@@ -44,6 +54,7 @@ const boardParams = computed<BoardRenderInput>(() => ({
         <BoardOverlay :show="answerOpen" :input="answerInput" title="参考答案" close-text="回到挑战"
             @close="answerOpen = false" />
 
+        <!-- .overlay-title / .overlay-desc 来自全局 styles/overlay.css -->
         <Overlay :show="!!winOverlay">
             <p class="overlay-title">{{ winOverlay?.title }}</p>
             <p class="overlay-desc">{{ winOverlay?.desc }}</p>
@@ -53,15 +64,11 @@ const boardParams = computed<BoardRenderInput>(() => ({
 </template>
 
 <style scoped>
-.overlay-title {
-    margin: 0;
-    font-size: 1.1rem;
-    color: #111827;
-}
-
-.overlay-desc {
-    margin: 8px 0 0;
-    font-size: .85rem;
+.game-info {
+    margin: 0 0 8px;
+    font-size: 0.82rem;
     color: #6b7280;
+    text-align: center;
+    word-break: break-all;
 }
 </style>

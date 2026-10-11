@@ -3,18 +3,24 @@ import type { Position } from "@/types/board"
 import { boardSideOf, cellSizeOf, fontPxOf, offsetToCell } from "@/core/board/metrics"
 import type { BoardRenderInput } from "@/types/render"
 
+/**
+ * 量一次容器的「内容宽」（去掉左右 padding）
+ * 只在 ResizeObserver 回调/首帧调用，避免每次重绘都触发强制布局
+ */
+export const measureContentWidth = (parent: HTMLElement): number => {
+    const style = getComputedStyle(parent)
+    return parent.clientWidth - (parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
+}
 
 /** 初始化画布：清晰度、尺寸、坐标对齐；返回画笔、边长、每格边长 */
-const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
+const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number, contentWidth?: number) => {
     const parent = canvas.parentElement
     if (!parent) return null
 
     const dpr = window.devicePixelRatio || 1
-    const parentStyle = getComputedStyle(parent)
-    const padX = parseFloat(parentStyle.paddingLeft) + parseFloat(parentStyle.paddingRight)
-    const contentWidth = parent.clientWidth - padX
+    const width = contentWidth ?? measureContentWidth(parent)     // 没传宽度就自己量一次（兜底）
 
-    const side = boardSideOf(contentWidth, zoom)
+    const side = boardSideOf(width, zoom)
     const pixel = Math.round(side * dpr)
 
     if (canvas.width !== pixel) {
@@ -34,12 +40,12 @@ const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number) => {
     return { ctx, side, cellSize: cellSizeOf(side, size) }
 }
 
-export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput): void => {
+export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput, contentWidth?: number): void => {
     const { board, selected, conflictMask, boxSize, zoom = 1 } = params
     if (!board.length) return
 
     const size = board.length
-    const info = setupCanvas(canvas, size, zoom)
+    const info = setupCanvas(canvas, size, zoom, contentWidth)
     if (!info) return
     const { ctx, side, cellSize } = info
 
@@ -125,4 +131,3 @@ export const getClickPos = (canvas: HTMLCanvasElement, e: MouseEvent, size: numb
     if (!rect.width) return null
     return offsetToCell(e.clientX - rect.left, e.clientY - rect.top, rect.width, size)
 }
-

@@ -2,8 +2,8 @@ import { DEFAULT_TIMEOUT } from "@/constants/game";
 import type { PuzzleData } from "@/types/puzzle";
 import type { GenerateResponse } from "@/types/worker";
 
-export const generateInWorker = (boxSize: number, blanks: number,timeoutMs=DEFAULT_TIMEOUT): Promise<PuzzleData> => {
-    return new Promise((resolve,reject) => {
+export const generateInWorker = (boxSize: number, blanks: number, timeoutMs = DEFAULT_TIMEOUT): Promise<PuzzleData> => {
+    return new Promise((resolve, reject) => {
         let settled = false
         let timer: ReturnType<typeof setTimeout> | null = null
         let worker: Worker | null = null
@@ -40,16 +40,16 @@ export const generateInWorker = (boxSize: number, blanks: number,timeoutMs=DEFAU
         timer = setTimeout(() => {
             fail('生成超时，请重试')
         }, timeoutMs)
-        
+
         worker.onmessage = (e: MessageEvent<GenerateResponse>) => {
             if (e.data.ok) finish(e.data.result)
             else fail(e.data.error || '生成失败，请重试')
         }
-        
+
         worker.onerror = () => {
             fail('Worker 执行出错，请重试')
         }
-        
+
         worker.postMessage({ boxSize, blanks })
     })
 }

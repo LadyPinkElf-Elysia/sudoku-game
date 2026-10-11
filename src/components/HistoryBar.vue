@@ -2,13 +2,13 @@
 import { ref, watch, nextTick } from 'vue';
 import HistoryStep from './HistoryStep.vue';
 
-const props=defineProps<{
-    count:number
-    current:number
+const props = defineProps<{
+    count: number
+    current: number
 }>()
 
-const emit=defineEmits<{
-    select:[step:number]
+const emit = defineEmits<{
+    select: [step: number]
 }>()
 
 const stepsEl = ref<HTMLElement | null>(null)
@@ -27,7 +27,7 @@ watch(() => props.current, async () => {
             <span class="step-counter">{{ current }} / {{ count - 1 }}</span>
         </div>
         <div class="history-steps-container" ref="stepsEl">
-            <HistoryStep v-for="i in count" :key="i-1" :step="i-1" :current @select="emit('select',$event)"  />
+            <HistoryStep v-for="i in count" :key="i - 1" :step="i - 1" :current @select="emit('select', $event)" />
         </div>
     </div>
 </template>

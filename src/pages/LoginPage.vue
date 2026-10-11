@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ActionItems from '@/components/ActionItems.vue'
+import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import Overlay from '@/components/Overlay.vue'
 import SecretField from '@/components/SecretField.vue'
-import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import { AUTH_COPY } from '@/constants/user'
 import { useAuth } from '@/composables/auth/useAuth'
 import type { Actions } from '@/types/item'
 
 const {
     isSignUp, uname, uid, password, password2, error, loading,
-    createdUid, copied, switchMode, submit, copyUid, doneAfterSignUp,
+    createdUid, copied, switchMode, onUidPaste, submit, copyUid, doneAfterSignUp,
 } = useAuth()
 
 const title = computed<string>(() => (isSignUp.value ? AUTH_COPY.register : AUTH_COPY.login))
@@ -35,7 +35,9 @@ const doneActions = computed<Actions>(() => [
 
             <label v-else class="field">
                 <span class="label">{{ AUTH_COPY.uidLabel }}</span>
-                <input class="input uid" v-model="uid" spellcheck="false" autocomplete="off" placeholder="20 位字母数字">
+                <!-- @paste：粘贴时自动去掉空白（见 useAuth.onUidPaste） -->
+                <input class="input uid" v-model="uid" spellcheck="false" autocomplete="off" placeholder="20 位字母数字"
+                    @paste="onUidPaste">
                 <span class="hint">{{ AUTH_COPY.uidHint }}</span>
             </label>
 
@@ -43,7 +45,7 @@ const doneActions = computed<Actions>(() => [
 
             <SecretField v-if="isSignUp" v-model="password2" label="确认密码" />
 
-            <p v-if="error" class="error">{{ error }}</p>
+            <p v-if="error" class="form-error">{{ error }}</p>
 
             <button class="submit" type="submit" :disabled="loading">{{ title }}</button>
         </form>
@@ -52,10 +54,7 @@ const doneActions = computed<Actions>(() => [
             {{ isSignUp ? '已有账号？去登录' : '没有账号？去注册' }}
         </button>
 
-        <Overlay :show="loading">
-            <SpinnerIcon />
-            <p class="overlay-title">{{ AUTH_COPY.wait }}</p>
-        </Overlay>
+        <LoadingOverlay :show="loading" :title="AUTH_COPY.wait" />
 
         <!-- 注册成功：账号 ID 卡片 -->
         <Overlay :show="!!createdUid">
@@ -68,41 +67,30 @@ const doneActions = computed<Actions>(() => [
 </template>
 
 <style scoped>
-/* 单列表单：统一纵向节奏 */
-.login-page { display: flex; flex-direction: column; gap: 14px; }
-.title { margin: 0; font-size: 1.05rem; color: #111827; }
+/* .field / .label / .input / .hint / .form-error / .overlay-* / .uid-card 均来自全局样式 */
 
-.form { display: flex; flex-direction: column; gap: 14px; }
-
-.field { display: flex; flex-direction: column; gap: 6px; }
-.label { font-size: .78rem; color: #6b7280; font-weight: 600; }
-
-/* 关键：输入框统一 100% 宽，两个框才对齐 */
-.input {
-    width: 100%;
-    box-sizing: border-box;
-    height: 36px;
-    padding: 0 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: .9rem;
-    color: #111827;
-    outline: none;
-    transition: .15s;
+.login-page {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
-.input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px #eef2ff; }
-.uid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .5px; }
 
-.hint { font-size: .72rem; color: #9ca3af; line-height: 1.4; }
-
-.error {
+.title {
     margin: 0;
-    padding: 6px 10px;
-    border-radius: 8px;
-    background: #fee2e2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
-    font-size: .8rem;
+    font-size: 1.05rem;
+    color: #111827;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* 账号 ID 用等宽字体，便于核对 */
+.uid {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .5px;
 }
 
 /* 主按钮：全宽、主色、禁用态 */
@@ -117,23 +105,26 @@ const doneActions = computed<Actions>(() => [
     cursor: pointer;
     transition: .15s;
 }
-.submit:hover:not(:disabled) { background: #4f46e5; }
-.submit:disabled { opacity: .55; cursor: not-allowed; }
 
-.link { background: none; border: none; color: #4f46e5; font-size: .85rem; cursor: pointer; align-self: center; }
-.link:hover { text-decoration: underline; }
+.submit:hover:not(:disabled) {
+    background: #4f46e5;
+}
 
-.overlay-title { margin: 0; font-size: 1.05rem; color: #111827; }
-.overlay-desc { margin: 8px 0 0; font-size: .8rem; color: #6b7280; }
-.uid-card {
-    margin: 10px 0;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: #f9fafb;
-    border: 1px dashed #d1d5db;
-    font-family: ui-monospace, Menlo, monospace;
-    font-size: .8rem;
-    word-break: break-all;
-    color: #111827;
+.submit:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.link {
+    background: none;
+    border: none;
+    color: #4f46e5;
+    font-size: .85rem;
+    cursor: pointer;
+    align-self: center;
+}
+
+.link:hover {
+    text-decoration: underline;
 }
 </style>

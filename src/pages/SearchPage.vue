@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import BoardOverlay from '@/components/BoardOverlay.vue'
-import Overlay from '@/components/Overlay.vue'
+import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import PuzzleCard from '@/components/PuzzleCard.vue'
-import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import { SEARCH_COPY, SORT_OPTIONS } from '@/constants/puzzle'
 import { useSearchPuzzle } from '@/composables/puzzle/useSearchPuzzle'
 import type { ListSort } from '@/types/puzzle'
@@ -31,7 +30,7 @@ const {
             </button>
             <label class="sort-box">
                 {{ SEARCH_COPY.sortLabel }}
-                <select class="select" :value="sort"
+                <select class="select is-sm" :value="sort"
                     @change="changeSort(($event.target as HTMLSelectElement).value as ListSort)">
                     <option v-for="opt in SORT_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                 </select>
@@ -58,38 +57,26 @@ const {
         <PagerBar :page="page" :page-count="pageCount" :mode="pagerMode" @change="changePage" />
 
         <!-- 题目预览：只读棋盘遮罩（组件自持缩放，不写任何状态） -->
-        <BoardOverlay :show="previewOpen && !previewLoading" :input="previewInput"
-            title="题目预览" close-text="返回" @close="closePreview" />
+        <BoardOverlay :show="previewOpen && !previewLoading" :input="previewInput" title="题目预览" close-text="返回"
+            @close="closePreview" />
 
-        <Overlay :show="previewLoading">
-            <SpinnerIcon />
-        </Overlay>
+        <LoadingOverlay :show="previewLoading" />
     </div>
 </template>
 
 <style scoped>
+/* .input / .select(.is-sm) / .state / .retry / .list / .list-bar / .mode-btn / .sort-box 都在全局 */
+
 .search-form {
     display: flex;
     gap: 8px;
 }
 
-.input {
+/* 布局微调：搜索框吃掉剩余宽度（覆盖全局 .input 的 width:100%） */
+.search-form .input {
     flex: 1;
     min-width: 0;
-    box-sizing: border-box;
-    height: 36px;
-    padding: 0 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    color: #111827;
-    outline: none;
-    transition: 0.15s;
-}
-
-.input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px #eef2ff;
+    width: auto;
 }
 
 .search-btn {
@@ -110,85 +97,9 @@ const {
     background: #4f46e5;
 }
 
-.list-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 12px;
-}
-
-.mode-btn {
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: #fff;
-    color: #374151;
-    font-size: 0.78rem;
-    font-family: inherit;
-    padding: 4px 10px;
-    cursor: pointer;
-    transition: 0.15s;
-}
-
-.mode-btn:hover {
-    background: #eef2ff;
-    border-color: #6366f1;
-}
-
-.sort-box {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
-    color: #6b7280;
-}
-
-.select {
-    height: 28px;
-    padding: 0 6px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: #fff;
-    color: #374151;
-    font-size: 0.78rem;
-    cursor: pointer;
-}
-
 .author {
     margin: 10px 0 0;
     font-size: 0.78rem;
     color: #4f46e5;
-}
-
-.state {
-    margin: 16px 0 0;
-    font-size: 0.85rem;
-    color: #6b7280;
-    text-align: center;
-}
-
-.state.is-error {
-    color: #b91c1c;
-}
-
-.retry {
-    margin-left: 6px;
-    border: 1px solid #fecaca;
-    border-radius: 6px;
-    background: #fee2e2;
-    color: #b91c1c;
-    font-size: 0.78rem;
-    font-family: inherit;
-    padding: 2px 8px;
-    cursor: pointer;
-}
-
-.list {
-    list-style: none;
-    margin: 12px 0 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
 }
 </style>

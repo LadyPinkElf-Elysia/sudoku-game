@@ -37,8 +37,3 @@ const actions = computed<Actions>(() => {
         <ActionItems :items="actions" />
     </Overlay>
 </template>
-
-<style scoped>
-.overlay-title { margin: 0; font-size: 1.1rem; color: #111827; }
-.overlay-desc  { margin: 8px 0 0; font-size: .85rem; color: #6b7280; }
-</style>

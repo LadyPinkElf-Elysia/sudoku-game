@@ -1,4 +1,4 @@
-# 架构约束 v1.7（数据 · 纯函数 · 组合式）
+# 架构约束 v1.8.1（数据 · 纯函数 · 组合式）
 
 > **硬约束**：`scripts/check-arch.mjs` 是本文 R1~R15 的可执行版本（R15 与 R8 的命名语义为评审规则；
 > R11 已废止，见 §四 脚注）；`pnpm guard` 违规 exit 1，`pnpm build` 已串上它。
@@ -79,13 +79,14 @@
 **机器可查部分**：`constants/` 的导出名必须是 `UPPER_SNAKE_CASE`（`BOARD_SIZE` · `AUTH_COPY` · `UID_PATTERN` …）。
 
 ### R9 体量预算　🔴
-单文件 ≤ 200 行；`core` 单文件导出 2~8 个；只有 `core` 允许「唯一入口模块」式的 1 个导出（≥ 50 行）。
+单文件 ≤ 200 行（**行数按"不含结尾换行"计**，守卫已修正 off-by-one）；`core` 单文件导出 2~8 个；
+只有 `core` 允许「唯一入口模块」式的 1 个导出（≥ 50 行）。
 **要加第 9 个导出时不要放宽限制，改拆文件**（例：`board/model.ts` 转换 + `board/ops.ts` 操作）。
 
 ### R10 类型归位　🔴（多数）/ 评审（`extends` 用法）
 - 共享类型（≥2 个「非父子」文件使用）→ `types/`；**types/ 里的类型必须有使用点**（死类型删掉或登记 `RESERVED_TYPES`）
 - 组件本地 props / emits → 就地写在 `defineProps<{…}>` / `defineEmits<{…}>`
-- 单文件私有类型 → 留在原文件
+- 单文件私有类型 → 留在原文件（例：`core/sudoku/tracker.ts` 的 `Change`）
 - **一个形状只留一份接口**：需要「少一个字段」时不要 `extends` / `Omit` 再开名字，改成把该字段变成函数参数
 - **外部资源（canvas / DOM / Worker / 定时器）用参数传，不塞进数据对象**
 - **敏感字段不进前端类型**：`uid`（登录凭据）不出现在题目相关类型里；列表不下发题面串
@@ -134,7 +135,7 @@
 | R14 棋盘缩放 | `BoardView` → 必须 `useZoom(`/`BoardOverlay` | 🔴 |
 | R15 状态归位 | —— 语义判断，脚本查不了 | 评审 |
 
-> **R11 已废止**（v1.7）：原「core 必须可测（每个 `core/**/*.ts` 配同名 `.test.ts`，`--strict` 考核）」
+> **R11 已废止**（v1.7 起）：原「core 必须可测（每个 `core/**/*.ts` 配同名 `.test.ts`，`--strict` 考核）」
 > 不再作为约束；守卫里的 `--strict` 参数与黄提醒机制已一并移除。编号留空，避免与既有引用冲突。
 
 ## 五、例外登记
@@ -146,10 +147,13 @@
        现状：User / SearchResult / Puzzle 已被真实引用；Page 仍只靠登记存活
        （建议把 types/item.ts 的 Menu.routeName: string 改成 Page，再摘掉这条登记）
     E5 BoardOverlay 自持 useZoom：与页面主盘 zoom 作用域不同（不同 canvas），不算违反 R7
+    E6 useBoardCanvas 的 ResizeObserver 是容器宽度的唯一测量源（重绘路径不读布局）；
+       渲染器仍保留「没传宽度就自己量一次」的兜底分支
+    E7 core/sudoku/tracker.ts 的 place() 返回闭包撤销函数（撤销记录不跨模块，Change 保持私有）
 
 ## 六、归位原则
 
-    纯静态、无格式化        → constants（GAME_COPY.win · AUTH_COPY.needLogin · PUZZLE_VISIBILITY_COPY）
+    纯静态、无格式化        → constants（GAME_COPY.win · AUTH_COPY.needLogin · RATIO_COPY.bad）
     需要按入参拼装          → core 纯函数（hintTextOf · percentOf）
     纯展示、只在模板里出现  → 留在页面 / 组件模板
     可复用的控件定义        → 随 composable 返回，由页面 spread（zoomActions）
@@ -158,10 +162,99 @@
     过程 / 依赖内存的状态   → state（store 或组件内）
     全站共用的界面          → 父路由布局（AppLayout），主内容在 <RouterView/>
     页面要显示的"算好的值"  → 由 composable 暴露（composable 才能 import core；页面禁 Math.）
+    跨页共用的视觉规格      → 全局样式（styles/*.css）：card / form / overlay
+    跨页共用的流程          → 公共组合式（useListQuery 列表查询 · usePuzzlePreview 预览 · useClipboard 复制）
 
-## 七、新代码骨架
+## 八、后端约定（functions/）
 
-```ts
-// core/xxx.ts —— 纯函数层
-import type { Position } from '@/types/board'
-export const xxxOf = (a: number, b: number): number => Math.min(a, b)
+    · 复用 core 做服务端校验（同尺寸 / 格式 / 40~70% / 合法终盘）—— 规则只有一份
+    · import core 一律用相对路径（`../../../src/core/...`）；别名靠 functions/tsconfig.json 的 paths
+    · 环境相关逻辑（密码哈希 / 会话 / 限流 / id 生成）只放 functions/utils/
+    · 每个接口文件只做四件事：校验参数 → 调 core → 读写 D1 → 用 utils/json 统一响应
+    · 列表类接口统一回 { items, total }；可选字段一律走白名单（例：visibility 只认三态常量）
+    · 类型检查关卡：pnpm typecheck:functions（同一个 functions/tsconfig.json，esbuild 与 tsc 双用）
+    · 限流只按 uid（连败 5 次锁 10 分钟）；PBKDF2 迭代 = 10000（Workers CPU 限额）
+    · 守卫扫描范围含 functions/（矩阵行见 §二）
+
+## 九、types/ 索引
+
+| 文件 | 导出 | 使用方 |
+|---|---|---|
+| board.ts | `Cell` `Board` `NumBoard` `ConflictMask` `Snapshot` `Position` | core / stores / render / composables / components |
+| render.ts | `BoardRenderInput` | BoardView props、页面 boardParams、useBoardCanvas、renderBoard(canvas, input, contentWidth?) |
+| sudoku.ts | `Sudoku`（手写契约） | core/sudoku/rules 实现；fill/generate、stores/game 使用 |
+| rng.ts | `Rng` | core/array.shuffle、core/sudoku/fill、services/sudoku/worker |
+| worker.ts | `GenerateRequest` `GenerateResponse` | services/sudoku/worker 与 workerClient |
+| game.ts | `GameConfig` `GameMeta` `GameStatus` `GameMode` `CreatePhase` | stores/game、core/game/derive、useCreateFlow/useEditFlow/useDifficultyFlow、GamePage |
+| item.ts | `ItemBase` `Action` `Actions` `Menu` `Menus`（🔸 `Menu.disabled`） | ActionItem(s) / MenuItem(s)、各页面、useGameFlow / useMyPuzzles |
+| puzzle.ts | `Visibility` · `ListSort` · `PagerMode` · `SearchResult`（含 `uname`）· `MyPuzzle` · `PuzzleDetail` · `MyPuzzleDetail` · `PuzzleData`（**均不含 uid**） | services/api、stores/puzzle、composables/puzzle、PuzzleCard / MyPuzzleRow / PagerBar |
+| page.ts | `Page`（路由名类型） | useListQuery、待 `Menu.routeName` 采用（见 E4） |
+| user.ts | `User`（含自己的 `uid`）（🔸 `RegisterPayload` `LoginPayload` `AuthResponse`） | stores/user、services/api |
+
+> 列表/详情类型的具体字段见 `REQUIREMENTS.md` §7。
+
+## 十、目录速览（✅ 现有 · ⛔ 规划）
+
+    src/
+      core/                 array · page · board/{model,ops,metrics,zoom}
+                            sudoku/{shape,rules,generate,fill,tracker,parse} · game/derive
+      render/board.ts       renderBoard(canvas, input, contentWidth?) · measureContentWidth(parent) · getClickPos(canvas, e, size)
+      services/             prefs.ts · api/{client,session,userApi,puzzleApi} · sudoku/{worker,workerClient}
+      stores/               {game,user,puzzle}.ts
+      composables/          useClipboard · useListQuery
+                            auth/{useAuth,useAccountMenu} · board/{useBoardCanvas,useZoom}
+                            game/{useGameFlow,useCreateFlow,useEditFlow,useCustomFlow,useDifficultyFlow}
+                            puzzle/{useSearchPuzzle,usePuzzleDetail,usePuzzlePreview,useMyPuzzles}
+      components/           ActionItem(s) · MenuItem(s) · BoardView · BoardOverlay · LoadingOverlay · Overlay
+                            SpinnerIcon · NumberPad · HistoryBar/Step · SecretField · PuzzleCard · PagerBar · MyPuzzleRow
+      pages/                AppLayout · HomePage · DifficultyPage · GamePage · CreatePage · EditPuzzlePage
+                            LoginPage · SearchPage · MyPuzzlesPage · PuzzleViewPage
+                            difficulty/{SystemPage,CustomPage}
+      constants/            board · game · pages · user · puzzle
+      types/                见 §九
+      styles/               card.css（页面卡片）· form.css（控件 / 状态 / 列表公共）· overlay.css（遮罩文案 / 账号卡）
+      router/
+
+    仓库顶层：
+      functions/tsconfig.json            esbuild 与 tsc 双用（paths 让 @/ 可解析）
+      functions/types.ts · _middleware.ts · utils/{id,auth,json,user,puzzle}.ts
+      functions/api/{register,login,logout,me}.ts
+      functions/api/puzzles/{index,[pid],mine/[rowId],[pid]/play}.ts
+      schema.sql（幂等：CREATE TABLE / INDEX IF NOT EXISTS）· wrangler.toml
+      worker-configuration.d.ts（wrangler types 生成并已提交）· README.md（极简版）
+
+## 十一、用法
+
+    pnpm guard                # 红规则（违规 exit 1；build 前自动跑）
+    pnpm typecheck            # vue-tsc（只查 src/）
+    pnpm typecheck:functions  # tsc -p functions/tsconfig.json（查后端）
+    pnpm format               # prettier（src/**/*.{ts,vue,css}）
+    pnpm build                # guard + vue-tsc + typecheck:functions + vite build
+
+    后端本地联调（6B 起）：
+    npx wrangler types                                    # 生成 worker-configuration.d.ts
+    npx wrangler d1 create sudoku-db                      # 拿真实 UUID 填进 wrangler.toml
+    npx wrangler d1 execute sudoku-db --local  --file=schema.sql        # 本地库建表
+    npx wrangler d1 execute sudoku-db --remote --file=schema.sql        # 云端库建表（部署前必做）
+    npx wrangler pages dev --port 8788                    # 后端 + 本地 D1
+    pnpm dev                                              # 前端（vite /api 代理到 8788）
+
+## 十二、变更记录
+
+- v1：R1~R13
+- v1.1：＋R14（有棋盘必须有缩放）；矩阵补 `router`；＋E5
+- v1.2：矩阵补 `functions`；R7 补「控件随 composable 返回」；R14 明确不设默认缩放
+- v1.3：＋R15（路由/状态归位）；R5 明确"读 store 的布局放 pages/"
+- v1.4：R10 补「敏感字段不进前端类型」；R15 补「影响数据请求→query / UI 偏好→本地偏好」
+- v1.5：R2 补「services 不许 import router/stores」；types 索引定稿
+- v1.6：＋**§八 后端约定**；R5 补「组件禁 vue-router」；R6 补「页面禁 Math.」；
+  R8 常量命名机器化；R12 从评审升为机器可查；矩阵表格化并与守卫 `MATRIX` 一一对应
+- v1.7：**废止 R11（测试）**，守卫移除 `--strict` 与黄提醒机制；§八 补「列表接口统一回 `{ items, total }`」；
+  ＋E6（容器宽度单点测量）
+- v1.8：**补回 §八~§十二**（v1.7 曾被截断）；R9 明确行数口径（不含结尾换行，守卫已修 off-by-one）；
+  ＋E7（tracker 的撤销闭包）；§六 补「跨页共用流程 → 公共组合式」；§九 补 `GameMeta`；
+  §十 目录速览与 §十一 用法按实况更新
+- v1.8.1：**删除 §七「新代码骨架」**（示例已由真实文件承担，看 §十 目录速览即可）；
+  为保持既有引用（§八 后端约定 / §九 types 索引 / §十 目录速览 / §十一 用法 / §十二 变更记录）
+  编号留空，不回移
+- v1.8.2：§十 目录速览把 `worker-configuration.d.ts` / `README.md` 的 ⛔ 划掉（两者均已落地）

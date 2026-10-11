@@ -45,6 +45,7 @@ defineProps<{
 .overlay-fade-leave-active {
     transition: opacity 0.2s;
 }
+
 .overlay-fade-enter-from,
 .overlay-fade-leave-to {
     opacity: 0;

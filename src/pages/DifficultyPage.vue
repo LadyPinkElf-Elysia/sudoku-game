@@ -1,120 +1,64 @@
 <script setup lang="ts">
-import Overlay from '@/components/Overlay.vue';
-import SpinnerIcon from '@/components/SpinnerIcon.vue';
-import ActionItems from '@/components/ActionItems.vue';
 import { PAGE } from '@/constants/pages';
-import { BLANK_RATIO, BOX_SIZE_OPTIONS } from '@/constants/game';
-import { useDifficultyFlow } from '@/composables/game/useDifficultyFlow';
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
-import type { Actions } from '@/types/item';
 
-const router = useRouter()
-const { draft, loading, error, totalCells, blankCount,blankPercent, apply } = useDifficultyFlow()
-
-const actions = computed<Actions>(() => [
-    { key: 'home', icon: '🏠', message: '主页', onClick: () => router.push({ name: PAGE.Home }) },
-    { key: 'start', icon: '▶', message: '开始游戏', disabled: loading.value, onClick: apply },
-])
+/** 子导航：两个 Tab（'' → redirect 到系统生成，实现"不记忆"） */
+const TABS = [
+    { name: PAGE.DifficultySystem, label: '系统生成' },
+    { name: PAGE.DifficultyCustom, label: '自定义' },
+];
 </script>
 
 <template>
+    <!-- 壳：只负责子导航 + 主内容出口；具体表单在 pages/difficulty/* -->
     <div class="page-card">
-        <h2 class="title">难度选择</h2>
+        <nav class="sub-nav">
+            <RouterLink v-for="tab in TABS" :key="tab.name" :to="{ name: tab.name }" class="sub-tab"
+                active-class="is-active">
+                {{ tab.label }}
+            </RouterLink>
+        </nav>
 
-        <div class="field">
-            <label class="label">盘面大小</label>
-            <select class="select" v-model.number="draft.boxSize">
-                <option v-for="b in BOX_SIZE_OPTIONS" :key="b" :value="b">
-                    {{ b * b }} X {{ b * b }}
-                </option>
-            </select>
-        </div>
-
-        <div class="field">
-            <label class="label">挖空比例:{{ blankPercent }}%</label>
-            <input class="range" type="range" :min="BLANK_RATIO.min" :max="BLANK_RATIO.max" :step="BLANK_RATIO.step"
-                v-model.number="draft.blankRatio">
-            <p class="hint">共 {{ totalCells }} 格，挖空 {{ blankCount }} 格</p>
-        </div>
-
-        <ActionItems :items="actions" />
-
-        <p v-if="error" class="error">{{ error }}</p>
-
-        <Overlay :show="loading">
-            <SpinnerIcon />
-            <p class="overlay-title">正在生成题目</p>
-            <p class="overlay-desc">大盘面可能需要几秒…</p>
-        </Overlay>
-
+        <main class="sub-main">
+            <RouterView />
+        </main>
     </div>
 </template>
 
 <style scoped>
-.title {
-    margin: 0 0 20px;
-    font-size: 1.1rem;
-    color: #111827;
+.sub-nav {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    margin-bottom: 18px;
+    background: #f3f4f6;
+    border-radius: 10px;
 }
 
-.range {
-    width: 100%;
-    height: 4px;
-    border-radius: 2px;
-    background: #e5e7eb;
-    appearance: none;
-    -webkit-appearance: none;
-    cursor: pointer;
-}
-
-.range::-webkit-slider-thumb {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #6366f1;
-    border: 2px solid #fff;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-}
-
-.range::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #6366f1;
-    border: 2px solid #fff;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-}
-
-.hint {
-    margin: 6px 0 0;
-    font-size: 0.75rem;
-    color: #9ca3af;
-}
-
-.error {
-    margin: 12px 0 0;
-    text-align: center;
-    font-size: 0.85rem;
-    color: #dc2626;
-    background: #fee2e2;
-    padding: 8px 12px;
-    border-radius: 6px;
-}
-
-.overlay-title {
-    margin: 12px 0 0;
-    font-size: 1rem;
-    color: #111827;
-}
-
-.overlay-desc {
-    margin: 6px 0 0;
-    font-size: 0.85rem;
+.sub-tab {
+    flex: 1;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
     color: #6b7280;
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: 0.15s;
+}
+
+.sub-tab:hover {
+    color: #4f46e5;
+}
+
+.sub-tab.is-active {
+    background: #fff;
+    color: #4f46e5;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.sub-main {
+    min-height: 160px;
 }
 </style>

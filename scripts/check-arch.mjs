@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 /**
- * 架构守卫 —— 《ARCHITECTURE.md》R1~R15 的可执行版本
- * 原则：能机器查的一律查（红/黄）；查不了的明确标为「评审」。
+ * 架构守卫 —— 《ARCHITECTURE.md》R1~R15 的可执行版本（R11 已废止，见文档 §四 脚注）
+ * 原则：能机器查的一律查；查不了的明确标为「评审」。
  *
  *   node scripts/check-arch.mjs           红规则（违规 exit 1）
- *   node scripts/check-arch.mjs --strict  额外考核 R11（core 必须有同名测试）
  *
  * 规则 → 检查方式：
  *   R1   红  顶层目录白名单
@@ -16,7 +15,6 @@
  *   R7   红  组合式不写算式（Math.）
  *   R9   红  体量（行数 / core 导出数 / 单函数模块）
  *   R10  红  类型归位（死类型 / Omit·Pick 派生 / constants 不许放类型）
- *   R11  黄  core 必须可测（--strict）
  *   R12  红  禁桶文件（export * from）
  *   R13  红  types 是叶子（由 R2 矩阵保证，单独报错）
  *   R14  红  有棋盘必须有缩放
@@ -33,8 +31,6 @@ if (!existDir('src')) {
     console.error('❌ 找不到 src/，请在项目根目录运行：node scripts/check-arch.mjs')
     process.exit(1)
 }
-
-const strict = process.argv.includes('--strict')
 
 /* ═════════════════ 规则参数（与 ARCHITECTURE.md §二/§三 一一对应） ═════════════════ */
 
@@ -64,7 +60,7 @@ const MATRIX = {
     'functions':       { src: ['functions/', 'src/core/', 'src/constants/', 'src/types/'], pkg: [] },                     // 后端：复用 core，禁 vue/pinia
 }
 
-/** 全局禁用依赖（依赖已移除，统一 fetch） */
+/** 全局禁用依赖（统一 fetch） */
 const FORBIDDEN_PKGS = new Set(['axios'])
 
 /** R3 core 纯度 */
@@ -78,7 +74,7 @@ const ALGO_IN_DATA = /\bfor\s*\(|\.forEach\(|Math\./
 const MATH = /Math\./
 
 /** R10 工具类型派生禁令 */
-const TYPE_DERIVE = /\b(Omit|Pick|Partial|Required|Exclude|Extract)</
+const TYPE_DERIVE = /\b(Omit|Pick|Partial|Required|Exclude|Extract)/
 
 /** R12 桶文件 */
 const BARREL = /^export\s+\*\s+from/m
@@ -96,8 +92,8 @@ const MAX_CORE_EXPORTS = 8
 const MIN_SOLO_MODULE_LINES = 50
 const MAX_PAGE_DECLS = 10
 
-/** R10 / E4 预留类型白名单 */
-const RESERVED_TYPES = new Set(['Page', 'User', 'SearchResult', 'Puzzle'])
+/** R10 / E4 预留类型白名单（当前无预留：types/ 的导出都有真实使用点） */
+const RESERVED_TYPES = new Set([])
 
 /* ═════════════════ 扫描 ═════════════════ */
 
@@ -116,7 +112,7 @@ const stripComments = s => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]
 const importsOf = code => [...code.matchAll(/(?:from|import)\s*['"]([^'"]+)['"]/g)].map(m => m[1])
 const under = (file, dir) => file.startsWith(dir + '/')
 const isVue = file => file.endsWith('.vue')
-const isTest = file => file.endsWith('.test.ts')
+const isTest = file => file.endsWith('.test.ts')      // 仓库里若还有 .test.ts，按豁免处理（不再纳入约束）
 const isCore = file => under(file, 'src/core')
 const isPages = file => under(file, 'src/pages')
 const dirOf = f => f.slice(0, f.lastIndexOf('/'))
@@ -140,9 +136,7 @@ const layerKeys = Object.keys(MATRIX).sort((a, b) => b.length - a.length)
 const layerOf = file => layerKeys.find(k => file === k || under(file, k))
 
 const errors = []
-const warns = []
 const err = (id, where, msg) => errors.push(`${id} ${where} — ${msg}`)
-const warn = (id, where, msg) => warns.push(`${id} ${where} — ${msg}`)
 
 /* ───── R1 顶层白名单 ───── */
 for (const name of readdirSync('src'))
@@ -152,7 +146,8 @@ for (const file of files) {
     const code = read(file)
     const bare = stripComments(code)
     const imps = importsOf(code)
-    const lines = code.split('\n').length
+    // 行数按"不含结尾换行"计：否则正好 200 行的文件会被多算 1 行
+    const lines = code.replace(/\n$/, '').split('\n').length
 
     /* ───── R9 行数 ───── */
     if (lines > MAX_LINES) err('R9', file, `${lines} 行 > ${MAX_LINES}，请拆文件`)
@@ -232,10 +227,6 @@ for (const file of files) {
     /* ───── R14 有棋盘就必须有缩放 ───── */
     if (isVue(file) && BOARD_VIEW.test(code) && !ZOOM_ENTRY.test(code))
         err('R14', file, '显示棋盘的页面/组件必须提供放大/缩小（useZoom(…) 或 BoardOverlay）')
-
-    /* ───── R11 core 必须可测（仅 --strict） ───── */
-    if (strict && isCore(file) && !isTest(file) && !files.includes(file.replace(/\.ts$/, '.test.ts')))
-        warn('R11', file, '缺少同名测试')
 }
 
 /* ═════════════════ R10 types/ 只放「共享」类型 ═════════════════ */
@@ -271,8 +262,6 @@ const tally = list => {
 }
 
 for (const e of errors) console.error('❌ ' + e)
-for (const w of warns) console.warn('⚠️  ' + w)
 if (errors.length) console.error(`\n违规分布：${tally(errors)}`)
-if (warns.length) console.warn(`提醒分布：${tally(warns)}`)
-console.log(`\n红规则违规 ${errors.length} 条；黄提醒 ${warns.length} 条`)
+console.log(`\n红规则违规 ${errors.length} 条`)
 process.exit(errors.length ? 1 : 0)

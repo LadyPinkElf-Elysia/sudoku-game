@@ -2,9 +2,10 @@
 import { computed } from 'vue'
 import ActionItems from '@/components/ActionItems.vue'
 import BoardView from '@/components/BoardView.vue'
+import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
-import { BOX_SIZE_OPTIONS, CREATE_PHASE } from '@/constants/game'
+import { BOX_SIZE_OPTIONS, CREATE_PHASE, TITLE_MAX } from '@/constants/game'
 import { useGameStore } from '@/stores/game'
 import { useZoom } from '@/composables/board/useZoom'
 import { useCreateFlow } from '@/composables/game/useCreateFlow'
@@ -14,8 +15,8 @@ import type { BoardRenderInput } from '@/types/render'
 const gameStore = useGameStore()
 const { zoom, zoomIn, zoomOut, resetZoom, canZoomIn, canZoomOut } = useZoom()
 const {
-    phase, errorMsg, showSuccess, showFail,
-    changeBoxSize, createAgain, goHome,
+    phase, title, errorMsg, loading, showSuccess, showFail,
+    changeBoxSize, goHome,
     submitPuzzle, submitSolution, backToEdit,
 } = useCreateFlow(resetZoom)
 
@@ -47,9 +48,9 @@ const actions = computed<Actions>(() => [
     },
 ])
 
+/** 出题完成：🔸 只留「回到主页」 */
 const successActions: Actions = [
     { key: 'home', icon: '🏠', message: '回主页', onClick: goHome },
-    { key: 'again', icon: '↺', message: '再出一道', onClick: createAgain },
 ]
 
 const failActions: Actions = [
@@ -57,9 +58,13 @@ const failActions: Actions = [
 ]
 </script>
 
-
 <template>
     <div class="page-card wide">
+        <div class="field">
+            <label class="label">标题</label>
+            <input class="input" v-model="title" :maxlength="TITLE_MAX" placeholder="1~40 位">
+        </div>
+
         <div class="field">
             <label class="label">盘面大小</label>
             <select class="select" v-model.number="boxSize">
@@ -68,15 +73,21 @@ const failActions: Actions = [
                 </option>
             </select>
         </div>
+
         <ActionItems :items="actions">
             <template v-if="errorMsg && !showFail" #tip>{{ errorMsg }}</template>
         </ActionItems>
+
         <BoardView v-bind="boardParams" @cell-click="gameStore.select" />
         <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.config.boxSize" @pick="gameStore.inputNum" />
 
+        <!-- 提交：转圈（校验 + 上传） -->
+        <LoadingOverlay :show="loading" title="正在提交题目…" />
+
+        <!-- 成功：只留「回到主页」 -->
         <Overlay :show="showSuccess">
             <p class="overlay-title">🎉 出题完成</p>
-            <p class="overlay-desc">题目已通过验证</p>
+            <p class="overlay-desc">题目已通过验证并保存</p>
             <ActionItems :items="successActions" />
         </Overlay>
 
@@ -87,17 +98,3 @@ const failActions: Actions = [
         </Overlay>
     </div>
 </template>
-
-<style scoped>
-.overlay-title {
-    margin: 0;
-    font-size: 1.1rem;
-    color: #111827;
-}
-
-.overlay-desc {
-    margin: 8px 0 0;
-    font-size: 0.85rem;
-    color: #6b7280;
-}
-</style>
