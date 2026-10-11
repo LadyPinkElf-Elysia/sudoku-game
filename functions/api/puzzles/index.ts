@@ -44,6 +44,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
     const { results } = await env.DB.prepare(
         `SELECT p.pid AS pid, p.title AS title, p.side_s AS sideS, p.blank_count AS blankCount,
+                p.play_count AS playCount, p.created_at AS createdAt,
                 u.uname AS uname
          FROM puzzle p JOIN user u ON u.uid = p.uid
          ${where}

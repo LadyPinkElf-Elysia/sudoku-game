@@ -18,6 +18,9 @@ export interface SearchResult {
     blankCount: number
     /** 出题人显示名（列表不展示，仅 uid 档搜索时做表头） */
     uname: string
+    /** 游玩热度（挑战一次 +1） */
+    playCount: number
+    createdAt: number
 }
 
 /** 我的题目列表项（含 rowId，不含 pid） */

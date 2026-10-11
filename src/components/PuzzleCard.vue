@@ -11,6 +11,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{ preview: [pid: string]; challenge: [pid: string] }>()
 
+/** 出题日期（本机时区，与「我的题目」行同格式） */
+const createdText = computed<string>(() => new Date(props.item.createdAt).toLocaleDateString('zh-CN'))
+
 const actions = computed<Actions>(() => {
     const preview: Action = {
         key: 'preview', icon: '👁', message: SEARCH_COPY.preview,
@@ -27,7 +30,10 @@ const actions = computed<Actions>(() => {
 <template>
     <article class="puzzle-card">
         <h3 class="card-title">{{ item.title }}</h3>
-        <p class="card-meta">{{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格</p>
+        <p class="card-meta">
+            {{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格 ·
+            {{ createdText }} · 热度 {{ item.playCount }}
+        </p>
         <ActionItems :items="actions" />
     </article>
 </template>
