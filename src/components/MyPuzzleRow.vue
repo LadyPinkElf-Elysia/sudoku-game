@@ -3,9 +3,10 @@ import { computed, nextTick, ref, watch } from 'vue';
 import ActionItem from './ActionItem.vue';
 import ValueIcons from './ValueIcons.vue';
 import { TITLE_MAX } from '@/constants/game';
-import { MINE_COPY, PUZZLE_VISIBILITY_OPTIONS, SOLUTION_OPTIONS, SOLUTION_VALUE } from '@/constants/puzzle';
+import { MINE_COPY } from '@/constants/puzzle';
+import MyPuzzleFields from './MyPuzzleFields.vue';
 import type { Action, MyPuzzleRowControls, ValueIconsProps } from '@/types/item';
-import type { MyPuzzle, Visibility } from '@/types/puzzle';
+import type { MyPuzzle } from '@/types/puzzle';
 
 const props = defineProps<{
     item: MyPuzzle
@@ -21,9 +22,6 @@ const props = defineProps<{
 const createdText = computed<string>(() => new Date(props.item.createdAt || Date.now()).toLocaleString('zh-CN', {
     year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
 }))
-
-/** 参考答案下拉的当前值（'on' / 'off'） */
-const solutionValue = computed<string>(() => (props.item.showSolution ? SOLUTION_VALUE.On : SOLUTION_VALUE.Off))
 
 /** 挑战：本行唯一保留的按钮（其余操作都是竖排文字 / 下拉） */
 const challengeAction = computed<Action>(() => ({
@@ -43,15 +41,18 @@ watch(() => props.controls.renaming, async (on) => {
     <article class="row">
         <!-- 标题行：标题 +「重命名」（点了标题变输入框）；右上角「删除 · 编辑」 -->
         <header class="row-head">
-            <input v-if="controls.renaming" ref="renameBox" class="input row-rename" :value="controls.renameText"
-                :maxlength="TITLE_MAX" :placeholder="MINE_COPY.renamePlaceholder"
-                @input="controls.onRenameInput(($event.target as HTMLInputElement).value)"
-                @keyup.enter="controls.onRenameCommit()" @keyup.esc="controls.onRenameCancel()"
-                @blur="controls.onRenameCommit()">
-            <template v-else>
-                <h3 class="row-title" :title="item.title">{{ item.title }}</h3>
-                <button class="text-btn" type="button" @click="controls.onRenameStart()">{{ MINE_COPY.rename }}</button>
-            </template>
+            <!-- 标题 +「重命名」= 左侧一组（紧挨着）；右上角才是「删除 · 编辑」 -->
+            <div class="row-title-line">
+                <input v-if="controls.renaming" ref="renameBox" class="input row-rename" :value="controls.renameText"
+                    :maxlength="TITLE_MAX" :placeholder="MINE_COPY.renamePlaceholder"
+                    @input="controls.onRenameInput(($event.target as HTMLInputElement).value)"
+                    @keyup.enter="controls.onRenameCommit()" @keyup.esc="controls.onRenameCancel()"
+                    @blur="controls.onRenameCommit()">
+                <template v-else>
+                    <h3 class="row-title" :title="item.title">{{ item.title }}</h3>
+                    <button class="text-btn" type="button" @click="controls.onRenameStart()">{{ MINE_COPY.rename }}</button>
+                </template>
+            </div>
 
             <div v-if="!controls.renaming" class="row-corner">
                 <button class="text-btn" type="button" @click="controls.onRemove()">{{ MINE_COPY.remove }}</button>
@@ -69,21 +70,9 @@ watch(() => props.controls.renaming, async (on) => {
             <ValueIcons v-bind="pidIcons" />
         </p>
 
-        <!-- 竖排：可见性 / 参考答案（下拉，取代原来的三态按钮与开关按钮） -->
-        <p class="row-field">
-            <span class="row-label">{{ MINE_COPY.visibilityLabel }}</span>
-            <select class="select is-sm" :value="item.visibility"
-                @change="controls.onVisibility(($event.target as HTMLSelectElement).value as Visibility)">
-                <option v-for="opt in PUZZLE_VISIBILITY_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-            </select>
-        </p>
-        <p class="row-field">
-            <span class="row-label">{{ MINE_COPY.solutionLabel }}</span>
-            <select class="select is-sm" :value="solutionValue"
-                @change="controls.onSolution(($event.target as HTMLSelectElement).value === SOLUTION_VALUE.On)">
-                <option v-for="opt in SOLUTION_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-            </select>
-        </p>
+        <!-- 可见性 / 参考答案：同一行、两个下拉等宽（拆在 MyPuzzleFields 里） -->
+        <MyPuzzleFields :visibility="item.visibility" :solution-on="item.showSolution"
+            :on-visibility="controls.onVisibility" :on-solution="controls.onSolution" />
 
         <!-- 竖排：预览（纯文字，不用按钮框） -->
         <p class="row-links">
@@ -110,12 +99,20 @@ watch(() => props.controls.renaming, async (on) => {
     background: #fff;
 }
 
-/* 标题行：左标题（+ 重命名）右「删除 · 编辑」 */
+/* 标题行：左侧「标题 + 重命名」一组，右上角「删除 · 编辑」 */
 .row-head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
+}
+
+.row-title-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
 }
 
 .row-title {
@@ -127,6 +124,7 @@ watch(() => props.controls.renaming, async (on) => {
 }
 
 .row-rename {
+    flex: 1;
     height: 30px;
     font-size: 0.9rem;
 }
@@ -149,19 +147,6 @@ watch(() => props.controls.renaming, async (on) => {
     font-size: 0.78rem;
     color: #4b5563;
     word-break: break-all;
-}
-
-/* 竖排控件：标签 + 下拉 */
-.row-field {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.row-label {
-    font-size: 0.78rem;
-    color: #6b7280;
 }
 
 /* 预览竖排（纯文字，无按钮框） */
