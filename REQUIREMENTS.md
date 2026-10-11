@@ -120,7 +120,8 @@
 - 「题目预览」与「挑战」都走详情接口 `GET /api/puzzles/:pid`。
 - 排序：**时间优先 / 热度优先**（并列按 `createdAt DESC`）；分页 **10/页**（页数由 `total` 算出）；
   浏览形态（进度条 / 滑动条，**下拉选择**）存**本地偏好**（`sudoku.pagerMode`），默认「进度条」。
-- 列表项：`标题 · S×S · 挖空 N 格 · 出题日期 · 热度 N · 题目预览 · 挑战`（**不显示出题人、状态、pid、答案**）。
+- 列表项：`标题 · S×S · 挖空 N 格 · 出题时间 · 热度 N · 题目预览 · 挑战`（**不显示出题人、状态、pid、答案**）；
+  `createdAt` 缺失（旧数据 / 旧后端未返回）→ 显示**当前日期 + 时间**；时间格式 `YYYY/M/D HH:mm`（本地时区、**24 小时制**）；`playCount` 缺失 → **0**。
 - 三态：加载中 / 空结果（「没有找到题目」）/ 错误（可重试）。
 - 挑战：进入游戏页时对**已登录**用户调 `POST /api/puzzles/:pid/play`（热度）；游客不调用。
 
@@ -405,7 +406,8 @@ i18n / 深色模式 / 完整 a11y。
 | 41 | 顶栏账号位 = **头像**：游客「👤 登录」→ 登录页，登录后「👤 用户名」→「我的」页（**不再用弹层**，也**不设「我的题目」入口**）；页首账号区 uid **与 pid 同规则**（默认遮蔽，右侧裸图标 👁 睁/闭 + 📋 复制，复制不显示在界面） |
 | 46 | uid / pid 的 👁 / 📋 = **值右侧的裸图标组**（`ValueIcons`：inline、无按钮框、无文字，`message` 转 title/aria）；👁 是**睁/闭两态切换**（已明文 → 闭眼 = 点它隐藏），**不用 🙈 猴子**；遮蔽与明文都带同一前缀（`uid ▮▮▮▮…` ↔ `uid <值>`）；眼睛图形抽出 `EyeGlyph`，登录页密码框共用（全站一套），**全站无 🙈** |
 | 47 | 「浏览方式」与「排序」统一成**下拉**（不再用切换按钮）：`PAGER_MODE_OPTIONS` 与 `SORT_OPTIONS` 同形；`useListQuery` 的 `togglePagerMode` → `changePagerMode(值)`；全局 `.mode-btn` 样式删除 |
-| 48 | 搜索列表**补回 `playCount` / `createdAt`**（排序有「时间 / 热度」却看不见值）：后端公开搜索 SQL 加 `p.play_count` / `p.created_at`，`SearchResult` 加两字段，卡片行显示「出题日期 · 热度 N」 |
+| 48 | 搜索列表**补回 `playCount` / `createdAt`**（排序有「时间 / 热度」却看不见值）：后端公开搜索 SQL 加 `p.play_count` / `p.created_at`，`SearchResult` 加两字段，卡片行显示「出题时间 · 热度 N」 |
+| 49 | 时间/热度**兜底**（新前端 + 旧后端也不会出现 `Invalid Date · 热度 undefined`）：`createdAt` 缺失 → 显示当前时间（`createdAt || Date.now()`），有记录就按记录；格式 `YYYY/M/D HH:mm`（24 小时制）；`playCount` 缺失 → `0`；搜索卡片与「我的题目」行**同一规则** |
 | 42 | 路由守卫改 **async**：受保护页冷启动/直接开 URL 时先 `await userStore.restore()`（store 内 memo 化，无 token 立即返回）再判登录态 → 已登录用户刷新/收藏 `#/my-puzzles` 不再被弹回登录页；其余页面仍即时渲染（不等待）|
 | 43 | 顶栏左侧常驻「🏠 回到主页」（三栏 grid 第 1 列原本空着）；「数独」保持纯标题（回主页只留这一个入口） |
 | 44 | 难度壳的默认 Tab 用**守卫**补（`to.name === PAGE.Difficulty` → `{ name: PAGE.DifficultySystem }`）：原先靠子路由 `{ path: '', redirect }`，**按 name 跳父路由时不触发** → 点「开始游戏」会停在 `/difficulty`（两个 Tab 都不高亮、内容空） |

@@ -17,7 +17,10 @@ const props = defineProps<{
 }>()
 
 const visibilityText = computed<string>(() => PUZZLE_VISIBILITY_COPY[props.item.visibility])
-const createdText = computed<string>(() => new Date(props.item.createdAt).toLocaleDateString('zh-CN'))
+/** 出题时间（本地时区、24 小时制）；没记录（旧数据 / 旧后端）→ 按「现在」显示 */
+const createdText = computed<string>(() => new Date(props.item.createdAt || Date.now()).toLocaleString('zh-CN', {
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+}))
 </script>
 
 <template>
@@ -26,7 +29,7 @@ const createdText = computed<string>(() => new Date(props.item.createdAt).toLoca
 
         <p class="row-meta">
             {{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格 ·
-            {{ visibilityText }} · {{ createdText }} · 热度 {{ item.playCount }}
+            {{ visibilityText }} · {{ createdText }} · 热度 {{ item.playCount ?? 0 }}
         </p>
 
         <p class="row-pid">

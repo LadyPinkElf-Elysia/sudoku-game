@@ -11,8 +11,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{ preview: [pid: string]; challenge: [pid: string] }>()
 
-/** 出题日期（本机时区，与「我的题目」行同格式） */
-const createdText = computed<string>(() => new Date(props.item.createdAt).toLocaleDateString('zh-CN'))
+/** 出题时间（本地时区、24 小时制）：旧数据 / 旧后端没给 createdAt → 按「现在」显示，有记录就按记录 */
+const createdText = computed<string>(() => new Date(props.item.createdAt || Date.now()).toLocaleString('zh-CN', {
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+}))
 
 const actions = computed<Actions>(() => {
     const preview: Action = {
@@ -32,7 +34,7 @@ const actions = computed<Actions>(() => {
         <h3 class="card-title">{{ item.title }}</h3>
         <p class="card-meta">
             {{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格 ·
-            {{ createdText }} · 热度 {{ item.playCount }}
+            {{ createdText }} · 热度 {{ item.playCount ?? 0 }}
         </p>
         <ActionItems :items="actions" />
     </article>
