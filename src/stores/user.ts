@@ -24,10 +24,11 @@ export const useUserStore = defineStore('userStore', () => {
     const logout = async (): Promise<void> => {
         try { await apiLogout() } finally { profile.value = null }
     }
-    /** 刷新后静默恢复（无 token 不发请求） */
-    const restore = async (): Promise<void> => {
+    /** 刷新后静默恢复（无 token 不发请求）；同一时刻只发一次 —— 路由守卫可 await 它再判登录态 */
+    let pending: Promise<void> | null = null
+    const restore = (): Promise<void> => (pending ??= (async () => {
         try { profile.value = await apiMe() } catch { profile.value = null }
-    }
+    })())
 
     return { profile, isGuest, uname, uid, register, login, logout, restore }
 })

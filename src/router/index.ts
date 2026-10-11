@@ -61,9 +61,11 @@ const router = createRouter({
 })
 
 /** 未登录访问受保护路由 → 去登录页并带回跳地址 */
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   const userStore = useUserStore()          // 守卫回调内调用（Pinia 已装好）
+  // 冷启动 / 直接开受保护 URL：先等会话恢复完（无 token 时立即返回）再判登录态
+  if (userStore.isGuest) await userStore.restore()
   if (!userStore.isGuest) return true
   return { name: PAGE.Login, query: { redirect: to.fullPath } }
 })

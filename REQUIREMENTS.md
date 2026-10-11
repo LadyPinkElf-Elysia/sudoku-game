@@ -36,7 +36,7 @@
   Vue 的 `mergeProps` 把内部监听排在前面，其 `guardEvent` 先于我们的 handler 检查 `defaultPrevented`，
   所以 `@click.prevent` 拦不住导航。）
 - **全站顶栏**（`AppLayout`，外壳带整页外框）：任意页面可见「数独（**居中**，回主页）」「我的题目」
-  「登录 / 👤 用户名 · 退出」；登录页隐藏右侧那组；点「👤 用户名」弹层可查看/复制**自己的 uid**
+  「登录 / 👤 用户名 · 退出」；登录页隐藏右侧那组；点「👤 用户名」进「我的」页（账号区可显示/复制 uid）
 - **兜底守卫**：直入 `/create`、`/my-puzzles`、`/puzzle/:pid/edit` → 跳 `/login?redirect=…`，登录后回跳
 - **`redirect` 安全**：只接受站内路径（`startsWith('/')` 且不以 `//` 开头），否则忽略
 - 游客**没有 uid**
@@ -62,7 +62,7 @@
 | `PAGE.EditPuzzle` | `/puzzle/:pid/edit` | EditPuzzlePage | requiresAuth + `:pid` | ✅ |
 | `PAGE.PuzzleView` | `/p/:pid` | PuzzleViewPage | `:pid`（分享落地） | ✅ |
 | `PAGE.Search` | `/search` | SearchPage | `?q=&sort=time\|hot&page=` | ✅ |
-| `PAGE.MyPuzzles` | `/my-puzzles` | MyPuzzlesPage | requiresAuth + `?sort=time\|hot&page=` | ✅ |
+| `PAGE.MyPuzzles` | `/my-puzzles` | MyPuzzlesPage（**我的**：账号区 + 我的题目） | requiresAuth + `?sort=time\|hot&page=` | ✅ |
 | `PAGE.Login` | `/login` | LoginPage | `?mode=sign-in\|sign-up&redirect=` | ✅ |
 
 **约定（R15）**：位置放路由、过程放 state、影响数据请求的放 query、纯 UI 偏好的放本地偏好；
@@ -77,7 +77,7 @@
 ### FR-1 全站顶栏（AppLayout）✅
 - **居中**「数独」→ 回主页；右「我的题目」+「登录」/「👤 用户名 · 退出」。
 - 游客点「我的题目」→ 不跳转，顶栏下方提示条出现「该功能需要登录才可以使用」；路由一变提示消失。
-- 点「👤 用户名」→ 弹层显示**自己的 uid** + 复制。
+- 点「👤 用户名」→ 进入「我的」页（页首账号区显示 uid，默认遮蔽，点 👁 显示 / 📋 复制）。
 - 退出登录 → 🔸 主动跳 `/home`；登录页隐藏右侧那组。
 
 ### FR-2 主页 ✅
@@ -127,6 +127,7 @@
 - 可见性：`public` / `protected` 任何人可看；`private` 仅作者（否则「题目不存在或不可访问」）。
 
 ### FR-7 我的题目（需登录）✅
+页首「**账号区**」：显示名 + uid（**默认遮蔽** `uid ▮▮▮▮…`，点 👁 显示 / 📋 复制，与 pid 同规则）。
 页头：左上「浏览方式」、右上「排序（时间 / 热度）」；底部 `PagerBar`（10/页）。
 
     [ 标题 ✏️重命名 ] [ S×S ] [ 🌐公开 | 🔗受保护 | 🔒私有（可切换）] [ 创建时间 ] [ 挖空 N 格 ]
@@ -187,7 +188,7 @@
 - 密码 `PBKDF2-SHA256` + 每用户随机盐，**迭代 10000**（Workers CPU 限额）；会话 token 存 D1，**7 天**，
   `Authorization: Bearer`。
 - 刷新静默恢复（`GET /api/me`）；**401 由 store / composable 处理**（`services/api/client.ts` 只抛错，不碰 router）。
-- **uid 敏感**：只在注册卡片与「我的账号」弹层出现；**uid 丢失且无本地保存 = 无法登录**（v1 不找回）。
+- **uid 敏感**：只在注册卡片与「我的」页账号区出现（默认遮蔽，点显示/复制才用）；**uid 丢失且无本地保存 = 无法登录**（v1 不找回）。
 
 ### FR-13 可见性与分享 ✅
 
@@ -326,7 +327,7 @@ CREATE TABLE puzzle_play (
 | 2 | 游客点「我的题目」 | 提示「该功能需要登录才可以使用」，不跳转；路由变化后消失 | ✅ |
 | 3 | 注册 | 看到「账号 ID」卡片，复制成功；本地保存 lastUid | ✅ |
 | 4 | 重进登录页 | 账号 ID 已预填；只输密码即可登录 | ✅ |
-| 5 | 换设备粘贴 uid 登录 | 成功（粘贴自动去空白）；顶栏弹层可查看并复制自己的 uid | ✅ |
+| 5 | 换设备粘贴 uid 登录 | 成功（粘贴自动去空白）；「我的」页账号区可显示/复制自己的 uid | ✅ |
 | 6 | 搜索结果 | 看不到任何 uid；列表项只有 标题/S×S/挖空/预览/挑战 | ✅ |
 | 7 | 出题（标题 + 两阶段 + 挖空 45%） | 转圈后「出题完成」；`/my-puzzles` 立即可见（默认公开） | ✅ |
 | 8 | 出题时挖空 10% | 提示「挖空比例需在 40%~70% 之间」，不入库 | ✅ |
@@ -397,6 +398,8 @@ i18n / 深色模式 / 完整 a11y。
 | 38 | 棋盘一律用 `BoardRenderInput` 对象传参；容器宽度由 `ResizeObserver` 单点测量后按参数传入渲染器 |
 | 39 | **跨页公共流程抽公共组合式**：`useListQuery`（URL↔条件 / 分页 / 越界收敛 / 浏览偏好）、`usePuzzlePreview`（预览遮罩，取数由调用方注入）、`useClipboard`（复制 + 已复制态） |
 | 40 | game store 持 `meta`（pid/title/uname），由 `startGame(..., source?)` 统一写入 → 游戏页信息行无残留 |
+| 41 | 顶栏「👤 用户名」= 进入「我的」页（**不再用弹层**）：页首账号区 uid **与 pid 同规则**（默认遮蔽，点 👁 显示 / 📋 复制，复制不显示在界面） |
+| 42 | 路由守卫改 **async**：受保护页冷启动/直接开 URL 时先 `await userStore.restore()`（store 内 memo 化，无 token 立即返回）再判登录态 → 已登录用户刷新/收藏 `#/my-puzzles` 不再被弹回登录页；其余页面仍即时渲染（不等待）|
 
 ## 12. 分批路线
 

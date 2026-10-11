@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import ActionItems from '@/components/ActionItems.vue'
 import BoardOverlay from '@/components/BoardOverlay.vue'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
@@ -7,7 +8,10 @@ import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import { TITLE_MAX } from '@/constants/game'
 import { MINE_COPY, SORT_OPTIONS } from '@/constants/puzzle'
+import { useClipboard } from '@/composables/useClipboard'
 import { useMyPuzzles } from '@/composables/puzzle/useMyPuzzles'
+import { useUserStore } from '@/stores/user'
+import type { Actions } from '@/types/item'
 import type { ListSort } from '@/types/puzzle'
 
 const {
@@ -18,10 +22,32 @@ const {
     renameOpen, renameText, renameActions,
     removeOpen, removeActions,
 } = useMyPuzzles()
+
+/** 账号区（FR-1 / FR-12）：uid 与 pid 同规则 —— 默认遮蔽，点 👁 显示 / 📋 复制（复制不显示在界面） */
+const userStore = useUserStore()
+const { copied: uidCopied, copy: copyUidText } = useClipboard()
+const uidShown = ref(false)
+const uname = computed<string>(() => userStore.uname)
+const uidText = computed<string>(() => (uidShown.value ? userStore.uid : MINE_COPY.uidHidden))
+const uidActions = computed<Actions>(() => [
+    { key: 'uid', icon: '👁', message: MINE_COPY.showUid, onClick: () => { uidShown.value = true } },
+    {
+        key: 'uidCopy', icon: '📋',
+        message: uidCopied.value ? MINE_COPY.copied : MINE_COPY.copyUid,
+        onClick: () => { void copyUidText(userStore.uid) },
+    },
+])
 </script>
 
 <template>
     <div class="page-card wide">
+        <!-- 账号区（FR-1 / FR-12）：uid 与 pid 同规则 —— 默认遮蔽，点 👁 显示 / 📋 复制 -->
+        <section class="account">
+            <p class="account-name">👤 {{ uname }}</p>
+            <p class="account-uid">{{ uidText }}</p>
+            <ActionItems :items="uidActions" />
+        </section>
+
         <!-- 页头：左上「浏览方式」、右上「排序」 -->
         <div class="list-bar">
             <button class="mode-btn" type="button" @click="togglePagerMode">
@@ -81,6 +107,31 @@ const {
 
 <style scoped>
 /* .list-bar / .mode-btn / .sort-box / .state / .retry / .list / .input / .overlay-* 都在全局 */
+
+/* 账号区：显示名 + uid（默认遮蔽，点 👁 才明文） */
+.account {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    text-align: center;
+}
+
+.account-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.account-uid {
+    margin: 6px 0 0;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.8rem;
+    color: #4b5563;
+    word-break: break-all;
+}
 
 .rename-input {
     margin: 10px 0 4px;

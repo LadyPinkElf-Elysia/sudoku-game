@@ -1,22 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import ActionItems from '@/components/ActionItems.vue'
-import Overlay from '@/components/Overlay.vue'
 import { PAGE } from '@/constants/pages'
 import { AUTH_COPY } from '@/constants/user'
 import { useAccountMenu } from '@/composables/auth/useAccountMenu'
-import type { Actions } from '@/types/item'
 
-const {
-    isGuest, uname, uid, tip, showNav,
-    onMineBlocked, cardOpen, copied, openCard, closeCard, copyUid, logout,
-} = useAccountMenu()
-
-/** 用户名弹层：复制 uid + 关闭 */
-const cardActions = computed<Actions>(() => [
-    { key: 'copy', icon: '📋', message: copied.value ? AUTH_COPY.copied : AUTH_COPY.copy, onClick: copyUid },
-    { key: 'close', icon: '↩', message: '关闭', onClick: closeCard },
-])
+const { isGuest, uname, tip, showNav, onMineBlocked, logout } = useAccountMenu()
 </script>
 
 <template>
@@ -38,9 +25,11 @@ const cardActions = computed<Actions>(() => [
                     {{ AUTH_COPY.login }}
                 </RouterLink>
                 <template v-else>
-                    <button type="button" class="nav-item nav-user" :title="AUTH_COPY.uidLabel" @click="openCard">
+                    <!-- 点「👤 用户名」→ 进「我的」页（账号区可显示 / 复制 uid） -->
+                    <RouterLink :to="{ name: PAGE.MyPuzzles }" class="nav-item nav-user"
+                        :title="AUTH_COPY.uidLabel">
                         👤 {{ uname }}
-                    </button>
+                    </RouterLink>
                     <button type="button" class="nav-item" @click="logout">{{ AUTH_COPY.logout }}</button>
                 </template>
             </nav>
@@ -52,13 +41,6 @@ const cardActions = computed<Actions>(() => [
             <RouterView />
         </main>
 
-        <!-- 点「👤 用户名」：查看 / 复制自己的账号 ID（.overlay-* / .uid-card 来自全局） -->
-        <Overlay :show="cardOpen">
-            <p class="overlay-title">我的账号</p>
-            <p class="overlay-desc">{{ AUTH_COPY.uidHint }}</p>
-            <p class="uid-card">{{ uid }}</p>
-            <ActionItems :items="cardActions" />
-        </Overlay>
     </div>
 </template>
 
