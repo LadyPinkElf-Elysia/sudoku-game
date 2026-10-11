@@ -10,9 +10,9 @@ const { isGuest, uname, showNav, logout } = useAccountMenu()
     <div class="app-shell">
         <header class="app-header">
             <!-- 常驻「回到主页」：三栏 grid 第 1 列（标题左边）—— 任何页面（含登录页）都能回主页 -->
-            <RouterLink :to="{ name: PAGE.Home }" class="nav-item nav-home">回到主页</RouterLink>
+            <RouterLink :to="{ name: PAGE.Home }" class="nav-item nav-home">🏠 回到主页</RouterLink>
 
-            <RouterLink :to="{ name: PAGE.Home }" class="app-title">数独</RouterLink>
+            <span class="app-title">数独</span>
 
             <!-- 右侧账号位：游客「👤 登录」→ 登录页；登录后「👤 用户名」→「我的」页 + 退出；登录页自己就是入口 → 隐藏 -->
             <nav v-if="showNav" class="app-nav">

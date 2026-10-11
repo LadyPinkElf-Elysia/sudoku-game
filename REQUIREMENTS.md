@@ -35,8 +35,8 @@
   （原因：RouterLink 的 `onClick:navigate` 是内部 `<a>` 自身的监听，父级 `@click` 只是透传属性；
   Vue 的 `mergeProps` 把内部监听排在前面，其 `guardEvent` 先于我们的 handler 检查 `defaultPrevented`，
   所以 `@click.prevent` 拦不住导航。）
-- **全站顶栏**（`AppLayout`，外壳带整页外框）：任意页面可见**左侧常驻「回到主页」**（标题左边，登录页也在）
-  与「数独（**居中**，回主页）」；右侧账号位——游客「👤 登录」（→ `/login`）、登录后「👤 用户名」
+- **全站顶栏**（`AppLayout`，外壳带整页外框）：任意页面可见**左侧常驻「🏠 回到主页」**（标题左边，登录页也在）
+  与「数独（**居中**，纯标题、不可点）」；右侧账号位——游客「👤 登录」（→ `/login`）、登录后「👤 用户名」
   （→ `/my-puzzles`：账号 ID + 我的题目）+「退出」；**不设「我的题目」入口**（已并入头像）；登录页隐藏右侧那组
 - **兜底守卫**：直入 `/create`、`/my-puzzles`、`/puzzle/:pid/edit` → 跳 `/login?redirect=…`，登录后回跳
 - **`redirect` 安全**：只接受站内路径（`startsWith('/')` 且不以 `//` 开头），否则忽略
@@ -55,7 +55,7 @@
 | name | path | 页面 | 权限 / 参数 | 状态 |
 |---|---|---|---|---|
 | `PAGE.Home` | `/home` | HomePage | — | ✅ |
-| `PAGE.Difficulty` | `/difficulty` | DifficultyPage（壳） | 落地 redirect → system | ✅ |
+| `PAGE.Difficulty` | `/difficulty` | DifficultyPage（壳） | 守卫补默认 Tab → system | ✅ |
 | `PAGE.DifficultySystem` | `/difficulty/system` | difficulty/SystemPage | — | ✅ |
 | `PAGE.DifficultyCustom` | `/difficulty/custom` | difficulty/CustomPage | — | ✅ |
 | `PAGE.Game` | `/game` | GamePage | — | ✅ |
@@ -76,7 +76,7 @@
 > 14 条全部实现；🔸 为默认取值约定。
 
 ### FR-1 全站顶栏（AppLayout）✅
-- **左侧常驻「回到主页」**（标题左边的按钮）→ 任何页面（含登录页）一键回主页；标题「数独」同样可点。
+- **左侧常驻「🏠 回到主页」**（标题左边的按钮）→ 任何页面（含登录页）一键回主页；**「数独」是纯标题、不可点**。
 - **居中**「数独」→ 回主页；右侧账号位：游客「👤 登录」（→ `/login`）、登录后「👤 用户名」+「退出」。
 - **顶栏不设「我的题目」入口**：游客点头像即去登录页；需要登录的功能各自在页内提示（如主页「出题」灰显）。
 - 点「👤 用户名」（登录后）→ 进入「我的」页（页首账号区显示 uid，默认遮蔽，点 👁 显示 / 📋 复制）；
@@ -403,7 +403,8 @@ i18n / 深色模式 / 完整 a11y。
 | 40 | game store 持 `meta`（pid/title/uname），由 `startGame(..., source?)` 统一写入 → 游戏页信息行无残留 |
 | 41 | 顶栏账号位 = **头像**：游客「👤 登录」→ 登录页，登录后「👤 用户名」→「我的」页（**不再用弹层**，也**不设「我的题目」入口**）；页首账号区 uid **与 pid 同规则**（默认遮蔽，点 👁 显示 / 📋 复制，复制不显示在界面） |
 | 42 | 路由守卫改 **async**：受保护页冷启动/直接开 URL 时先 `await userStore.restore()`（store 内 memo 化，无 token 立即返回）再判登录态 → 已登录用户刷新/收藏 `#/my-puzzles` 不再被弹回登录页；其余页面仍即时渲染（不等待）|
-| 43 | 顶栏左侧常驻「回到主页」（三栏 grid 第 1 列原本空着）：搜索页等原本只有「数独」标题可点，而标题样式像纯文字、不易发现 → 现在任何页面都有明确入口 |
+| 43 | 顶栏左侧常驻「🏠 回到主页」（三栏 grid 第 1 列原本空着）；「数独」保持纯标题（回主页只留这一个入口） |
+| 44 | 难度壳的默认 Tab 用**守卫**补（`to.name === PAGE.Difficulty` → `{ name: PAGE.DifficultySystem }`）：原先靠子路由 `{ path: '', redirect }`，**按 name 跳父路由时不触发** → 点「开始游戏」会停在 `/difficulty`（两个 Tab 都不高亮、内容空） |
 
 ## 12. 分批路线
 

@@ -13,13 +13,12 @@ const router = createRouter({
 
         { path: PAGE.Home, name: PAGE.Home, component: () => import('@/pages/HomePage.vue') },
 
-        // 难度页：壳 + 子路由（'' → redirect 系统生成，实现"不记忆"）
+        // 难度页：壳 + 子路由（默认 Tab 由下面的守卫补上 → 实现"不记忆"）
         {
           path: PAGE.Difficulty,
           name: PAGE.Difficulty,
           component: () => import('@/pages/DifficultyPage.vue'),
           children: [
-            { path: '', redirect: { name: PAGE.DifficultySystem } },
             {
               path: 'system', name: PAGE.DifficultySystem,
               component: () => import('@/pages/difficulty/SystemPage.vue')
@@ -62,6 +61,8 @@ const router = createRouter({
 
 /** 未登录访问受保护路由 → 去登录页并带回跳地址 */
 router.beforeEach(async (to) => {
+  // 难度壳停在父级（按 name 跳父路由不会触发子路由的 redirect）→ 补默认 Tab「系统生成」
+  if (to.name === PAGE.Difficulty) return { name: PAGE.DifficultySystem }
   if (!to.meta.requiresAuth) return true
   const userStore = useUserStore()          // 守卫回调内调用（Pinia 已装好）
   // 冷启动 / 直接开受保护 URL：先等会话恢复完（无 token 时立即返回）再判登录态

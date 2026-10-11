@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PAGE } from '@/constants/pages';
 
-/** 子导航：两个 Tab（'' → redirect 到系统生成，实现"不记忆"） */
+/** 子导航：两个 Tab（默认 Tab = 系统生成，由 router 守卫补，见 router/index.ts） */
 const TABS = [
     { name: PAGE.DifficultySystem, label: '系统生成' },
     { name: PAGE.DifficultyCustom, label: '自定义' },
