@@ -28,8 +28,8 @@ const createdText = computed<string>(() => new Date(props.item.createdAt || Date
         <h3 class="row-title" :title="item.title">{{ item.title }}</h3>
 
         <p class="row-meta">
-            {{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格 ·
-            {{ visibilityText }} · {{ createdText }} · 热度 {{ item.playCount ?? 0 }}
+            盘面大小 {{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格 ·
+            {{ visibilityText }} · 创建时间 {{ createdText }} · 热度 {{ item.playCount ?? 0 }}
         </p>
 
         <p class="row-pid">

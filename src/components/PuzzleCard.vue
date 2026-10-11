@@ -33,8 +33,8 @@ const actions = computed<Actions>(() => {
     <article class="puzzle-card">
         <h3 class="card-title">{{ item.title }}</h3>
         <p class="card-meta">
-            {{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格 ·
-            {{ createdText }} · 热度 {{ item.playCount ?? 0 }}
+            盘面大小 {{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格 ·
+            创建时间 {{ createdText }} · 热度 {{ item.playCount ?? 0 }}
         </p>
         <ActionItems :items="actions" />
     </article>
