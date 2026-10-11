@@ -56,6 +56,9 @@ export const MINE_COPY = {
     renamePlaceholder: '1~40 位',
     removeTitle: '⚠️ 删除题目',
     removeConfirm: '删除后不可恢复，确定删除这道题吗？',
+    /** 值标签：遮蔽与明文都带同一前缀，点开眼睛后不会“换模样” */
+    pidTag: 'pid',
+    uidTag: 'uid',
     pidHidden: 'pid ▮▮▮▮▮▮▮▮',
     uidHidden: 'uid ▮▮▮▮▮▮▮▮',
     showUid: '显示 uid',

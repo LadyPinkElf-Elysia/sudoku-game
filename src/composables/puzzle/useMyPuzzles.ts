@@ -53,10 +53,10 @@ export const useMyPuzzles = () => {
 
     const goCreate = (): void => { void router.push({ name: PAGE.Create }) }
 
-    /** pid 文本：默认遮蔽，点过眼睛才明文 */
+    /** pid 文本：默认遮蔽；明文时保留 `pid ` 前缀（与遮蔽态一致） */
     const pidTextOf = (item: MyPuzzle): string => {
         const detail = puzzleStore.details[item.rowId]
-        return detail && isRevealed(item.rowId) ? detail.pid : MINE_COPY.pidHidden
+        return detail && isRevealed(item.rowId) ? `${MINE_COPY.pidTag} ${detail.pid}` : MINE_COPY.pidHidden
     }
 
     /** 本行 pid 是否已明文（`ValueIcons` 的 👁 睁/闭据此切换） */

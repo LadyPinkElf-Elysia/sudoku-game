@@ -28,7 +28,8 @@ const userStore = useUserStore()
 const { copied: uidCopied, copy: copyUidText } = useClipboard()
 const uidShown = ref(false)
 const uname = computed<string>(() => userStore.uname)
-const uidText = computed<string>(() => (uidShown.value ? userStore.uid : MINE_COPY.uidHidden))
+/** 明文时也带 `uid ` 前缀（与遮蔽态 `uid ▮▮▮▮…` 一致，值不会突然换模样） */
+const uidText = computed<string>(() => (uidShown.value ? `${MINE_COPY.uidTag} ${userStore.uid}` : MINE_COPY.uidHidden))
 /** 账号区：uid 右侧的裸图标组（👁 睁/闭 + 📋 复制） */
 const uidIcons = computed(() => ({
     revealed: uidShown.value,
