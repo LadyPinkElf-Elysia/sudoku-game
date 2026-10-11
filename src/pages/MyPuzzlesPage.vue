@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed } from 'vue'
 import ActionItems from '@/components/ActionItems.vue'
 import BoardOverlay from '@/components/BoardOverlay.vue'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import MyPuzzleRow from '@/components/MyPuzzleRow.vue'
 import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
-import ValueIcons from '@/components/ValueIcons.vue'
+import RenameText from '@/components/RenameText.vue'
+import SecretValue from '@/components/SecretValue.vue'
+import TextButtons from '@/components/TextButtons.vue'
 import { MINE_COPY, PAGER_MODE_OPTIONS, SORT_OPTIONS } from '@/constants/puzzle'
 import { AUTH_COPY, UNAME_MAX } from '@/constants/user'
 import { useAccountPanel } from '@/composables/auth/useAccountPanel'
 import { useMyPuzzles } from '@/composables/puzzle/useMyPuzzles'
+import type { TextItems } from '@/types/item'
 import type { ListSort } from '@/types/puzzle'
 
 const {
@@ -28,38 +31,27 @@ const {
     logout,
 } = useAccountPanel()
 
-/** 进入改名时自动聚焦输入框 */
-const nameBox = ref<HTMLInputElement | null>(null)
-watch(renaming, async (on) => {
-    if (!on) return
-    await nextTick()
-    nameBox.value?.focus()
-})
+/** 账号区一行里的「退出」（放最右） */
+const logoutItems = computed<TextItems>(() => [
+    { key: 'logout', label: AUTH_COPY.logout, onClick: () => { void logout() } },
+])
 </script>
 
 <template>
     <div class="page-card wide">
         <!-- 账号区（FR-1 / FR-12）：一行「👤 显示名 · 重命名 · 退出」；点「重命名」名字就地变输入框 -->
         <section class="account">
-            <p class="account-row">
-                <input v-if="renaming" ref="nameBox" class="input account-rename" :value="renameText"
-                    :maxlength="UNAME_MAX" :placeholder="AUTH_COPY.renamePlaceholder"
-                    @input="onRenameInput(($event.target as HTMLInputElement).value)"
-                    @keyup.enter="commitRename()" @keyup.esc="cancelRename()" @blur="commitRename()">
-                <template v-else>
-                    <span class="account-name">👤 {{ uname }}</span>
-                    <button class="text-btn" type="button" @click="startRename">{{ AUTH_COPY.rename }}</button>
-                </template>
+            <div class="account-row">
+                <RenameText class="account-rename" :text="uname" icon="👤" :renaming="renaming" :rename-text="renameText"
+                    :maxlength="UNAME_MAX" :placeholder="AUTH_COPY.renamePlaceholder" :label="AUTH_COPY.rename"
+                    @start="startRename" @input="onRenameInput" @commit="commitRename" @cancel="cancelRename" />
 
-                <button class="text-btn" type="button" @click="logout">{{ AUTH_COPY.logout }}</button>
-            </p>
+                <TextButtons :items="logoutItems" />
+            </div>
 
             <p v-if="renameError" class="hint">{{ renameError }}</p>
 
-            <p class="account-uid">
-                <span>{{ uidText }}</span>
-                <ValueIcons v-bind="uidIcons" />
-            </p>
+            <SecretValue :text="uidText" :icons="uidIcons" />
         </section>
 
         <!-- 页头：左上「浏览方式」、右上「排序」 -->
@@ -128,7 +120,7 @@ watch(renaming, async (on) => {
     text-align: center;
 }
 
-/* 账号区：一行「退出 · 名字 · 重命名」，下面是 uid */
+/* 账号区：一行「👤 名字 · 重命名 · 退出」，下面是 uid */
 .account-row {
     margin: 0;
     display: flex;
@@ -138,21 +130,9 @@ watch(renaming, async (on) => {
     gap: 8px;
 }
 
-.account-name {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #111827;
-}
-
-/* 账号区的文字操作比列表行略大一点 */
-.account-row .text-btn {
-    font-size: 0.85rem;
-}
-
+/* 改名输入框的宽度（RenameText 的输入框宽度交给调用方） */
 .account-rename {
     flex: 0 1 11rem;
-    height: 30px;
-    font-size: 0.9rem;
 }
 
 .account-uid {

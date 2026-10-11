@@ -30,6 +30,16 @@ export interface ValueIconsProps {
 
 export type Actions=Action[]
 
+/** 纯文字操作一项：无边框、无底色（TextButtons 用；样式 .text-btn 在全局 form.css） */
+export interface TextItem {
+    key: string
+    /** 按钮上的文字 */
+    label: string
+    onClick: () => void
+}
+
+export type TextItems = TextItem[]
+
 /**
  * 「我的题目」行内控件：组件只负责画（R5：不碰 store / 路由），闭包由 composable 提供。
  * 行内不再堆图标按钮 —— 可见性 / 参考答案是下拉，预览与重命名是文字。

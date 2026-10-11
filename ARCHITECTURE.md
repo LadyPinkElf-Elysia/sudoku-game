@@ -201,12 +201,15 @@
       render/board.ts       renderBoard(canvas, input, contentWidth?) · measureContentWidth(parent) · getClickPos(canvas, e, size)
       services/             prefs.ts · api/{client,session,userApi,puzzleApi} · sudoku/{worker,workerClient}
       stores/               {game,user,puzzle}.ts
-      composables/          useClipboard · useListQuery
+      composables/          useClipboard · useListQuery · useSecretValue
                             auth/{useAuth,useAccountMenu} · board/{useBoardCanvas,useZoom}
                             game/{useGameFlow,useCreateFlow,useEditFlow,useCustomFlow,useDifficultyFlow}
                             puzzle/{useSearchPuzzle,usePuzzleDetail,usePuzzlePreview,useMyPuzzles}
-      components/           ActionItem(s) · MenuItem(s) · BoardView · BoardOverlay · LoadingOverlay · Overlay
-                            SpinnerIcon · NumberPad · HistoryBar/Step · SecretField · PuzzleCard · PagerBar · MyPuzzleRow
+      components/           ActionItem(s) · MenuItem(s) · TextButtons · ValueIcons · EyeGlyph
+                            BoardView · BoardOverlay · LoadingOverlay · Overlay · SpinnerIcon · NumberPad
+                            HistoryBar/Step · SecretField · PagerBar
+                            PuzzleCardShell · PuzzleMeta · PuzzleSettings · RenameText · SecretValue
+                            PuzzleCard · MyPuzzleRow
       pages/                AppLayout · HomePage · DifficultyPage · GamePage · CreatePage · EditPuzzlePage
                             LoginPage · SearchPage · MyPuzzlesPage · PuzzleViewPage
                             difficulty/{SystemPage,CustomPage}

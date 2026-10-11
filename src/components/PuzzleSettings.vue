@@ -17,18 +17,18 @@ const solutionValue = computed<string>(() => (props.solutionOn ? SOLUTION_VALUE.
 </script>
 
 <template>
-    <!-- 可见性与参考答案同一行；两个下拉刻意等宽（都加 .row-select） -->
-    <div class="row-fields">
-        <p class="row-field">
-            <span class="row-label">{{ MINE_COPY.visibilityLabel }}</span>
-            <select class="select is-sm row-select" :value="visibility"
+    <!-- 题目的两个设置项：可见性与参考答案同一行；两个下拉刻意等宽（.row-select 7rem） -->
+    <div class="fields">
+        <p class="field">
+            <span class="label">{{ MINE_COPY.visibilityLabel }}</span>
+            <select class="select is-sm select-eq" :value="visibility"
                 @change="onVisibility(($event.target as HTMLSelectElement).value as Visibility)">
                 <option v-for="opt in PUZZLE_VISIBILITY_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
         </p>
-        <p class="row-field">
-            <span class="row-label">{{ MINE_COPY.solutionLabel }}</span>
-            <select class="select is-sm row-select" :value="solutionValue"
+        <p class="field">
+            <span class="label">{{ MINE_COPY.solutionLabel }}</span>
+            <select class="select is-sm select-eq" :value="solutionValue"
                 @change="onSolution(($event.target as HTMLSelectElement).value === SOLUTION_VALUE.On)">
                 <option v-for="opt in SOLUTION_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
@@ -37,28 +37,28 @@ const solutionValue = computed<string>(() => (props.solutionOn ? SOLUTION_VALUE.
 </template>
 
 <style scoped>
-/* 同一行；换行只在窄屏发生 */
-.row-fields {
+/* 同一行；只在窄屏换行 */
+.fields {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 12px;
 }
 
-.row-field {
+.field {
     margin: 0;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.row-label {
+.label {
     font-size: 0.78rem;
     color: #6b7280;
 }
 
 /* 两个下拉等宽（7rem）——宽度不随选项文字长短变化 */
-.row-select {
+.select-eq {
     width: 7rem;
 }
 </style>

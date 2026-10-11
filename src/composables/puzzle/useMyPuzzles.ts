@@ -3,8 +3,8 @@ import { useRouter } from 'vue-router'
 import { TITLE_MAX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { MINE_COPY } from '@/constants/puzzle'
-import { useClipboard } from '@/composables/useClipboard'
 import { useListQuery } from '@/composables/useListQuery'
+import { useSecretValue } from '@/composables/useSecretValue'
 import { parsePuzzle } from '@/core/sudoku/parse'
 import { cellCountOf } from '@/core/sudoku/shape'
 import { remove as removePuzzle, update as updatePuzzle } from '@/services/api/puzzleApi'
@@ -20,7 +20,6 @@ export const useMyPuzzles = () => {
     const router = useRouter()
     const puzzleStore = usePuzzleStore()
     const gameStore = useGameStore()
-    const { copied, copy } = useClipboard()
     const preview = usePuzzlePreview((rowId) => puzzleStore.detailOf(rowId))
 
     const items = computed<MyPuzzle[]>(() => puzzleStore.mine)
@@ -31,8 +30,6 @@ export const useMyPuzzles = () => {
 
     /** PATCH / DELETE 进行中 → 转圈遮罩 */
     const busy = ref(false)
-    /** 已明文显示过 pid 的行（默认遮蔽） */
-    const revealed = ref<string[]>([])
     /** 正在内联重命名的 rowId（'' = 无）；删除仍走二次确认弹层 */
     const renaming = ref('')
     const renameText = ref('')
@@ -53,27 +50,19 @@ export const useMyPuzzles = () => {
 
     const goCreate = (): void => { void router.push({ name: PAGE.Create }) }
 
-    /** pid 文本：默认遮蔽；明文时保留 `pid ` 前缀（与遮蔽态一致） */
-    const pidTextOf = (item: MyPuzzle): string => {
-        const detail = puzzleStore.details[item.rowId]
-        return detail && isRevealed(item.rowId) ? `${MINE_COPY.pidTag} ${detail.pid}` : MINE_COPY.pidHidden
-    }
+    /** pid 的「遮蔽/明文 + 👁📋」：与 uid **同一份实现**（useSecretValue，规则只写一次） */
+    const pid = useSecretValue(
+        async (rowId) => (await detailOf(rowId))?.pid ?? null,
+        {
+            tag: MINE_COPY.pidTag, hidden: MINE_COPY.pidHidden,
+            show: MINE_COPY.showPid, hide: MINE_COPY.hidePid,
+            copy: MINE_COPY.copyPid, copied: MINE_COPY.copied,
+        },
+    )
 
-    /** 本行 pid 是否已明文（`ValueIcons` 的 👁 睁/闭据此切换） */
-    const isRevealed = (rowId: string): boolean => revealed.value.includes(rowId)
-
-    /** 显示 / 隐藏 pid 两态切换（导入时顺带缓存详情） */
-    const togglePid = async (rowId: string): Promise<void> => {
-        if (isRevealed(rowId)) { revealed.value = revealed.value.filter((id) => id !== rowId); return }
-        const detail = await detailOf(rowId)
-        if (detail) revealed.value = [...revealed.value, rowId]
-    }
-
-    /** 复制 pid：不进界面，直接进剪贴板 */
-    const copyPid = async (rowId: string): Promise<void> => {
-        const detail = await detailOf(rowId)
-        if (detail) await copy(detail.pid)
-    }
+    /** 传给行组件的 pid 文本 / 图标参数（按行现算） */
+    const pidTextOf = (item: MyPuzzle): string => pid.textOf(item.rowId)
+    const pidIconsOf = (item: MyPuzzle): ValueIconsProps => pid.iconsOf(item.rowId)
 
     /** 统一 PATCH：先取 pid，再改，最后清缓存 + 重拉 */
     const patch = async (
@@ -153,16 +142,6 @@ export const useMyPuzzles = () => {
             busy.value = false
         }
     }
-
-    /** 该行 pid 右侧的裸图标组参数（👁 睁/闭 + 📋 复制） */
-    const pidIconsOf = (item: MyPuzzle): ValueIconsProps => ({
-        revealed: isRevealed(item.rowId),
-        eyeLabel: isRevealed(item.rowId) ? MINE_COPY.hidePid : MINE_COPY.showPid,
-        copyIcon: copied.value ? '✅' : '📋',
-        copyLabel: copied.value ? MINE_COPY.copied : MINE_COPY.copyPid,
-        onToggle: () => { void togglePid(item.rowId) },
-        onCopy: () => { void copyPid(item.rowId) },
-    })
 
     /** 每行一套行内控件（闭包随行；components 只负责画） */
     const controlsFor = (item: MyPuzzle): MyPuzzleRowControls => {

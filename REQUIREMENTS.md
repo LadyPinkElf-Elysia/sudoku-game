@@ -244,8 +244,8 @@
 | 盘面构造 / 缩放换算 / 百分比 / 分页页数 / 宫坐标 | 纯函数 | `core/board/{model,ops,metrics,zoom}.ts` · `core/game/derive.ts` · `core/page.ts` |
 | HTTP / token / 本地偏好 | 服务适配器 | `services/api/*` · `services/prefs.ts` |
 | 登录态 / 题目列表与缓存 / 棋局来源 | 数据层 | `stores/{user,puzzle}.ts` · `stores/game.ts`（含 `meta`） |
-| 流程编排（router / loading / 错误 / 401） | 组合式层 | `composables/{useListQuery,useClipboard}.ts` · `composables/auth/*` · `composables/puzzle/*` · `composables/game/*` |
-| 顶栏 / 遮罩 / 列表行 / 分页条 / 密码框 / 缩放按钮 | 页面布局与展示 | `pages/AppLayout.vue` · `components/{BoardOverlay,LoadingOverlay,PuzzleCard,MyPuzzleRow,SecretField,PagerBar}.vue` · `useZoom().zoomActions` |
+| 流程编排（router / loading / 错误 / 401） | 组合式层 | `composables/{useListQuery,useClipboard,useSecretValue}.ts` · `composables/auth/*` · `composables/puzzle/*` · `composables/game/*` |
+| 顶栏 / 遮罩 / 列表项卡片 / 分页条 / 密码框 / 缩放按钮 | 页面布局与展示 | `pages/AppLayout.vue` · `components/{BoardOverlay,LoadingOverlay,SecretField,PagerBar,MyPuzzleRow,PuzzleCard,PuzzleCardShell,PuzzleMeta,PuzzleSettings,RenameText,SecretValue,TextButtons,ValueIcons,EyeGlyph}.vue` · `useZoom().zoomActions` |
 | 跨页视觉规格 | 全局样式 | `styles/{card,form,overlay}.css` |
 | 只接线 | 页面 | `pages/**` |
 | 服务端校验 / 会话 / 限流 / id | 后端 | `functions/**`（复用 `core`） |
@@ -417,6 +417,7 @@ i18n / 深色模式 / 完整 a11y。
 | 50 | 「我的题目」行内**不再堆图标按钮**：标题旁「重命名」（点了标题就地变输入框，回车/失焦提交、Esc 取消）；右上角纯文字「删除 · 编辑」（左删除右编辑）；**可见性与参考答案改下拉**（`PUZZLE_VISIBILITY_OPTIONS` / `SOLUTION_OPTIONS`，与决策 47 同形）；题目预览 / 答案预览改**纯文字**；只保留「挑战」按钮；行内控件闭包由 composable 提供（R5：组件不碰 store / 路由）；**可见性与参考答案同一行、两个下拉等宽**（拆到 `MyPuzzleFields`，满足 R9 单文件 ≤200 行） | ✅ |
 | 51 | `VISIBILITY` 常量**归位**：`constants/game.ts` → `constants/puzzle.ts`（可见性是题目属性，与其文案、下拉项同文件），同时满足 R2「constants 之间不得互相 import」 | ✅ |
 | 52 | **退出登录移到「我的」页账号区（显示名右侧一组的最右），顶栏不再放退出**；显示名右边「重命名」= **改显示名**（就地变输入框）→ 新增 **`PATCH /api/me`**（`{uname}` 走 `UNAME_PATTERN` 复校；uname 仅显示名、可重名 → 不做唯一性）、`uname` 从「非目标」移出；前端 `stores/user.rename` + `useAccountPanel`（R6：页面只接线） | ✅ |
+| 53 | **列表项卡片按「可复用组件」拆开**（不靠全局类、各自 scoped）：`PuzzleCardShell`（外框 + #title/#corner 插槽）· `PuzzleMeta`（元信息行 + 时间格式化，原先卡片与行各抄一份）· `RenameText`（文字+「重命名」→ 就地输入框，行标题与显示名共用）· `SecretValue`（等宽值 + 👁📋，pid/uid 共用）· `TextButtons`（一组纯文字操作：删除·编辑 / 预览 / 退出）· `PuzzleSettings`（原名 `MyPuzzleFields`，去「My」）；遮蔽/明文 + 复制逻辑抽成 `useSecretValue`（**uid 与 pid 同规则只写一次**）；`MyPuzzleRow` 164 → 79 行 | ✅ |
 | 42 | 路由守卫改 **async**：受保护页冷启动/直接开 URL 时先 `await userStore.restore()`（store 内 memo 化，无 token 立即返回）再判登录态 → 已登录用户刷新/收藏 `#/my-puzzles` 不再被弹回登录页；其余页面仍即时渲染（不等待）|
 | 43 | 顶栏左侧常驻「🏠 回到主页」（三栏 grid 第 1 列原本空着）；「数独」保持纯标题（回主页只留这一个入口） |
 | 44 | 难度壳的默认 Tab 用**守卫**补（`to.name === PAGE.Difficulty` → `{ name: PAGE.DifficultySystem }`）：原先靠子路由 `{ path: '', redirect }`，**按 name 跳父路由时不触发** → 点「开始游戏」会停在 `/difficulty`（两个 Tab 都不高亮、内容空） |

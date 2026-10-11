@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import ActionItems from './ActionItems.vue';
+import PuzzleCardShell from './PuzzleCardShell.vue';
 import { SEARCH_COPY } from '@/constants/puzzle';
 import type { Action, Actions } from '@/types/item';
 import type { SearchResult } from '@/types/puzzle';
@@ -10,11 +11,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ preview: [pid: string]; challenge: [pid: string] }>()
-
-/** 出题时间（本地时区、24 小时制）：旧数据 / 旧后端没给 createdAt → 按「现在」显示，有记录就按记录 */
-const createdText = computed<string>(() => new Date(props.item.createdAt || Date.now()).toLocaleString('zh-CN', {
-    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-}))
 
 const actions = computed<Actions>(() => {
     const preview: Action = {
@@ -30,35 +26,9 @@ const actions = computed<Actions>(() => {
 </script>
 
 <template>
-    <article class="puzzle-card">
-        <h3 class="card-title">{{ item.title }}</h3>
-        <p class="card-meta">
-            盘面大小 {{ item.sideS }}×{{ item.sideS }} · 挖空 {{ item.blankCount }} 格 ·
-            创建时间 {{ createdText }} · 热度 {{ item.playCount ?? 0 }}
-        </p>
+    <!-- 外壳（标题 + 元信息行 PuzzleMeta）与「我的题目」行共用；这里只挂搜索页的两个按钮 -->
+    <PuzzleCardShell :title="item.title" :side-s="item.sideS" :blank-count="item.blankCount"
+        :created-at="item.createdAt" :play-count="item.playCount">
         <ActionItems :items="actions" />
-    </article>
+    </PuzzleCardShell>
 </template>
-
-<style scoped>
-.puzzle-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 12px 14px;
-    background: #fff;
-}
-
-.card-title {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #111827;
-    word-break: break-all;
-}
-
-.card-meta {
-    margin: 6px 0 0;
-    font-size: 0.78rem;
-    color: #6b7280;
-}
-</style>
