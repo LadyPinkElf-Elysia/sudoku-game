@@ -29,6 +29,9 @@ export const CREATE_PHASE = {
 /** 盘面大小可选值 */
 export const BOX_SIZE_OPTIONS = [3, 4, 5, 6] as const
 
+/** 盘面大小下拉项（值 = 宫边长 B，文案 = 盘面边长 S×S；FormField(type='select') 用） */
+export const BOX_SIZE_SELECT_OPTIONS = BOX_SIZE_OPTIONS.map((b) => ({ value: b, label: `${b * b} X ${b * b}` }))
+
 /** 挖空比例范围（占盘面总格数） */
 export const BLANK_RATIO = {
     min: 0.4,

@@ -1,4 +1,4 @@
-/* 遮罩内的标题 / 说明 / 账号卡（Overlay 与 BoardOverlay 共用） */
+/* 遮罩内的标题 / 说明 / 账号卡：遮罩本体（Overlay）用这些全局类 */
 
 .overlay-title {
     margin: 0;

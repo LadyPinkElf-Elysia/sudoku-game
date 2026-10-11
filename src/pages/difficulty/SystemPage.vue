@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import ActionItems from '@/components/ActionItems.vue';
-import LoadingOverlay from '@/components/LoadingOverlay.vue';
-import { BLANK_RATIO, BOX_SIZE_OPTIONS } from '@/constants/game';
+import Flex from '@/components/Flex.vue';
+import FormField from '@/components/FormField.vue';
+import Overlay from '@/components/Overlay.vue';
+import TextAction from '@/components/TextAction.vue';
+import { BLANK_RATIO, BOX_SIZE_SELECT_OPTIONS } from '@/constants/game';
 import { useDifficultyFlow } from '@/composables/game/useDifficultyFlow';
 import type { Actions } from '@/types/item';
 
@@ -10,36 +12,29 @@ const { draft, loading, error, totalCells, blankCount, blankPercent, apply } = u
 
 /** 回主页只走顶栏那一个入口，这里只留开局 */
 const actions = computed<Actions>(() => [
-    { key: 'start', icon: '▶', message: '开始游戏', disabled: loading.value, onClick: apply },
+    { key: 'start', text: '▶ 开始游戏', onClick: loading.value ? undefined : apply },
 ])
 </script>
 
 <template>
     <!-- 内容由壳（pages/DifficultyPage.vue）的 .page-card 承载，这里只放本 Tab 的表单 -->
     <div class="system-page">
-        <h2 class="title">系统生成</h2>
+        <h2 class="section-title">系统生成</h2>
 
-        <div class="field">
-            <label class="label">盘面大小</label>
-            <select class="select" v-model.number="draft.boxSize">
-                <option v-for="b in BOX_SIZE_OPTIONS" :key="b" :value="b">
-                    {{ b * b }} X {{ b * b }}
-                </option>
-            </select>
-        </div>
+        <FormField class="field" vertical type="select" label="盘面大小" :options="BOX_SIZE_SELECT_OPTIONS"
+            :model-value="draft.boxSize" @update:model-value="(v) => (draft.boxSize = v as number)" />
 
-        <div class="field">
-            <label class="label">挖空比例:{{ blankPercent }}%</label>
-            <input class="range" type="range" :min="BLANK_RATIO.min" :max="BLANK_RATIO.max" :step="BLANK_RATIO.step"
-                v-model.number="draft.blankRatio">
-            <p class="hint">共 {{ totalCells }} 格，挖空 {{ blankCount }} 格</p>
-        </div>
+        <FormField v-model="draft.blankRatio" class="field" vertical type="range" :label="`挖空比例:${blankPercent}%`"
+            :min="BLANK_RATIO.min" :max="BLANK_RATIO.max" :step="BLANK_RATIO.step"
+            :hint="`共 ${totalCells} 格，挖空 ${blankCount} 格`" />
 
-        <ActionItems :items="actions" />
+        <Flex class="op-bar" :gap="12" justify="center" wrap>
+            <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
+        </Flex>
 
         <p v-if="error" class="form-error">{{ error }}</p>
 
-        <LoadingOverlay :show="loading" title="正在生成题目" desc="大盘面可能需要几秒…" />
+        <Overlay :show="loading" spinning text="正在生成题目" desc="大盘面可能需要几秒…" />
     </div>
 </template>
 

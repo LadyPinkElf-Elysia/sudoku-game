@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import ActionItems from '@/components/ActionItems.vue';
-import LoadingOverlay from '@/components/LoadingOverlay.vue';
+import Flex from '@/components/Flex.vue';
+import FormField from '@/components/FormField.vue';
+import Overlay from '@/components/Overlay.vue';
+import TextAction from '@/components/TextAction.vue';
 import { CUSTOM_COPY, CUSTOM_TEXT_MAX, TITLE_MAX } from '@/constants/game';
 import { AUTH_COPY } from '@/constants/user';
 import { useCustomFlow } from '@/composables/game/useCustomFlow';
@@ -13,57 +15,34 @@ const {
 
 <template>
     <div class="custom-page">
-        <h2 class="title">自定义</h2>
+        <h2 class="section-title">自定义</h2>
 
-        <div class="field">
-            <label class="label">{{ CUSTOM_COPY.puzzleLabel }}</label>
-            <textarea class="input textarea" v-model="puzzleText" :maxlength="CUSTOM_TEXT_MAX" spellcheck="false"
-                placeholder="0 0 3 0 …"></textarea>
-            <p class="hint">{{ puzzleInfo }}</p>
-        </div>
+        <FormField v-model="puzzleText" class="field" vertical type="textarea" :label="CUSTOM_COPY.puzzleLabel"
+            :hint="puzzleInfo" :maxlength="CUSTOM_TEXT_MAX" placeholder="0 0 3 0 …" />
 
-        <div class="field">
-            <label class="label">{{ CUSTOM_COPY.solutionLabel }}</label>
-            <textarea class="input textarea" v-model="solutionText" :maxlength="CUSTOM_TEXT_MAX" spellcheck="false"
-                placeholder="1 2 3 4 …"></textarea>
-            <p class="hint">{{ solutionInfo }}</p>
-        </div>
+        <FormField v-model="solutionText" class="field" vertical type="textarea" :label="CUSTOM_COPY.solutionLabel"
+            :hint="solutionInfo" :maxlength="CUSTOM_TEXT_MAX" placeholder="1 2 3 4 …" />
 
         <label class="check" :title="isGuest ? AUTH_COPY.needLogin : ''">
             <input type="checkbox" v-model="saveToMine" :disabled="isGuest">
             {{ CUSTOM_COPY.saveLabel }}
         </label>
 
-        <div v-if="saveToMine" class="field">
-            <label class="label">标题</label>
-            <input class="input" v-model="title" :maxlength="TITLE_MAX" :placeholder="CUSTOM_COPY.titlePlaceholder">
-        </div>
+        <FormField v-if="saveToMine" v-model="title" class="field" vertical label="标题" :maxlength="TITLE_MAX"
+            :placeholder="CUSTOM_COPY.titlePlaceholder" />
 
         <p v-if="error" class="form-error">{{ error }}</p>
 
-        <ActionItems :items="actions" />
+        <Flex class="op-bar" :gap="12" justify="center" wrap>
+            <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
+        </Flex>
 
-        <LoadingOverlay :show="loading" :title="CUSTOM_COPY.validating" />
+        <Overlay :show="loading" spinning :text="CUSTOM_COPY.validating" />
     </div>
 </template>
 
 <style scoped>
-/* .field / .label / .input / .hint / .form-error 来自全局样式 */
-
-.title {
-    margin: 0 0 18px;
-    font-size: 1.05rem;
-    color: #111827;
-}
-
-/* 本页特有：多行输入的尺寸与等宽字体 */
-.textarea {
-    height: 96px;
-    padding: 8px 10px;
-    line-height: 1.5;
-    font-family: ui-monospace, Menlo, monospace;
-    resize: vertical;
-}
+/* .field / .label / .input / .hint / .form-error / .section-title 来自全局样式；多行输入等宽在 FormField 里 */
 
 .check {
     display: flex;

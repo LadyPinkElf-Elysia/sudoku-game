@@ -1,20 +1,14 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { PAGE } from '@/constants/pages'
-import { MINE_COPY } from '@/constants/puzzle'
 import { AUTH_COPY, UNAME_PATTERN } from '@/constants/user'
-import { useSecretValue } from '@/composables/useSecretValue'
 import { useUserStore } from '@/stores/user'
-import type { ValueIconsProps } from '@/types/item'
-
-/** 自己这条值在 useSecretValue 里的 id（账号区只有一条，固定即可） */
-const SELF = 'me'
 
 /**
  * 「我的」页账号区（FR-1 / FR-12）：
  * · 显示名就地重命名（点名字右边「重命名」→ 名字变输入框）→ `PATCH /api/me`
  * · 退出登录（名字左边；顶栏不再放退出）
- * · uid 默认遮蔽，值右侧裸图标 👁 显示 / 📋 复制（与 pid 同规则，复制不进界面）
+ * · uid 默认遮蔽，点 👁 显示 / 📋 复制 —— 整套在 SecretValue 组件里，这里只给「怎么取真值」
  */
 export const useAccountPanel = () => {
     const userStore = useUserStore()
@@ -22,15 +16,8 @@ export const useAccountPanel = () => {
 
     const uname = computed<string>(() => userStore.uname)
 
-    /** uid 的「遮蔽/明文 + 👁📋」：与 pid **同一份实现**（useSecretValue，规则只写一次） */
-    const uid = useSecretValue(async () => userStore.uid, {
-        tag: MINE_COPY.uidTag, hidden: MINE_COPY.uidHidden,
-        show: MINE_COPY.showUid, hide: MINE_COPY.hideUid,
-        copy: MINE_COPY.copyUid, copied: MINE_COPY.copied,
-    })
-    /** 明文时也带 `uid ` 前缀（与遮蔽态 `uid ▮▮▮▮…` 一致，值不会突然换模样） */
-    const uidText = computed<string>(() => uid.textOf(SELF))
-    const uidIcons = computed<ValueIconsProps>(() => uid.iconsOf(SELF))
+    /** uid 的取值（uid 是登录凭据，默认不给出去） */
+    const loadUid = async (): Promise<string | null> => userStore.uid
 
     /** 就地重命名：非法（2~16 位）→ 留在输入框并给提示；没改 → 直接收起 */
     const renaming = ref(false)
@@ -54,7 +41,7 @@ export const useAccountPanel = () => {
     }
 
     return {
-        uname, uidText, uidIcons,
+        uname, loadUid,
         renaming, renameText, renameError, startRename, onRenameInput, commitRename, cancelRename,
         logout,
     }

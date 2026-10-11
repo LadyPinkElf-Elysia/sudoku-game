@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import ActionItems from '@/components/ActionItems.vue'
-import BoardOverlay from '@/components/BoardOverlay.vue'
 import BoardView from '@/components/BoardView.vue'
-import HistoryBar from '@/components/HistoryBar.vue'
+import Flex from '@/components/Flex.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
+import PagerBar from '@/components/PagerBar.vue'
+import TextAction from '@/components/TextAction.vue'
 import { useGameStore } from '@/stores/game'
 import { useZoom } from '@/composables/board/useZoom'
 import { useGameFlow } from '@/composables/game/useGameFlow'
@@ -14,12 +14,15 @@ import type { BoardRenderInput } from '@/types/render'
 
 const gameStore = useGameStore()
 const { zoom, zoomActions } = useZoom()
-const { tip, answerOpen, answerInput, leadActions, trailActions, resultActions, winOverlay } = useGameFlow()
+const { tip, answerOpen, answerTitle, answerInput, answerActions, answerZoomActions, leadActions, trailActions, resultActions, winOverlay } = useGameFlow()
 
-/** 操作条：左段（返回/重开）＋ 缩放 ＋ 右段（提示/参考答案/DEV 作弊） */
-const items = computed<Actions>(() => [...leadActions.value, ...zoomActions.value, ...trailActions.value])
+/** 操作条：左段（返回/重开）＋ 右段（提示/参考答案/DEV 作弊）—— 缩放不在这里，贴棋盘 */
+const items = computed<Actions>(() => [...leadActions.value, ...trailActions.value])
 
-/** 题目信息行：挑战/自有题显示「标题 · 出题人」，否则显示「系统生成 S×S」 */
+/** 步骤文案（步骤条的渲染内容由传进去的 label 决定） */
+const stepLabel = (index: number): string => `${index}步`
+
+/** 题目信息行：挑战/自有题显示「标题 · 出题人」，否则显示「系统生成 S×S」（.meta-line 来自全局样式） */
 const infoText = computed<string>(() => {
     const meta = gameStore.meta
     if (meta.title) return `${meta.title} · ${meta.uname}`
@@ -39,36 +42,44 @@ const boardParams = computed<BoardRenderInput>(() => ({
 
 <template>
     <div class="page-card wide">
-        <p class="game-info">{{ infoText }}</p>
+        <p class="meta-line game-info">{{ infoText }}</p>
 
-        <ActionItems :items="items">
-            <template v-if="tip" #tip>{{ tip }}</template>
-        </ActionItems>
+        <Flex class="op-bar" :gap="12" justify="center" wrap>
+            <TextAction v-for="a in items" :key="a.key" :text="a.text" :on-click="a.onClick" />
+        </Flex>
+        <p v-if="tip" class="tip">{{ tip }}</p>
 
-        <BoardView v-bind="boardParams" @cell-click="gameStore.select" />
+        <BoardView v-bind="boardParams" :zoom-actions="zoomActions" @cell-click="gameStore.select" />
 
-        <HistoryBar :count="gameStore.snapshots.length" :current="gameStore.currentStep" @select="gameStore.jump" />
+        <!-- 历史记录：数据（当前步 / 快照数）+ 渲染方式（steps）交给同一个通用组件 -->
+        <p class="history-label">📜 历史记录</p>
+        <PagerBar :page="gameStore.currentStep" :page-count="gameStore.snapshots.length" mode="steps"
+            :step-label="stepLabel" @change="gameStore.jump" />
         <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.sudoku.B" @pick="gameStore.inputNum" />
 
-        <!-- 参考答案：另一块只读棋盘，关掉后进度原样保留（不碰 store） -->
-        <BoardOverlay :show="answerOpen" :input="answerInput" title="参考答案" close-text="回到挑战"
-            @close="answerOpen = false" />
-
-        <!-- .overlay-title / .overlay-desc 来自全局 styles/overlay.css -->
-        <Overlay :show="!!winOverlay">
-            <p class="overlay-title">{{ winOverlay?.title }}</p>
-            <p class="overlay-desc">{{ winOverlay?.desc }}</p>
-            <ActionItems :items="resultActions" />
+        <!-- 参考答案：同一个遮罩（只读棋盘走插槽，按钮条由 Overlay 渲染）；关掉后进度原样保留（不碰 store） -->
+        <Overlay :show="answerOpen" :text="answerTitle" :actions="answerActions">
+            <BoardView v-bind="answerInput" :zoom-actions="answerZoomActions" />
         </Overlay>
+
+        <!-- 通关：文案 + 按钮条都由数据决定 -->
+        <Overlay :show="!!winOverlay" :text="winOverlay?.title" :desc="winOverlay?.desc" :actions="resultActions" />
     </div>
 </template>
 
 <style scoped>
+/* 操作条 / 提示条：全局 .op-bar / .tip；这里只剩历史记录标题与信息行 */
+.history-label {
+    margin: 10px 0 4px;
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-weight: 600;
+    text-align: left;
+}
+
+/* 题目信息行：居中显示，其余规格来自全局 .meta-line */
 .game-info {
     margin: 0 0 8px;
-    font-size: 0.82rem;
-    color: #6b7280;
     text-align: center;
-    word-break: break-all;
 }
 </style>

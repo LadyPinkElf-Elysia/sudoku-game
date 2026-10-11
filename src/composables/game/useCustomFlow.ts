@@ -118,9 +118,9 @@ export const useCustomFlow = () => {
         }
     }
 
-    /** 回主页只走顶栏那一个入口，这里只留开局 */
+    /** 回主页只走顶栏那一个入口，这里只留开局（生成中不给点击函数 → 纯文本） */
     const actions = computed<Actions>(() => [
-        { key: 'start', icon: '▶', message: '开始游戏', disabled: loading.value, onClick: apply },
+        { key: 'start', text: '▶ 开始游戏', onClick: loading.value ? undefined : apply },
     ])
 
     return {

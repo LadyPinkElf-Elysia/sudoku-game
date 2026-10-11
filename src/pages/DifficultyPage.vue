@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Flex from '@/components/Flex.vue';
 import { PAGE } from '@/constants/pages';
 
 /** 子导航：两个 Tab（默认 Tab = 系统生成，由 router 守卫补，见 router/index.ts） */
@@ -11,12 +12,12 @@ const TABS = [
 <template>
     <!-- 壳：只负责子导航 + 主内容出口；具体表单在 pages/difficulty/* -->
     <div class="page-card">
-        <nav class="sub-nav">
+        <Flex class="sub-nav" :gap="6">
             <RouterLink v-for="tab in TABS" :key="tab.name" :to="{ name: tab.name }" class="sub-tab"
                 active-class="is-active">
                 {{ tab.label }}
             </RouterLink>
-        </nav>
+        </Flex>
 
         <main class="sub-main">
             <RouterView />
@@ -26,8 +27,6 @@ const TABS = [
 
 <style scoped>
 .sub-nav {
-    display: flex;
-    gap: 6px;
     padding: 4px;
     margin-bottom: 18px;
     background: #f3f4f6;

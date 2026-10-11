@@ -13,7 +13,8 @@ export const useDifficultyFlow = () => {
     const gameStore = useGameStore()
     const router = useRouter()
 
-    const draft = ref({ ...GAME_INIT_CONFIG })
+    /** 配置草稿（可变：盘面大小走下拉、挖空比例走滑杆）—— 用 GameConfig 放宽字面量类型 */
+    const draft = ref<GameConfig>({ ...GAME_INIT_CONFIG })
     const loading = ref(false)
     const error = ref('')
 

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import ActionItems from '@/components/ActionItems.vue'
 import BoardView from '@/components/BoardView.vue'
+import Flex from '@/components/Flex.vue'
+import TextAction from '@/components/TextAction.vue'
 import { PAGE } from '@/constants/pages'
 import { SEARCH_COPY } from '@/constants/puzzle'
 import { useZoom } from '@/composables/board/useZoom'
@@ -13,7 +14,7 @@ import type { BoardRenderInput } from '@/types/render'
 const route = useRoute()
 const router = useRouter()
 const { zoom, zoomActions } = useZoom()
-const { loading, error, title, uname, sideS, blankCount, createdText, boardInput, load, challenge } = usePuzzleDetail()
+const { loading, error, title, metaText, boardInput, load, challenge } = usePuzzleDetail()
 
 /** 只读盘：与可玩盘同一份入参，只差 interactive=false 与 zoom */
 const boardParams = computed<BoardRenderInput>(() => ({ ...boardInput.value, zoom: zoom.value, interactive: false }))
@@ -25,9 +26,8 @@ const goBack = (): void => {
 }
 
 const actions = computed<Actions>(() => [
-    { key: 'back', icon: '←', message: '返回', onClick: goBack },
-    { key: 'challenge', icon: '▶', message: SEARCH_COPY.challenge, onClick: () => { void challenge() } },
-    ...zoomActions.value,
+    { key: 'back', text: '← 返回', onClick: goBack },
+    { key: 'challenge', text: `▶ ${SEARCH_COPY.challenge}`, onClick: () => { void challenge() } },
 ])
 
 onMounted(() => { void load(String(route.params.pid ?? '')) })
@@ -40,25 +40,16 @@ onMounted(() => { void load(String(route.params.pid ?? '')) })
         <p v-else-if="error" class="state is-error">{{ error }}</p>
 
         <template v-else>
-            <h2 class="title">{{ title }}</h2>
-            <p class="meta">{{ sideS }}×{{ sideS }} · 挖空 {{ blankCount }} 格 · {{ createdText }} · {{ uname }}</p>
-            <BoardView v-bind="boardParams" />
-            <ActionItems :items="actions" />
+            <h2 class="section-title">{{ title }}</h2>
+            <p class="meta-line">{{ metaText }}</p>
+            <BoardView v-bind="boardParams" :zoom-actions="zoomActions" />
+            <Flex class="op-bar" :gap="14" justify="center" wrap>
+                <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
+            </Flex>
         </template>
     </div>
 </template>
 
 <style scoped>
-.title {
-    margin: 0;
-    font-size: 1.05rem;
-    color: #111827;
-    word-break: break-all;
-}
-
-.meta {
-    margin: 6px 0 12px;
-    font-size: 0.78rem;
-    color: #6b7280;
-}
+/* .section-title / .state / .meta-line / .action-* 等来自全局；元信息行文本由 metaTextOf 拼好 */
 </style>

@@ -94,21 +94,34 @@
 
 /* ───────── 列表页公共（搜索 / 我的题目） ───────── */
 
-/* 工具条：左上「浏览方式」 / 右上「排序」 */
+/* 提示条（操作条下方 / 首页灰显项被点）：一条居中的浅底文字 */
+.tip {
+    margin: 8px 0 0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    color: #4f46e5;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* 操作条：一排可点击文本（间距由 Flex 给，这里只管上下留白） */
+.op-bar {
+    margin: 10px 0;
+}
+
+/* 工具条：左上「浏览方式」 / 右上「排序」—— 两项同在一个框里 */
 .list-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     margin: 12px 0 0;
-}
-
-.sort-box {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
-    color: #6b7280;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f9fafb;
 }
 
 /* 错误态里的「重试」小按钮 */
@@ -124,19 +137,47 @@
     cursor: pointer;
 }
 
-/* 文字型操作（重命名 / 删除 / 编辑 / 题目预览 / 答案预览 / 退出…）：无边框、无底色，只像链接 */
+/* 文字型操作（重命名 / 删除 / 编辑 / 题目预览 / 答案预览 / 退出…）：就是普通文字 —— 不变蓝、不加下划线 */
 .text-btn {
     border: none;
     background: none;
     padding: 0;
-    color: #4f46e5;
+    color: inherit;
     font-size: 0.78rem;
     font-family: inherit;
     cursor: pointer;
 }
 
-.text-btn:hover {
-    text-decoration: underline;
+/* 页面 / 区块标题（列表页、详情页、难度页、登录页共用） */
+.section-title {
+    margin: 0 0 18px;
+    font-size: 1.05rem;
+    color: #111827;
+    word-break: break-all;
+}
+
+/* 主操作按钮（登录提交 / 搜索…）：全宽或跟在输入框右侧都行 */
+.btn-primary {
+    height: 36px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 8px;
+    background: #6366f1;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #4f46e5;
+}
+
+.btn-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 /* 列表容器 */

@@ -10,9 +10,10 @@ export const useZoom = (initial: number = BOARD_ZOOM.default) => {
     const resetZoom = (to: number = initial): void => { zoom.value = clampZoom(to) }
     const canZoomIn = computed(() => canZoomInFrom(zoom.value))
     const canZoomOut = computed(() => canZoomOutFrom(zoom.value))
+    /** 缩放这一对按钮的数据：到界就不给点击函数（组件就渲染成纯文本） */
     const zoomActions: ComputedRef<Actions> = computed(() => [
-        { key: 'zoomOut', icon: '➖', message: '缩小', disabled: !canZoomOut.value, onClick: zoomOut },
-        { key: 'zoomIn', icon: '➕', message: '放大', disabled: !canZoomIn.value, onClick: zoomIn },
+        { key: 'zoomOut', text: '➖', onClick: canZoomOut.value ? zoomOut : undefined },
+        { key: 'zoomIn', text: '➕', onClick: canZoomIn.value ? zoomIn : undefined },
     ])
     return { zoom, zoomIn, zoomOut, resetZoom, canZoomIn, canZoomOut, zoomActions }
 }

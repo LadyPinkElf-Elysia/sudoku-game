@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import ActionItems from '@/components/ActionItems.vue'
 import BoardView from '@/components/BoardView.vue'
-import LoadingOverlay from '@/components/LoadingOverlay.vue'
+import Flex from '@/components/Flex.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
-import { BOX_SIZE_OPTIONS, CREATE_PHASE, TITLE_MAX } from '@/constants/game'
+import FormField from '@/components/FormField.vue'
+import TextAction from '@/components/TextAction.vue'
+import { BOX_SIZE_SELECT_OPTIONS, CREATE_PHASE, TITLE_MAX } from '@/constants/game'
 import { useGameStore } from '@/stores/game'
 import { useZoom } from '@/composables/board/useZoom'
 import { useCreateFlow } from '@/composables/game/useCreateFlow'
@@ -13,7 +14,7 @@ import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
 
 const gameStore = useGameStore()
-const { zoom, zoomIn, zoomOut, resetZoom, canZoomIn, canZoomOut } = useZoom()
+const { zoom, zoomActions, resetZoom } = useZoom()
 const {
     phase, title, errorMsg, loading, showSuccess, showFail,
     changeBoxSize, goMine,
@@ -35,25 +36,23 @@ const boardParams = computed<BoardRenderInput>(() => ({
     zoom: zoom.value,
 }))
 
-/** 按钮条：缩放 + 按阶段提交（回主页只走顶栏那一个入口） */
+/** 按钮条：按阶段提交（缩放贴棋盘；回主页只走顶栏那一个入口） */
 const actions = computed<Actions>(() => [
-    { key: 'zoomOut', icon: '➖', message: '缩小', disabled: !canZoomOut.value, onClick: zoomOut },
-    { key: 'zoomIn', icon: '➕', message: '放大', disabled: !canZoomIn.value, onClick: zoomIn },
     {
         key: 'submit',
-        icon: '📤',
-        message: phase.value === CREATE_PHASE.Puzzle ? '提交题目' : '提交答案',
+        text: phase.value === CREATE_PHASE.Puzzle ? '📤 提交题目' : '📤 提交答案',
+        title: phase.value === CREATE_PHASE.Puzzle ? '提交题目' : '提交答案',
         onClick: phase.value === CREATE_PHASE.Puzzle ? submitPuzzle : submitSolution,
     },
 ])
 
 /** 出题完成：只留「去我的题目」（🔸 刚保存的题就在那儿；回主页走顶栏那一个入口） */
 const successActions: Actions = [
-    { key: 'goMine', icon: '📋', message: '去我的题目', onClick: goMine },
+    { key: 'goMine', text: '📋 去我的题目', onClick: goMine },
 ]
 
 const failActions: Actions = [
-    { key: 'back', icon: '↩', message: '继续修改', onClick: backToEdit },
+    { key: 'back', text: '↩ 继续修改', onClick: backToEdit },
 ]
 </script>
 
@@ -64,36 +63,23 @@ const failActions: Actions = [
             <input class="input" v-model="title" :maxlength="TITLE_MAX" placeholder="1~40 位">
         </div>
 
-        <div class="field">
-            <label class="label">盘面大小</label>
-            <select class="select" v-model.number="boxSize">
-                <option v-for="b in BOX_SIZE_OPTIONS" :key="b" :value="b">
-                    {{ b * b }} X {{ b * b }}
-                </option>
-            </select>
-        </div>
+        <FormField class="field" vertical type="select" label="盘面大小" :options="BOX_SIZE_SELECT_OPTIONS"
+            :model-value="boxSize" @update:model-value="(v) => (boxSize = v as number)" />
 
-        <ActionItems :items="actions">
-            <template v-if="errorMsg && !showFail" #tip>{{ errorMsg }}</template>
-        </ActionItems>
+        <Flex class="op-bar" :gap="12" justify="center" wrap>
+            <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
+        </Flex>
+        <p v-if="errorMsg && !showFail" class="tip">{{ errorMsg }}</p>
 
-        <BoardView v-bind="boardParams" @cell-click="gameStore.select" />
+        <BoardView v-bind="boardParams" :zoom-actions="zoomActions" @cell-click="gameStore.select" />
         <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.config.boxSize" @pick="gameStore.inputNum" />
 
         <!-- 提交：转圈（校验 + 上传） -->
-        <LoadingOverlay :show="loading" title="正在提交题目…" />
+        <Overlay :show="loading" spinning text="正在提交题目…" />
 
         <!-- 成功：只留「去我的题目」 -->
-        <Overlay :show="showSuccess">
-            <p class="overlay-title">🎉 出题完成</p>
-            <p class="overlay-desc">题目已通过验证并保存</p>
-            <ActionItems :items="successActions" />
-        </Overlay>
+        <Overlay :show="showSuccess" text="🎉 出题完成" desc="题目已通过验证并保存" :actions="successActions" />
 
-        <Overlay :show="showFail">
-            <p class="overlay-title">⚠️ 验证未通过</p>
-            <p class="overlay-desc">{{ errorMsg }}</p>
-            <ActionItems :items="failActions" />
-        </Overlay>
+        <Overlay :show="showFail" text="⚠️ 验证未通过" :desc="errorMsg" :actions="failActions" />
     </div>
 </template>

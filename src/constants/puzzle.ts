@@ -12,10 +12,11 @@ export const SORT_OPTIONS = [
     { value: SORT.Hot, label: '热度优先' },
 ] as const
 
-/** 分页形态：纯 UI 偏好 → 本地偏好（不进 URL，见 R15） */
+/** 浏览方式：分页条（进度条 / 滑动条）+ 步骤条（游戏页历史记录，不进下拉） */
 export const PAGER_MODE = {
     Bar: 'bar',
     Slider: 'slider',
+    Steps: 'steps',
 } as const
 
 /** 浏览方式下拉项（与 SORT_OPTIONS 同形：value 来自 PAGER_MODE） */
@@ -75,6 +76,15 @@ export const SEARCH_COPY = {
     authorSuffix: '的公开题',
 } as const
 
+/** 题目元信息行的标签（列表项 / 题目详情 / 游戏页信息行共用一套） */
+export const PUZZLE_META_COPY = {
+    size: '盘面大小',
+    blank: '挖空',
+    created: '创建时间',
+    hot: '热度',
+    author: '出题人',
+} as const
+
 /** 我的题目页文案 */
 export const MINE_COPY = {
     empty: '你还没有出过题',
@@ -83,26 +93,17 @@ export const MINE_COPY = {
     renamePlaceholder: '1~40 位',
     removeTitle: '⚠️ 删除题目',
     removeConfirm: '删除后不可恢复，确定删除这道题吗？',
-    /** 值标签：遮蔽与明文都带同一前缀，点开眼睛后不会“换模样” */
+    /** 敏感值的标签（pid / uid）；遮蔽、显示、复制那套交互在 SecretValue 组件里 */
     pidTag: 'pid',
     uidTag: 'uid',
-    pidHidden: 'pid ▮▮▮▮▮▮▮▮',
-    uidHidden: 'uid ▮▮▮▮▮▮▮▮',
-    showUid: '显示 uid',
-    hideUid: '隐藏 uid',
-    copyUid: '复制 uid',
     preview: '题目预览',
     answerPreview: '答案预览',
     challenge: '挑战',
     edit: '编辑',
     remove: '删除',
-    showPid: '显示 pid',
-    hidePid: '隐藏 pid',
-    copyPid: '复制 pid',
-    copied: '已复制',
     /** 行内控件标签（竖排：标签 + 下拉） */
     visibilityLabel: '可见性',
-    solutionLabel: '参考答案',
+    solutionLabel: '答案',
     save: '保存',
     cancel: '取消',
 } as const

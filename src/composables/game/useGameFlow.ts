@@ -6,6 +6,7 @@ import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
 import { fromPuzzle } from '@/core/board/model'
 import { hintTextOf } from '@/core/game/derive'
+import { useZoom } from '@/composables/board/useZoom'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
 
@@ -13,16 +14,27 @@ export const useGameFlow = () => {
     const gameStore = useGameStore()
     const puzzleStore = usePuzzleStore()
     const router = useRouter()
+    /** 参考答案遮罩自己的缩放，与游玩盘互不影响 */
+    const { zoom, zoomActions } = useZoom()
 
     const tip = ref('')
     /** 参考答案遮罩开关 */
     const answerOpen = ref(false)
 
-    /** 遮罩里的只读盘：由答案生成一块独立 Board（与游玩盘无关），整对象交给 BoardOverlay */
+    /** 遮罩里的只读盘：由答案生成一块独立 Board（与游玩盘无关），整对象交给 Overlay 里的 BoardView */
     const answerInput = computed<BoardRenderInput>(() => ({
         board: gameStore.solution.length ? fromPuzzle(gameStore.solution, true) : [],
         boxSize: gameStore.sudoku.B,
+        zoom: zoom.value,
+        interactive: false,
     }))
+    const answerTitle = '答案'
+    /** 遮罩里的按钮条：只留关闭（缩放贴棋盘，见 answerZoomActions） */
+    const answerActions = computed<Actions>(() => [
+        { key: 'close', text: '↩ 回到挑战', onClick: () => { answerOpen.value = false } },
+    ])
+    /** 贴棋盘正上方的缩放圆圈（左缩小、右放大） */
+    const answerZoomActions = computed<Actions>(() => zoomActions.value)
 
     const goBack = (): void => {
         if (router.options.history.state.back) router.back()
@@ -38,21 +50,21 @@ export const useGameFlow = () => {
     }
 
     const leadActions = computed<Actions>(() => [
-        { key: 'back', icon: '◀', message: '返回', onClick: goBack },
-        { key: 'restart', icon: '↺', message: '重开', onClick: restart },
+        { key: 'back', text: '◀ 返回', onClick: goBack },
+        { key: 'restart', text: '↺ 重开', onClick: restart },
     ])
     const trailActions = computed<Actions>(() => [
-        { key: 'hint', icon: '💡', message: '提示', onClick: hint },
+        { key: 'hint', text: '💡 提示', onClick: hint },
         ...(gameStore.solution.length
-            ? [{ key: 'answer', icon: '📖', message: '参考答案', onClick: () => { answerOpen.value = true } }]
+            ? [{ key: 'answer', text: '📖 答案', onClick: () => { answerOpen.value = true } }]
             : []),
         ...(import.meta.env.DEV
-            ? [{ key: 'cheat', icon: '⚡', message: '作弊', onClick: gameStore.cheat }]
+            ? [{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.cheat }]
             : []),
     ])
     /** 通关遮罩：只留重开（回主页走顶栏） */
     const resultActions: Actions = [
-        { key: 'restart', icon: '↺', message: '重开', onClick: restart },
+        { key: 'restart', text: '↺ 重开', onClick: restart },
     ]
     const winOverlay = computed(() => (gameStore.status === GAME_STATUS.Won ? GAME_COPY.win : null))
 
@@ -66,5 +78,5 @@ export const useGameFlow = () => {
         if (saved) tip.value = saved
     })
 
-    return { tip, answerOpen, answerInput, leadActions, trailActions, resultActions, winOverlay }
+    return { tip, answerOpen, answerTitle, answerInput, answerActions, answerZoomActions, leadActions, trailActions, resultActions, winOverlay }
 }

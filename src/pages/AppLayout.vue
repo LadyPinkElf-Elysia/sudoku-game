@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Flex from '@/components/Flex.vue'
 import { PAGE } from '@/constants/pages'
 import { AUTH_COPY } from '@/constants/user'
 import { useAccountMenu } from '@/composables/auth/useAccountMenu'
@@ -10,12 +11,12 @@ const { isGuest, uname, showNav } = useAccountMenu()
     <div class="app-shell">
         <header class="app-header">
             <!-- 常驻「回到主页」：三栏 grid 第 1 列（标题左边）—— 任何页面（含登录页）都能回主页 -->
-            <RouterLink :to="{ name: PAGE.Home }" class="nav-item nav-home">🏠 回到主页</RouterLink>
+            <RouterLink :to="{ name: PAGE.Home }" class="nav-item nav-home">主页</RouterLink>
 
             <span class="app-title">数独</span>
 
             <!-- 右侧账号位：游客「👤 登录」→ 登录页；登录后「👤 用户名」→「我的」页（退出在「我的」页账号区）；登录页自己就是入口 → 隐藏 -->
-            <nav v-if="showNav" class="app-nav">
+            <Flex v-if="showNav" class="app-nav" justify="end" :gap="6" wrap>
                 <RouterLink v-if="isGuest" :to="{ name: PAGE.Login }" class="nav-item nav-user">
                     👤 {{ AUTH_COPY.login }}
                 </RouterLink>
@@ -24,7 +25,7 @@ const { isGuest, uname, showNav } = useAccountMenu()
                     :title="AUTH_COPY.meTitle">
                     👤 {{ uname }}
                 </RouterLink>
-            </nav>
+            </Flex>
         </header>
 
         <main class="app-main">
@@ -69,36 +70,19 @@ const { isGuest, uname, showNav } = useAccountMenu()
     letter-spacing: 2px;
 }
 
-/* 导航固定在第三列、靠右；窄屏换行也不会把标题挤偏 */
+/* 导航固定在第三列、靠右（排布交给 Flex）；窄屏换行也不会把标题挤偏 */
 .app-nav {
     grid-column: 3;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 6px;
     min-width: 0;
 }
 
+/* 顶栏的入口 = 普通文字（不变蓝、不加下划线） */
 .nav-item {
-    height: 30px;
-    padding: 0 10px;
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: #fff;
-    color: #374151;
+    color: inherit;
     font-size: .82rem;
     font-family: inherit;
     text-decoration: none;
     cursor: pointer;
-    transition: .15s;
-}
-
-.nav-item:hover {
-    background: #eef2ff;
-    border-color: #6366f1;
 }
 
 /* 账号位（游客「👤 登录」/ 登录后「👤 用户名」）：名字长了省略号，别把标题挤偏 */
@@ -109,7 +93,7 @@ const { isGuest, uname, showNav } = useAccountMenu()
     white-space: nowrap;
 }
 
-/* 「回到主页」固定在标题左边（第 1 列），左对齐 */
+/* 「主页」固定在标题左边（第 1 列），左对齐 */
 .nav-home {
     grid-column: 1;
     justify-self: start;

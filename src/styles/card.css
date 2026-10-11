@@ -13,3 +13,51 @@
 .page-card.wide {
     max-width: 580px;
 }
+
+/* 列表项卡片：私人列表（选项多）与公开列表（选项少）两种列表项共用一套视觉 */
+.item-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #fff;
+}
+
+.item-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.item-title-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.item-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #111827;
+    word-break: break-all;
+}
+
+.item-corner {
+    display: flex;
+    flex: none;
+    gap: 10px;
+}
+
+/* 信息行：按顺序用「·」连接（列表项 / 题目详情 / 游戏页信息行共用） */
+.meta-line {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #6b7280;
+    word-break: break-all;
+}

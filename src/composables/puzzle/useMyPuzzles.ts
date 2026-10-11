@@ -4,14 +4,13 @@ import { TITLE_MAX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { MINE_COPY } from '@/constants/puzzle'
 import { useListQuery } from '@/composables/useListQuery'
-import { useSecretValue } from '@/composables/useSecretValue'
 import { parsePuzzle } from '@/core/sudoku/parse'
 import { cellCountOf } from '@/core/sudoku/shape'
 import { remove as removePuzzle, update as updatePuzzle } from '@/services/api/puzzleApi'
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
 import { usePuzzlePreview } from './usePuzzlePreview'
-import type { Actions, MyPuzzleRowControls, ValueIconsProps } from '@/types/item'
+import type { Actions, MyPuzzleRowControls } from '@/types/item'
 import type { MyPuzzle, MyPuzzleDetail, Visibility } from '@/types/puzzle'
 
 /** 我的题目页（FR-7 / FR-13）：列表分页→useListQuery，预览→usePuzzlePreview；
@@ -50,19 +49,8 @@ export const useMyPuzzles = () => {
 
     const goCreate = (): void => { void router.push({ name: PAGE.Create }) }
 
-    /** pid 的「遮蔽/明文 + 👁📋」：与 uid **同一份实现**（useSecretValue，规则只写一次） */
-    const pid = useSecretValue(
-        async (rowId) => (await detailOf(rowId))?.pid ?? null,
-        {
-            tag: MINE_COPY.pidTag, hidden: MINE_COPY.pidHidden,
-            show: MINE_COPY.showPid, hide: MINE_COPY.hidePid,
-            copy: MINE_COPY.copyPid, copied: MINE_COPY.copied,
-        },
-    )
-
-    /** 传给行组件的 pid 文本 / 图标参数（按行现算） */
-    const pidTextOf = (item: MyPuzzle): string => pid.textOf(item.rowId)
-    const pidIconsOf = (item: MyPuzzle): ValueIconsProps => pid.iconsOf(item.rowId)
+    /** pid 的「遮蔽/明文 + 👁📋」整块收在 SecretValue 组件里：这里只给「怎么取真值」 */
+    const loadPid = async (rowId: string): Promise<string | null> => (await detailOf(rowId))?.pid ?? null
 
     /** 统一 PATCH：先取 pid，再改，最后清缓存 + 重拉 */
     const patch = async (
@@ -149,6 +137,7 @@ export const useMyPuzzles = () => {
         return {
             renaming: renaming.value === id,
             renameText: renameText.value,
+            loadPid: () => loadPid(id),
             onRenameStart: () => startRename(item),
             onRenameInput: (text) => { renameText.value = text },
             onRenameCommit: () => { void commitRename() },
@@ -162,14 +151,14 @@ export const useMyPuzzles = () => {
         }
     }
     const removeActions = computed<Actions>(() => [
-        { key: 'remove', icon: '🗑', message: MINE_COPY.remove, onClick: () => { void confirmRemove() } },
-        { key: 'cancel', icon: '↩', message: MINE_COPY.cancel, onClick: () => { removeOpen.value = false } },
+        { key: 'remove', text: `🗑 ${MINE_COPY.remove}`, onClick: () => { void confirmRemove() } },
+        { key: 'cancel', text: `↩ ${MINE_COPY.cancel}`, onClick: () => { removeOpen.value = false } },
     ])
 
     return {
         ...list,
         items, loading, error, empty, pageCount, busy,
-        pidTextOf, pidIconsOf, controlsFor, goCreate,
+        controlsFor, goCreate,
         ...preview,
         removeOpen, removeActions,
     }

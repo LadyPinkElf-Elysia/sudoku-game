@@ -7,6 +7,7 @@ import { cellCountOf } from '@/core/sudoku/shape'
 import { getOne, play } from '@/services/api/puzzleApi'
 import { useGameStore } from '@/stores/game'
 import { useUserStore } from '@/stores/user'
+import { metaTextOf } from './metaText'
 import type { PuzzleDetail } from '@/types/puzzle'
 import type { BoardRenderInput } from '@/types/render'
 
@@ -34,11 +35,13 @@ export const usePuzzleDetail = () => {
     }))
 
     const title = computed<string>(() => data.value?.title ?? '')
-    const uname = computed<string>(() => data.value?.uname ?? '')
-    const sideS = computed<number>(() => data.value?.sideS ?? 0)
-    const blankCount = computed<number>(() => data.value?.blankCount ?? 0)
-    const createdText = computed<string>(() =>
-        data.value ? new Date(data.value.createdAt).toLocaleDateString('zh-CN') : '')
+    /** 元信息行文本（文案与时间格式都在 metaTextOf 一处；与列表项、游戏页同一份） */
+    const metaText = computed<string>(() => metaTextOf({
+        sideS: data.value?.sideS ?? 0,
+        blankCount: data.value?.blankCount ?? 0,
+        createdAt: data.value?.createdAt ?? 0,
+        author: data.value?.uname ?? '',
+    }))
 
     /** 取详情（预览 / 落地页 / 挑战前都要先有它） */
     const load = async (nextPid: string): Promise<void> => {
@@ -77,5 +80,5 @@ export const usePuzzleDetail = () => {
         await router.push({ name: PAGE.Game })
     }
 
-    return { pid, loading, error, title, uname, sideS, blankCount, createdText, boardInput, load, challenge }
+    return { pid, loading, error, title, metaText, boardInput, load, challenge }
 }

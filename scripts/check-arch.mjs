@@ -82,9 +82,9 @@ const BARREL = /^export\s+\*\s+from/m
 /** R8 常量命名（constants 只放值，且全大写） */
 const CONST_NAME = /^[A-Z][A-Z0-9_]*$/
 
-/** R14 有棋盘就必须有缩放 */
+/** R14 有棋盘就必须有缩放（缩放数据来自 useZoom() 或预览 composable 的 …ZoomActions，经 :zoom-actions 传进棋盘） */
 const BOARD_VIEW = /BoardView\.vue/
-const ZOOM_ENTRY = /useZoom\(|BoardOverlay/
+const ZOOM_ENTRY = /useZoom\(|zoom-actions=/
 
 /** R9 预算 */
 const MAX_LINES = 200
@@ -226,7 +226,7 @@ for (const file of files) {
 
     /* ───── R14 有棋盘就必须有缩放 ───── */
     if (isVue(file) && BOARD_VIEW.test(code) && !ZOOM_ENTRY.test(code))
-        err('R14', file, '显示棋盘的页面/组件必须提供放大/缩小（useZoom(…) 或 BoardOverlay）')
+        err('R14', file, '显示棋盘的页面/组件必须给缩放数据（useZoom(…) 或 :zoom-actions="…"）')
 }
 
 /* ═════════════════ R10 types/ 只放「共享」类型 ═════════════════ */

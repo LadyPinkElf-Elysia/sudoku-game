@@ -6,9 +6,11 @@ import type { BoardRenderInput } from '@/types/render'
 /**
  * 棋盘画布：绑定 canvas、随入参重绘、容器尺寸变化重绘、点击换算成行列
  * 容器宽度只由 ResizeObserver 量一次写入 ref —— 重绘路径不再读布局（避免每次输入强制 reflow）
+ * `boxEl` 是外层滚动框（量它的宽度）；canvas 的直接父级会随棋盘收缩，量它会形成反馈
  */
 export const useBoardCanvas = (
     canvasEl: Ref<HTMLCanvasElement | null>,
+    boxEl: Ref<HTMLElement | null>,
     input: () => BoardRenderInput,
     onCellClick?: (pos: Position) => void,
 ) => {
@@ -25,10 +27,10 @@ export const useBoardCanvas = (
         renderBoard(canvas, { board, boxSize, selected, conflictMask, zoom }, contentWidth.value || undefined)
     }
 
-    /** 量容器内容宽；值变了才会触发重绘（watchEffect 追踪 contentWidth） */
+    /** 量外层滚动框的内容宽；值变了才会触发重绘（watchEffect 追踪 contentWidth） */
     const measure = (): void => {
-        const parent = canvasEl.value?.parentElement
-        const width = parent ? measureContentWidth(parent) : 0
+        const box = boxEl.value
+        const width = box ? measureContentWidth(box) : 0
         if (width !== contentWidth.value) contentWidth.value = width
     }
 
@@ -38,10 +40,10 @@ export const useBoardCanvas = (
     // 容器尺寸变化不是响应式数据，靠 ResizeObserver 触发（observe 时会先回调一次 → 完成首测）
     let ro: ResizeObserver | null = null
     onMounted(() => {
-        const parent = canvasEl.value?.parentElement
-        if (!parent) return
+        const box = boxEl.value
+        if (!box) return
         ro = new ResizeObserver(measure)
-        ro.observe(parent)
+        ro.observe(box)
         measure()
     })
     onBeforeUnmount(() => { ro?.disconnect(); ro = null })

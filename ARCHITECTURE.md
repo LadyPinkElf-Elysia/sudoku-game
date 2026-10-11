@@ -75,7 +75,7 @@
 
 ### R8 命名成套　🔴（常量命名）/ 评审（其余）
 `xxxOf` / `is`·`has`·`can` / `get` / `make` / `create` / `generate` / `parse`·`xxxToStr` / `clone` / `use`。
-展示项：`Action` / `Actions`（按钮条）、`Menu` / `Menus`（菜单），公共字段继承 `ItemBase`。
+展示项：`Action` = **一处可点动作**（`{ key, text, title?, onClick? }`；不给 `onClick` 就是纯文本）；`Menu` / `Menus` 是首页入口（`key / icon? / message / routeName / disabled?`），两者不再共用基类。
 **机器可查部分**：`constants/` 的导出名必须是 `UPPER_SNAKE_CASE`（`BOARD_SIZE` · `AUTH_COPY` · `UID_PATTERN` …）。
 
 ### R9 体量预算　🔴
@@ -91,7 +91,7 @@
 - **外部资源（canvas / DOM / Worker / 定时器）用参数传，不塞进数据对象**
 - **敏感字段不进前端类型**：`uid`（登录凭据）不出现在题目相关类型里；列表不下发题面串
 - **`constants/` 不许导出类型**（类型一律放 `types/`）
-- `extends` 只用于「不同的东西共享公共字段」（`Action`/`Menu` extends `ItemBase`；`MyPuzzleDetail` extends `PuzzleDetail`）
+- `extends` 只用于「不同的东西共享公共字段」（`MyPuzzleDetail` extends `PuzzleDetail`；`Action` 与 `Menu` 现在字段不同，各自独立）
 - 推导类型改成手写契约（例：`Sudoku` 写在 `types/sudoku.ts`，`core` 的工厂标注返回类型）
 
 ### R12 禁桶文件　🔴
@@ -101,8 +101,8 @@
 只许 `./xxx`、`@/types/...`、`@/constants/...`。store 实例类型（`GameStore`）因此不进 types/（见 E3）。
 
 ### R14 有棋盘就必须能缩放　🔴
-`.vue` 里 import 了 `BoardView`，就必须出现 `useZoom(` 或使用 `BoardOverlay`。
-按钮统一来自 **`useZoom().zoomActions`**，页面 `...zoomActions.value` spread；不设默认缩放（默认 1）。
+`.vue` 里 import 了 `BoardView`，就必须给棋盘缩放数据：出现 `useZoom(` 或 `:zoom-actions="…"`（数据来自 `useZoom()` 或预览 composable 的 `…ZoomActions`）。
+按钮统一来自 **`useZoom().zoomActions`**：页面直接用时 `...zoomActions.value` spread；预览遮罩由 `usePuzzlePreview` 一并给出 `previewActions`。不设默认缩放（默认 1）。
 列表项**不渲染棋盘**。
 
 ### R15 状态归位　评审
@@ -132,7 +132,7 @@
 | R10 类型归位 | types 死类型 / `Omit·Pick` 派生 / constants 不放类型 | 🔴 |
 | R12 禁桶文件 | `export * from` | 🔴 |
 | R13 types 叶子 | 由 R2 矩阵（单独报 R13） | 🔴 |
-| R14 棋盘缩放 | `BoardView` → 必须 `useZoom(`/`BoardOverlay` | 🔴 |
+| R14 棋盘缩放 | `BoardView` → 必须 `useZoom(`/`:zoom-actions=` | 🔴 |
 | R15 状态归位 | —— 语义判断，脚本查不了 | 评审 |
 
 > **R11 已废止**（v1.7 起）：原「core 必须可测（每个 `core/**/*.ts` 配同名 `.test.ts`，`--strict` 考核）」
@@ -146,7 +146,8 @@
     E4 预留类型登记在守卫 RESERVED_TYPES：Page / User / SearchResult / Puzzle
        现状：User / SearchResult / Puzzle 已被真实引用；Page 仍只靠登记存活
        （建议把 types/item.ts 的 Menu.routeName: string 改成 Page，再摘掉这条登记）
-    E5 BoardOverlay 自持 useZoom：与页面主盘 zoom 作用域不同（不同 canvas），不算违反 R7
+    E5 预览遮罩的缩放由 usePuzzlePreview 持有（内部 useZoom）：与页面主盘 zoom 作用域不同（不同
+       canvas），不算违反 R7；页面只需接它给的 previewActions / previewInput
     E6 useBoardCanvas 的 ResizeObserver 是容器宽度的唯一测量源（重绘路径不读布局）；
        渲染器仍保留「没传宽度就自己量一次」的兜底分支
     E7 core/sudoku/tracker.ts 的 place() 返回闭包撤销函数（撤销记录不跨模块，Change 保持私有）
@@ -162,8 +163,9 @@
     过程 / 依赖内存的状态   → state（store 或组件内）
     全站共用的界面          → 父路由布局（AppLayout），主内容在 <RouterView/>
     页面要显示的"算好的值"  → 由 composable 暴露（composable 才能 import core；页面禁 Math.）
-    跨页共用的视觉规格      → 全局样式（styles/*.css）：card / form / overlay
+    跨页共用的视觉规格      → 全局样式（styles/*.css）：card / form / overlay（`.text-btn` 就是「可点击文本」的唯一样式）
     跨页共用的流程          → 公共组合式（useListQuery 列表查询 · usePuzzlePreview 预览 · useClipboard 复制）
+    悬浮提示 / 无障碍名      → **只在传入数据里有才用；没给就不加**（不自行发明文案）
 
 ## 八、后端约定（functions/）
 
@@ -186,7 +188,7 @@
 | rng.ts | `Rng` | core/array.shuffle、core/sudoku/fill、services/sudoku/worker |
 | worker.ts | `GenerateRequest` `GenerateResponse` | services/sudoku/worker 与 workerClient |
 | game.ts | `GameConfig` `GameMeta` `GameStatus` `GameMode` `CreatePhase` | stores/game、core/game/derive、useCreateFlow/useEditFlow/useDifficultyFlow、GamePage |
-| item.ts | `ItemBase` `Action` `Actions` `Menu` `Menus`（🔸 `Menu.disabled`） | ActionItem(s) / MenuItem(s)、各页面、useGameFlow / useMyPuzzles |
+| item.ts | `Action` `Actions` `Menu` `Menus` `SelectOption` `ListBar` `ListPager` `MyPuzzleRowControls`（🔸 `Menu.disabled`） | TextAction / FormField / ListSection / HomePage、useZoom / useGameFlow / useMyPuzzles … |
 | puzzle.ts | `Visibility` · `ListSort` · `PagerMode` · `SearchResult`（含 `uname`）· `MyPuzzle` · `PuzzleDetail` · `MyPuzzleDetail` · `PuzzleData`（**均不含 uid**） | services/api、stores/puzzle、composables/puzzle、PuzzleCard / MyPuzzleRow / PagerBar |
 | page.ts | `Page`（路由名类型） | useListQuery、待 `Menu.routeName` 采用（见 E4） |
 | user.ts | `User`（含自己的 `uid`）（🔸 `RegisterPayload` `LoginPayload` `AuthResponse`） | stores/user、services/api |
@@ -201,15 +203,21 @@
       render/board.ts       renderBoard(canvas, input, contentWidth?) · measureContentWidth(parent) · getClickPos(canvas, e, size)
       services/             prefs.ts · api/{client,session,userApi,puzzleApi} · sudoku/{worker,workerClient}
       stores/               {game,user,puzzle}.ts
-      composables/          useClipboard · useListQuery · useSecretValue
-                            auth/{useAuth,useAccountMenu} · board/{useBoardCanvas,useZoom}
+      composables/          useClipboard · useListQuery
+                            auth/{useAuth,useAccountMenu,useAccountPanel} · board/{useBoardCanvas,useZoom}
                             game/{useGameFlow,useCreateFlow,useEditFlow,useCustomFlow,useDifficultyFlow}
-                            puzzle/{useSearchPuzzle,usePuzzleDetail,usePuzzlePreview,useMyPuzzles}
-      components/           ActionItem(s) · MenuItem(s) · TextButtons · ValueIcons · EyeGlyph
-                            BoardView · BoardOverlay · LoadingOverlay · Overlay · SpinnerIcon · NumberPad
-                            HistoryBar/Step · SecretField · PagerBar
-                            PuzzleCardShell · PuzzleMeta · PuzzleSettings · RenameText · SecretValue
-                            PuzzleCard · MyPuzzleRow
+                            puzzle/{useSearchPuzzle,usePuzzleDetail,usePuzzlePreview,useMyPuzzles,metaText}
+      components/           ——— 两个通用件 ———
+                            TextAction(可点击文本；不给 onClick = 纯文本) · Flex(direction/gap/align/justify/wrap)
+                            ——— 一个通用件吃掉一族（「传数据 + 传渲染方式」）———
+                            FormField(text|textarea|password|select|range)
+                            Overlay(文本·遮蔽·转圈·按钮条·插槽) · SecretValue(pid/uid 遮蔽↔明文 + 复制)
+                            ListSection(骨架) · PagerBar(一分支一形态：进度条 / 滑动条 / 步骤条)
+                            ——— 单一形态 ———
+                            BoardView(只读=纯 canvas / 可玩=接点击 · zoomActions 贴棋盘) · RenameText · EyeGlyph
+                            NumberPad · MyPuzzleRow(私人列表项) · PuzzleCard(公开列表项)
+                            PagerSliderView · PagerStepsView
+                            ——— 共 15 个 ———（元信息行文本是 metaText.ts 的活，不占组件）
       pages/                AppLayout · HomePage · DifficultyPage · GamePage · CreatePage · EditPuzzlePage
                             LoginPage · SearchPage · MyPuzzlesPage · PuzzleViewPage
                             difficulty/{SystemPage,CustomPage}
