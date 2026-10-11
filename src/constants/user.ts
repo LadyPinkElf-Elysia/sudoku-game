@@ -25,6 +25,7 @@ export const AUTH_COPY = {
     passwordTooShort: `密码至少 ${PASSWORD_MIN} 位`,
     copy: '复制',
     copied: '已复制',
+    copyFailed: '复制失败，请手动选中复制',
     saved: '我已保存，开始使用',
     passwordMismatch: '两次输入的密码不一致',
     uidInvalid: '账号 ID 格式不对（20 位字母数字）',

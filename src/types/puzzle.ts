@@ -1,7 +1,14 @@
 import type { VISIBILITY } from "@/constants/game"
+import type { PAGER_MODE, SORT } from "@/constants/puzzle"
 import type { NumBoard } from "./board"
 
-export type Visibility =typeof VISIBILITY[keyof typeof VISIBILITY]
+export type Visibility = typeof VISIBILITY[keyof typeof VISIBILITY]
+
+/** 列表排序（值来自 constants/puzzle 的 SORT） */
+export type ListSort = typeof SORT[keyof typeof SORT]
+
+/** 分页形态（值来自 constants/puzzle 的 PAGER_MODE） */
+export type PagerMode = typeof PAGER_MODE[keyof typeof PAGER_MODE]
 
 /** 搜索列表项（公开题；不含 uid、不含题面串） */
 export interface SearchResult {
@@ -9,6 +16,8 @@ export interface SearchResult {
     title: string
     sideS: number
     blankCount: number
+    /** 出题人显示名（列表不展示，仅 uid 档搜索时做表头） */
+    uname: string
 }
 
 /** 我的题目列表项（含 rowId，不含 pid） */

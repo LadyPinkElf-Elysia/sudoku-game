@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import ActionItems from '@/components/ActionItems.vue'
 import Overlay from '@/components/Overlay.vue'
+import SecretField from '@/components/SecretField.vue'
 import SpinnerIcon from '@/components/SpinnerIcon.vue'
 import { AUTH_COPY } from '@/constants/user'
 import { useAuth } from '@/composables/auth/useAuth'
@@ -38,15 +39,9 @@ const doneActions = computed<Actions>(() => [
                 <span class="hint">{{ AUTH_COPY.uidHint }}</span>
             </label>
 
-            <label class="field">
-                <span class="label">密码</span>
-                <input class="input" type="password" v-model="password">
-            </label>
+            <SecretField v-model="password" label="密码" />
 
-            <label v-if="isSignUp" class="field">
-                <span class="label">确认密码</span>
-                <input class="input" type="password" v-model="password2">
-            </label>
+            <SecretField v-if="isSignUp" v-model="password2" label="确认密码" />
 
             <p v-if="error" class="error">{{ error }}</p>
 

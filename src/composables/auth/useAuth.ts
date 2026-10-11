@@ -76,7 +76,7 @@ export const useAuth = () => {
             await navigator.clipboard.writeText(createdUid.value)
             copied.value = true
         } catch {
-            error.value = '复制失败，请手动选中复制'
+            error.value = AUTH_COPY.copyFailed
         }
     }
 

@@ -19,7 +19,11 @@ const router = createRouter({
                   meta: { requiresAuth: true } },
                 { path: PAGE.Login, name: PAGE.Login, component: () => import('@/pages/LoginPage.vue') },
 
-                // 占位：我的题目页在批 7 落地；先挂守卫（游客点 → 登录页）
+                // 搜索（公开）+ 落地页（分享入口，path 固定 /p/:pid）
+                { path: PAGE.Search, name: PAGE.Search, component: () => import('@/pages/SearchPage.vue') },
+                { path: '/p/:pid', name: PAGE.PuzzleView, component: () => import('@/pages/PuzzleViewPage.vue') },
+
+                // 占位：我的题目页在批 E-2 落地；先挂守卫（游客点 → 登录页）
                 { path: PAGE.MyPuzzles, name: PAGE.MyPuzzles, redirect: { name: PAGE.Home },
                   meta: { requiresAuth: true } },
             ],

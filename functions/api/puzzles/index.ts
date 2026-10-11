@@ -5,7 +5,7 @@ import { fail, json } from '../../utils/json'
 import { checkPuzzle } from '../../utils/puzzle'
 import type { Env } from '../../types'
 
-/** GET：搜索（只回公开题）／我的题目（?mine=1，需登录，只回 rowId） */
+/** GET：搜索（只回公开题）／我的题目（?mine=1，需登录，只回 rowId）；都回 total 供前端分页 */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const url = new URL(request.url)
     const limit = Math.min(Number(url.searchParams.get('limit') ?? 10) || 10, 50)
@@ -14,13 +14,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     if (url.searchParams.get('mine') === '1') {
         const me = await requireUser(request, env)
         if (me instanceof Response) return me
+
+        const counted = await env.DB.prepare('SELECT COUNT(*) AS n FROM puzzle WHERE uid = ?')
+            .bind(me.uid).first<{ n: number }>()
         const { results } = await env.DB.prepare(
             `SELECT row_id AS rowId, title, side_s AS sideS, blank_count AS blankCount,
                     visibility, show_solution AS showSolution, play_count AS playCount,
                     created_at AS createdAt
              FROM puzzle WHERE uid = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
         ).bind(me.uid, limit, offset).all()
-        return json({ items: results })
+        return json({ items: results, total: counted?.n ?? 0 })
     }
 
     // ORDER BY 只来自白名单，绝不拼用户输入
@@ -31,15 +34,23 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const keyword = (url.searchParams.get('keyword') ?? '').trim()
     const like = `%${keyword}%`
 
-    const { results } = await env.DB.prepare(
-        `SELECT p.pid AS pid, p.title AS title, p.side_s AS sideS, p.blank_count AS blankCount
-         FROM puzzle p JOIN user u ON u.uid = p.uid
-         WHERE p.visibility = ?
+    const where = `WHERE p.visibility = ?
            AND (? = '' OR p.uid = ?)
-           AND (? = '' OR p.title LIKE ? OR u.uname LIKE ?)
+           AND (? = '' OR p.title LIKE ? OR u.uname LIKE ?)`
+
+    const counted = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM puzzle p JOIN user u ON u.uid = p.uid ${where}`,
+    ).bind(VISIBILITY.Public, uid, uid, keyword, like, like).first<{ n: number }>()
+
+    const { results } = await env.DB.prepare(
+        `SELECT p.pid AS pid, p.title AS title, p.side_s AS sideS, p.blank_count AS blankCount,
+                u.uname AS uname
+         FROM puzzle p JOIN user u ON u.uid = p.uid
+         ${where}
          ORDER BY ${order} LIMIT ? OFFSET ?`,
     ).bind(VISIBILITY.Public, uid, uid, keyword, like, like, limit, offset).all()
-    return json({ items: results })
+
+    return json({ items: results, total: counted?.n ?? 0 })
 }
 
 /** POST：新建（服务端复校：格式 / 同尺寸 / 非空 / 40~70% / 题面答案一致） */

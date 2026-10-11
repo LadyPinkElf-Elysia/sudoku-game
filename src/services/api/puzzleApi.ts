@@ -1,8 +1,13 @@
-import type { MyPuzzle, MyPuzzleDetail, PuzzleDetail, SearchResult, Visibility } from '@/types/puzzle'
+import { SORT } from '@/constants/puzzle'
+import { offsetOf } from '@/core/page'
+import { LIST_PAGE_SIZE } from '@/constants/puzzle'
+import type { ListSort, MyPuzzle, MyPuzzleDetail, PuzzleDetail, SearchResult, Visibility } from '@/types/puzzle'
 import { request } from './client'
 
-export interface Page<T> { items: T[] }
-export interface SearchQuery { keyword?: string; uid?: string; sort?: 'time' | 'hot'; page?: number; size?: number }
+/** 带总数的分页响应（total 用来算页数、收敛越界页码） */
+export interface Paged<T> { items: T[]; total: number }
+
+export interface SearchQuery { keyword?: string; uid?: string; sort?: ListSort; page?: number; size?: number }
 
 const qs = (q: Record<string, string | number | undefined>): string => {
     const p = new URLSearchParams()
@@ -11,19 +16,25 @@ const qs = (q: Record<string, string | number | undefined>): string => {
     return s ? `?${s}` : ''
 }
 
-/** 搜索公开题（只回 pid / title / sideS / blankCount） */
-export const search = (q: SearchQuery = {}): Promise<Page<SearchResult>> =>
-    request<Page<SearchResult>>(`/puzzles${qs({
-        keyword: q.keyword, uid: q.uid, sort: q.sort ?? 'time',
-        limit: q.size ?? 10, offset: ((q.page ?? 1) - 1) * (q.size ?? 10),
+/** 搜索公开题（回 pid / title / sideS / blankCount / uname） */
+export const search = (q: SearchQuery = {}): Promise<Paged<SearchResult>> => {
+    const size = q.size ?? LIST_PAGE_SIZE
+    const page = q.page ?? 1
+    return request<Paged<SearchResult>>(`/puzzles${qs({
+        keyword: q.keyword, uid: q.uid, sort: q.sort ?? SORT.Time,
+        limit: size, offset: offsetOf(page, size),
     })}`)
+}
 
 /** 我的题目（需登录；只回 rowId，不含 pid） */
-export const listMine = (q: { page?: number; size?: number; sort?: 'time' | 'hot' } = {}): Promise<Page<MyPuzzle>> =>
-    request<Page<MyPuzzle>>(`/puzzles${qs({
-        mine: 1, sort: q.sort ?? 'time',
-        limit: q.size ?? 10, offset: ((q.page ?? 1) - 1) * (q.size ?? 10),
+export const listMine = (q: { page?: number; size?: number; sort?: ListSort } = {}): Promise<Paged<MyPuzzle>> => {
+    const size = q.size ?? LIST_PAGE_SIZE
+    const page = q.page ?? 1
+    return request<Paged<MyPuzzle>>(`/puzzles${qs({
+        mine: 1, sort: q.sort ?? SORT.Time,
+        limit: size, offset: offsetOf(page, size),
     })}`)
+}
 
 /** 公开详情：public / protected 凭 pid 任何人可看；private 非作者 404；答案按 show_solution 下发 */
 export const getOne = (pid: string): Promise<PuzzleDetail> => request<PuzzleDetail>(`/puzzles/${pid}`)
@@ -47,6 +58,6 @@ export const update = (
 export const remove = (pid: string): Promise<{ ok: true }> =>
     request<{ ok: true }>(`/puzzles/${pid}`, { method: 'DELETE' })
 
-/** 挑战计数（进入游戏页时调；1 人 1 小时 1 次，作者不计） */
+/** 挑战计数（开局时调；1 人 1 小时 1 次，作者不计） */
 export const play = (pid: string): Promise<{ playCount: number; counted: boolean }> =>
     request<{ playCount: number; counted: boolean }>(`/puzzles/${pid}/play`, { method: 'POST' })

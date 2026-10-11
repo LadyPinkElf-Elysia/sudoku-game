@@ -1,3 +1,5 @@
+import type { Page } from './page'
+
 /** 展示项公共字段：按钮条（ActionItems）与菜单（MenuItems）共用 */
 export interface ItemBase {
     key: string
@@ -15,7 +17,7 @@ export type Actions=Action[]
 
 /** 首页菜单一项：MenuItems / MenuItem */
 export interface Menu extends ItemBase {
-    routeName: string
+    routeName: Page
     disabled?: boolean
 }
 
