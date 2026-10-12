@@ -1,3 +1,4 @@
+import { EMPTY_GROUP_COPY } from '../../src/constants/game'
 import { countBlanks } from '../../src/core/board/ops'
 import { parsePuzzle } from '../../src/core/sudoku/parse'
 import { getSudoku } from '../../src/core/sudoku/rules'
@@ -17,6 +18,7 @@ export const checkPuzzle = (puzzleText: string, solutionText: string): PuzzleChe
     const blanks = countBlanks(p.board)
     const sideS = p.boxSize * p.boxSize
     if (blanks === 0) return fail('题面不能全空（至少要挖掉一些格子）')
+    if (getSudoku(p.boxSize).hasEmptyGroup(p.board)) return fail(EMPTY_GROUP_COPY.bad)
     if (!isBlankRatioOk(blanks, p.boxSize))
         return fail(`挖空比例需在 40%~70% 之间（当前 ${Math.round((blanks / (sideS * sideS)) * 100)}%）`)
     if (!getSudoku(p.boxSize).validatePuzzle(p.board, s.board))

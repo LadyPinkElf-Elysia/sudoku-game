@@ -96,12 +96,13 @@
 ### FR-4 难度页 · 自定义 ✅
 - 两个 `textarea`（题面串 / 答案串）+ 格式提示 + 字符计数；**必须都填**。
 - 校验顺序（失败不跳页）：`parsePuzzle(题面)` → `parsePuzzle(答案)` → `boxSize` 相同 →
-  `!isBlankBoard(题面)` → `validatePuzzle(题面, 答案)` → 通过；**纯游玩不校验挖空比例**。
+  `!isBlankBoard(题面)` → **`!hasEmptyGroup(题面)`（任意整行 / 整列 / 整宫不得全空）** →
+  `validatePuzzle(题面, 答案)` → 通过；**纯游玩不校验挖空比例**。
 - 「**提交到我的题目**」：**可选项，默认不勾**；**勾选后展开补充项**（必填：**标题小输入框** 1~40）；
   提交时额外校验 **40%~70%** → `POST /api/puzzles`（🔸 默认 `visibility=private`）→ 再开局；
   **成功后提示「已保存到我的题目」**（游戏页顶部轻提示）。可见性 / 答案开关等详情到「我的题目」改。
-- 失败文案：格式不对 / 盘面大小必须一致 / 题面不能全空 / 题面与答案不一致或答案非法 /
-  挖空比例需在 40%~70% 之间（当前 xx%）。
+- 失败文案：格式不对 / 盘面大小必须一致 / 题面不能全空 / 题面不能有整行 / 整列 / 整宫全空 /
+  题面与答案不一致或答案非法 / 挖空比例需在 40%~70% 之间（当前 xx%）。
 - 不检查唯一解。
 
 ### FR-5 搜索页 ✅
@@ -139,7 +140,7 @@
       └ 点「重命名」→ 标题就地变成输入框（回车 / 失焦提交，Esc 取消）；右上角纯文字，左删除右编辑
     [ 盘面大小 S×S · 挖空 N 格 · 创建时间 YYYY/M/D HH:mm · 热度 N ]
     [ pid ▮▮▮▮… 👁 📋 ]  └ 👁 / 📋 由 `SecretValue` 自己画（传 label + 取值方式，点它就地响应；**不挂悬停提示**）
-    [ 可见性 ▾ 🌐公开 | 🔗受保护 | 🔒私有 ]                      [ 答案 ▾ 开 | 关 ]   ← 分居两侧；两个下拉等宽（7rem）
+    [ 可见性 ▾ 🌐公开 | 🔗受保护 | 🔒私有 ]                      [ 显示答案 ▾ 开 | 关 ]   ← 分居两侧；两个下拉等宽（7rem）
     [ 题目预览 ]  [ 答案预览 ]                                [ ▶ 挑战 ]   ← 同一行：挑战在最右边
 
 - **列表接口**只回元信息：`rowId · title · sideS · blankCount · visibility · showSolution · playCount · createdAt`
@@ -168,14 +169,15 @@
 
 ### FR-9 出题页 `/create` ✅
 - 顶部区块：**标题输入框**（必填，🔸 1~40，默认 `我的题目 9×9`）+ **盘面大小选择器**；**不给**可见性/答案开关。
-- 阶段① 题面：`!isBlankBoard` + 无冲突 + **挖空比例 40%~70%**（整数比较）→ 锁定。
+- 阶段① 题面：`!isBlankBoard` + **无空行/列/宫** + 无冲突 + **挖空比例 40%~70%**（整数比较）→ 锁定；
+  这几条校验都在 `core/message.ts` 的 `puzzleSubmitErrorOf` 里（与编辑页共用一份）。
 - 阶段② 答案 → `validatePuzzle`。
 - 提交 → **转圈遮罩（校验 + 上传）** → 「🎉 出题完成」+「去我的题目」（🔸 只此一个；回主页只保留顶栏那一个入口，遮罩必须有出口）。
 - 入库：`POST /api/puzzles`（服务端生成 pid + rowId、算 blankCount），🔸 默认 `public` / `show_solution=0` / `play_count=0`。
 
 ### FR-10 编辑页 `/puzzle/:pid/edit` ✅
 - **无**大小选择器；进入即预填**自己上传的题面**（未锁定，可增量改）；不预填旧答案。
-- 「提交题目」→ 校验（含 40%~70%）→ 锁定 → 阶段② **重新填答案** → 提交 → 转圈（校验 + `PATCH`）→ 回「我的题目」。
+- 「提交题目」→ 校验（全空 / 空行空列空宫 / 冲突 / 40%~70%）→ 锁定 → 阶段② **重新填答案** → 提交 → 转圈（校验 + `PATCH`）→ 回「我的题目」。
 - **不更新 `created_at`**；不含标题 / 可见性 / 答案开关（在列表里改）。
 
 ### FR-11 游戏页 `/game` ✅
@@ -306,8 +308,8 @@ CREATE TABLE puzzle_play (
 | GET | `/api/puzzles` | 公开 | `?keyword=&uid=&sort=time\|hot&limit=10&offset=` → **搜索列表**：只回公开题，`{ items: pid · title · sideS · blankCount · playCount · createdAt · uname, total }`<br>`?mine=1`（Bearer）→ **我的题目列表**：`{ items: rowId · title · sideS · blankCount · visibility · showSolution · playCount · createdAt, total }` |
 | GET | `/api/puzzles/:pid` | 公开 | 三态判定（private 非作者 404）；返回 `pid · title · uname · sideS · blankCount · createdAt · puzzleText · solutionText?`（答案仅当 `show_solution=1` 或我是作者） |
 | GET | `/api/puzzles/mine/:rowId` | Bearer·作者 | **作者态详情**：`pid · rowId · title · uname · sideS · blankCount · visibility · showSolution · playCount · createdAt · puzzleText · solutionText` |
-| POST | `/api/puzzles` | Bearer | 新建（生成 pid + rowId、算 blankCount、复校 40~70%）；`visibility?` 走三态白名单，🔸 缺省 `public` |
-| PATCH | `/api/puzzles/:pid` | Bearer·作者 | `title / puzzle / solution / visibility / showSolution`；改题面或答案时复校 40~70% 并**重算 blank_count**；**不改 created_at** |
+| POST | `/api/puzzles` | Bearer | 新建（生成 pid + rowId、算 blankCount、复校非空 / 无空行空列空宫 / 40~70%）；`visibility?` 走三态白名单，🔸 缺省 `public` |
+| PATCH | `/api/puzzles/:pid` | Bearer·作者 | `title / puzzle / solution / visibility / showSolution`；改题面或答案时复校非空 / 无空行空列空宫 / 40~70% 并**重算 blank_count**；**不改 created_at** |
 | DELETE | `/api/puzzles/:pid` | Bearer·作者 | 硬删 + 清理 `puzzle_play` |
 | POST | `/api/puzzles/:pid/play` | Bearer | 热度 +1（1 人 1 小时 1 次；**作者本人不计**；游客不调用） |
 
@@ -318,6 +320,7 @@ CREATE TABLE puzzle_play (
 | 题面/答案为空或个数不对 | 中文格式提示，不跳页 |
 | 尺寸不一致 | 「盘面大小必须一致」 |
 | 题面全空 / 有冲突 / 与答案不符 | 分别给明确文案 |
+| 题面有整行 / 整列 / 整宫全空（自定义 · 出题 · 编辑提交） | 「题面不能有整行 / 整列 / 整宫全空」，不入库；**系统生成不校验**（概率极小） |
 | 入库挖空比例不在 40%~70% | 「挖空比例需在 40%~70% 之间（当前 xx%）」 |
 | 大盘（B=6）生成慢 | Worker + loading；玩家用缩放按钮放大 |
 | 搜索无结果 / 接口失败 | 「没有找到题目」/「加载失败，点击重试」 |
@@ -360,6 +363,7 @@ CREATE TABLE puzzle_play (
 | 22 | 任意棋盘（B=6） | 缩放可用、到界变灰；不预设缩放 | ✅ |
 | 23 | 在 `/create` 退出登录 | 跳 `/home`；再点「出题」被守卫送登录 | ✅ |
 | 24 | `pnpm guard && pnpm typecheck && pnpm typecheck:functions` | 全绿 | ✅ |
+| 25 | 手选题面故意留**一整行 / 一整列 / 一整宫全空**（出题 · 编辑 · 自定义提交） | 提示「题面不能有整行 / 整列 / 整宫全空」，不入库；系统生成不受影响 | ✅ |
 
 ## 10. 非目标（v1）
 
@@ -436,6 +440,10 @@ i18n / 深色模式 / 完整 a11y。
 | 63 | **缩放圆圈固定不滚**：缩放行从 `.board-fit`（滚动内容）里移出去，改放在滚动框**外面**（`BoardView` 根节点变成 `.board-box` = 缩放行 + `.board-scroll-container`）→ **棋盘放大到出滚动条、横向滚到任何位置，一对 `➖ ➕` 都稳稳在棋盘上方视图中间**；量宽度的 `boxEl` 仍是滚动框（不受影响）| ✅ |
 | 64 | **文案与排布微调**：顶栏左侧「🏠 回到主页」→**「主页」**；界面里的**「参考答案」一律叫「答案」**（`MINE_COPY.solutionLabel` · 游戏页按钮 `📖 答案` · 结算遮罩标题 `答案`）；列表工具条的**「浏览方式」+「排序」收进同一个框**（`.list-bar` 加边框 / 圆角 / 浅底 / 内边距）；**我的题目行里「▶ 挑战」挪到「题目预览 / 答案预览」同一行的最右边**（一个 `justify="between"` 的行）| ✅ |
 | 65 | **我的题目行：可见性与答案分居两侧**（`justify="between"`，左可见性 / 右答案，两个下拉仍等宽 7rem）| ✅ |
+| 66 | **题面禁「整行 / 整列 / 整宫全空」**——只对**手选题面的提交**生效（出题 · 编辑 · 自定义），**系统生成不校验**（概率极小，按需求不加）。规则本体是 `core/sudoku/rules.ts` 的 **`Sudoku.hasEmptyGroup(grid)`**（复用已有的 `allGroups()` 行/列/宫定义，不另写一套循环）；出题/编辑经 `core/message.ts` 的 `puzzleSubmitErrorOf`、自定义在 `useCustomFlow.validate` 里查；**后端 `functions/utils/puzzle.ts` 同规则复校**（POST 新建 / PATCH 改题面答案都走它），文案共用 `EMPTY_GROUP_COPY.bad` / `CUSTOM_COPY.emptyGroup`。答案侧不用查（`validatePuzzle → isSolved ⇒ 已填满`）| ✅ |
+| 67 | **函数去重（P1）：core 新增 `message.ts`**（3 个导出）——`errorTextOf(err, fallback)` 吃掉全站 **11 处** `err instanceof Error ? … : '…'`；`blankRatioErrorOf(blanks, boxSize)` 收口 3 处逐字重复的 40%~70% 文案；`puzzleSubmitErrorOf(numBoard, boxSize, sudoku)` 让出题 / 编辑那两段**逐字相同**的提交校验从 15 行压到 4 行。顺带改正 `useCustomFlow.validate` 里误用 `gameStore.sudoku`（它是**上一局**的 B，可能不等于输入盘面的 B）→ 改成 `getSudoku(p.boxSize)`：尺寸不一致时老写法会在 `grid[r][c]` 上抛异常 | ✅ |
+| 68 | **「显示答案」+ 函数去重（P2/P3）**：① 我的题目行里那个下拉标签「答案」→**「显示答案」**（`MINE_COPY.solutionLabel`，游戏页按钮仍是「📖 答案」）。② `useMyPuzzles` 抽 `withDetail(rowId, run, failText)`：重命名 / 可见性 / 显示答案 / 删除共用「取详情拿 pid → 转圈 → 清缓存重拉」，删除失败也走统一文案（原先无 catch，会抛未处理的 rejection）；`openEdit` 改用 `loadPid`。③ 新增 store 动作 **`startFromTexts(puzzleText, solutionText, blankCount, source?)`**：我的题目「挑战」与落地页「挑战」共用一份开局（题面/答案串 → 解析 → `startGame`），两处各删 8 行。④ `stores/puzzle` 的两个列表取数收成内部 `loadPage(run, empty)`。⑤ 归一化收进 core：`page.ts` 新增 **`sortOf` / `pagerModeOf`**（原先在 `useListQuery` 里各写两遍）。⑥ `types/puzzle.ts` 新增 **`PuzzlePatch`**：`puzzleApi.update` 与 `useMyPuzzles.patch` 共用一份可提交字段。⑦ `core/sudoku/tracker.ts` 的 `place()` 抽内部 `drop(i,j)`（三段同构「删候选 + 记账」→ 一处调用，撤销闭包不变）；`render/board.ts` 去掉多余尾逗号 / 双空行，`drawLines` 直接用 `side`（不再重算 `boardSide`）| ✅ |
+| 69 | **出题 / 编辑抽公共组合式 `usePuzzleStage`**（§六「跨页共用的流程 → 公共组合式」）：`phase` / `puzzleSnapshot` / `errorMsg` / `showFail` + `resetStage` / `submitPuzzle`（校验全在 core）/ `checkSolution`（成对校验 + 亮失败遮罩）/ `backToEdit` 收成一份 → 两个流程只留各自不同的部分（标题 · 缩放 · `POST` / `PATCH` · 跳转），各省 ≈20 行；`useEditFlow.load` 改用 `resetStage()` 回到「填题面」阶段。**顺带清掉 `CreatePage` / `EditPuzzlePage` 里两个早已废弃的 `title` 字段**（决策 61 已把 `title` 从 `Action` 删掉，`TextAction` 也只吃 `text` + `onClick` → 这两行是死数据）| ✅ |
 
 ## 12. 分批路线
 

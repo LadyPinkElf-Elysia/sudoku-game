@@ -1,12 +1,13 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CUSTOM_COPY, RATIO_COPY, TITLE_MAX } from '@/constants/game'
+import { CUSTOM_COPY, TITLE_MAX } from '@/constants/game'
 import { VISIBILITY } from '@/constants/puzzle'
 import { PAGE } from '@/constants/pages'
 import { countBlanks, isBlankBoard } from '@/core/board/ops'
-import { percentOf } from '@/core/game/derive'
+import { blankRatioErrorOf, errorTextOf } from '@/core/message'
 import { boardToStr, parsePuzzle } from '@/core/sudoku/parse'
-import { cellCountOf, isBlankRatioOk, sideOf } from '@/core/sudoku/shape'
+import { getSudoku } from '@/core/sudoku/rules'
+import { cellCountOf, sideOf } from '@/core/sudoku/shape'
 import { create } from '@/services/api/puzzleApi'
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
@@ -61,7 +62,8 @@ export const useCustomFlow = () => {
 
         if (p.boxSize !== s.boxSize) return fail(CUSTOM_COPY.sizeMismatch)
         if (isBlankBoard(p.board)) return fail(CUSTOM_COPY.puzzleBlank)
-        if (!gameStore.sudoku.validatePuzzle(p.board, s.board)) return fail(CUSTOM_COPY.notMatched)
+        if (getSudoku(p.boxSize).hasEmptyGroup(p.board)) return fail(CUSTOM_COPY.emptyGroup)
+        if (!getSudoku(p.boxSize).validatePuzzle(p.board, s.board)) return fail(CUSTOM_COPY.notMatched)
         return true
     }
 
@@ -73,11 +75,8 @@ export const useCustomFlow = () => {
 
         if (!title.value.trim() || title.value.trim().length > TITLE_MAX) return fail(CUSTOM_COPY.needTitle)
 
-        const blanks = countBlanks(p.board)
-        if (!isBlankRatioOk(blanks, p.boxSize)) {
-            error.value = `${RATIO_COPY.bad}（当前 ${percentOf(blanks / cellCountOf(p.boxSize))}%）`
-            return false
-        }
+        const bad = blankRatioErrorOf(countBlanks(p.board), p.boxSize)
+        if (bad) return fail(bad)
 
         await create({
             title: title.value.trim(),
@@ -112,7 +111,7 @@ export const useCustomFlow = () => {
             })
             await router.push({ name: PAGE.Game })
         } catch (err) {
-            error.value = err instanceof Error ? err.message : '提交失败，请重试'
+            error.value = errorTextOf(err, '提交失败，请重试')
         } finally {
             loading.value = false
         }

@@ -3,6 +3,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { PAGE } from '@/constants/pages'
 import { AUTH_COPY, PASSWORD_MIN, UID_PATTERN, UNAME_PATTERN } from '@/constants/user'
 import { useClipboard } from '@/composables/useClipboard'
+import { errorTextOf } from '@/core/message'
 import { getLastUid } from '@/services/api/session'
 import { useUserStore } from '@/stores/user'
 
@@ -77,7 +78,7 @@ export const useAuth = () => {
             await userStore.login({ uid: uid.value.trim(), password: password.value })
             await router.replace(safeRedirect(route.query.redirect) || { name: PAGE.Home })
         } catch (err) {
-            error.value = err instanceof Error ? err.message : '请求失败，请重试'
+            error.value = errorTextOf(err, '请求失败，请重试')
         } finally {
             loading.value = false
         }

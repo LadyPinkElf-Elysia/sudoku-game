@@ -49,7 +49,6 @@ export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput,
     if (!info) return
     const { ctx, side, cellSize } = info
 
-
     const fontSize = fontPxOf(cellSize)
     const fontGiven = `${BOARD_FONT.given} ${fontSize}px ${BOARD_FONT.family}`
     const fontPlayer = `${BOARD_FONT.player} ${fontSize}px ${BOARD_FONT.family}`
@@ -84,18 +83,16 @@ export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput,
         }
     }
 
-    /** 画网格线 */
+    /** 画网格线（boardSide === side：直接用棋盘 CSS 边长，不再重算） */
     const drawLines = (): void => {
-        const boardSide = size * cellSize
-
         ctx.strokeStyle = BOARD_COLOR.thinLine
         ctx.lineWidth = BOARD_LINE.thin
         ctx.beginPath()
         for (let i = 1; i < size; i++) {
             if (i % boxSize === 0) continue
             const p = i * cellSize
-            ctx.moveTo(p, 0); ctx.lineTo(p, boardSide)
-            ctx.moveTo(0, p); ctx.lineTo(boardSide, p)
+            ctx.moveTo(p, 0); ctx.lineTo(p, side)
+            ctx.moveTo(0, p); ctx.lineTo(side, p)
         }
         ctx.stroke()
 
@@ -104,8 +101,8 @@ export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput,
         ctx.beginPath()
         for (let i = 0; i <= size; i += boxSize) {
             const p = i * cellSize
-            ctx.moveTo(p, 0); ctx.lineTo(p, boardSide)
-            ctx.moveTo(0, p); ctx.lineTo(boardSide, p)
+            ctx.moveTo(p, 0); ctx.lineTo(p, side)
+            ctx.moveTo(0, p); ctx.lineTo(side, p)
         }
         ctx.stroke()
     }
@@ -126,7 +123,7 @@ export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput,
 }
 
 /** 点击位置 → 行列坐标；越界返回 null */
-export const getClickPos = (canvas: HTMLCanvasElement, e: MouseEvent, size: number,): Position | null => {
+export const getClickPos = (canvas: HTMLCanvasElement, e: MouseEvent, size: number): Position | null => {
     const rect = canvas.getBoundingClientRect()
     if (!rect.width) return null
     return offsetToCell(e.clientX - rect.left, e.clientY - rect.top, rect.width, size)

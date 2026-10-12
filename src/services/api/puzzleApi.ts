@@ -1,6 +1,6 @@
 import { LIST_PAGE_SIZE, SORT } from '@/constants/puzzle'
 import { offsetOf } from '@/core/page'
-import type { ListSort, MyPuzzle, MyPuzzleDetail, PuzzleDetail, SearchResult, Visibility } from '@/types/puzzle'
+import type { ListSort, MyPuzzle, MyPuzzleDetail, PuzzleDetail, PuzzlePatch, SearchResult, Visibility } from '@/types/puzzle'
 import { request } from './client'
 
 /** 带总数的分页响应（total 用来算页数、收敛越界页码） */
@@ -48,10 +48,8 @@ export const create = (
     request<{ pid: string; rowId: string }>('/puzzles', { method: 'POST', body: payload })
 
 /** 修改（局部；改题面或答案时**必须成对**提交） */
-export const update = (
-    pid: string,
-    patch: { title?: string; puzzleText?: string; solutionText?: string; visibility?: Visibility; showSolution?: boolean },
-): Promise<{ ok: true }> => request<{ ok: true }>(`/puzzles/${pid}`, { method: 'PATCH', body: patch })
+export const update = (pid: string, patch: PuzzlePatch): Promise<{ ok: true }> =>
+    request<{ ok: true }>(`/puzzles/${pid}`, { method: 'PATCH', body: patch })
 
 /** 删除（作者） */
 export const remove = (pid: string): Promise<{ ok: true }> =>

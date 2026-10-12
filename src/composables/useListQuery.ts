@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { PAGER_MODE, PREF_KEY_PAGER_MODE, SORT } from '@/constants/puzzle'
-import { clampPage } from '@/core/page'
+import { PREF_KEY_PAGER_MODE, SORT } from '@/constants/puzzle'
+import { clampPage, pagerModeOf, sortOf } from '@/core/page'
 import { readPref, writePref } from '@/services/prefs'
 import type { Page } from '@/types/page'
 import type { ListSort, PagerMode } from '@/types/puzzle'
@@ -32,11 +32,10 @@ export const useListQuery = (opts: ListQueryOptions) => {
     const page = ref(1)
 
     /** 分页形态：纯 UI 偏好，存本地（不进 URL）；由「浏览方式」下拉选择 */
-    const pagerMode = ref<PagerMode>(
-        readPref(PREF_KEY_PAGER_MODE) === PAGER_MODE.Slider ? PAGER_MODE.Slider : PAGER_MODE.Bar)
+    const pagerMode = ref<PagerMode>(pagerModeOf(readPref(PREF_KEY_PAGER_MODE)))
 
     const changePagerMode = (value: string): void => {
-        pagerMode.value = value === PAGER_MODE.Slider ? PAGER_MODE.Slider : PAGER_MODE.Bar
+        pagerMode.value = pagerModeOf(value)
         writePref(PREF_KEY_PAGER_MODE, pagerMode.value)
     }
 
@@ -48,7 +47,7 @@ export const useListQuery = (opts: ListQueryOptions) => {
     }
 
     const onSearch = (): void => applyQuery(1)
-    const changeSort = (value: string): void => applyQuery(1, value === SORT.Hot ? SORT.Hot : SORT.Time)
+    const changeSort = (value: string): void => applyQuery(1, sortOf(value))
     const changePage = (next: number): void => applyQuery(next)
 
     /** 取数 + 越界收敛（页数由各页给出；跳走时不做收敛） */
@@ -64,7 +63,7 @@ export const useListQuery = (opts: ListQueryOptions) => {
         () => [route.query.q, route.query.sort, route.query.page],
         () => {
             keyword.value = String(route.query.q ?? '')
-            sort.value = String(route.query.sort ?? '') === SORT.Hot ? SORT.Hot : SORT.Time
+            sort.value = sortOf(route.query.sort)
             page.value = Number(route.query.page ?? 1) || 1
             void loadAndClamp()
         },

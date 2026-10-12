@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { LIST_PAGE_SIZE } from '@/constants/puzzle'
+import { errorTextOf } from '@/core/message'
 import { pageCountOf } from '@/core/page'
 import { getMine, listMine, search as apiSearch } from '@/services/api/puzzleApi'
 import type { ListSort, MyPuzzle, MyPuzzleDetail, SearchResult } from '@/types/puzzle'
@@ -26,43 +27,48 @@ export const usePuzzleStore = defineStore('puzzleStore', () => {
     /** 搜索空结果：不在加载中、无错误、且没有数据 */
     const empty = computed<boolean>(() => !loading.value && !error.value && !items.value.length)
 
-    /** 搜公开题：keyword 模糊（标题 / 出题人）、uid 精确（某人的公开题），二者互斥 */
-    const search = async (q: { keyword?: string; uid?: string; sort: ListSort; page: number }): Promise<void> => {
+    /**
+     * 列表取数统一收口：转圈 → 成功由 run 写回 → 失败由 empty 清空 + 统一文案
+     * （搜索与我的题目只有「打哪个接口 / 写哪些 ref」不同）
+     */
+    const loadPage = async (run: () => Promise<void>, empty: () => void): Promise<void> => {
         loading.value = true
         error.value = ''
         try {
+            await run()
+        } catch (err) {
+            empty()
+            error.value = errorTextOf(err, '加载失败，请重试')
+        } finally {
+            loading.value = false
+        }
+    }
+
+    /** 搜公开题：keyword 模糊（标题 / 出题人）、uid 精确（某人的公开题），二者互斥 */
+    const search = (q: { keyword?: string; uid?: string; sort: ListSort; page: number }): Promise<void> =>
+        loadPage(async () => {
             const res = await apiSearch({
                 keyword: q.keyword, uid: q.uid, sort: q.sort, page: q.page, size: LIST_PAGE_SIZE,
             })
             items.value = res.items
             total.value = res.total
             authorUname.value = q.uid ? res.items[0]?.uname ?? '' : ''
-        } catch (err) {
+        }, () => {
             items.value = []
             total.value = 0
             authorUname.value = ''
-            error.value = err instanceof Error ? err.message : '加载失败，请重试'
-        } finally {
-            loading.value = false
-        }
-    }
+        })
 
     /** 我的题目列表（需登录；只回元信息） */
-    const loadMine = async (q: { sort: ListSort; page: number }): Promise<void> => {
-        loading.value = true
-        error.value = ''
-        try {
+    const loadMine = (q: { sort: ListSort; page: number }): Promise<void> =>
+        loadPage(async () => {
             const res = await listMine({ sort: q.sort, page: q.page, size: LIST_PAGE_SIZE })
             mine.value = res.items
             total.value = res.total
-        } catch (err) {
+        }, () => {
             mine.value = []
             total.value = 0
-            error.value = err instanceof Error ? err.message : '加载失败，请重试'
-        } finally {
-            loading.value = false
-        }
-    }
+        })
 
     /** 取 mine/:rowId 详情：命中缓存直接返回，否则请求后写入缓存 */
     const detailOf = async (rowId: string): Promise<MyPuzzleDetail | null> => {
@@ -74,7 +80,7 @@ export const usePuzzleStore = defineStore('puzzleStore', () => {
             details.value[rowId] = detail
             return detail
         } catch (err) {
-            error.value = err instanceof Error ? err.message : '题目加载失败'
+            error.value = errorTextOf(err, '题目加载失败')
             return null
         }
     }

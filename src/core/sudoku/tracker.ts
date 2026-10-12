@@ -91,30 +91,23 @@ export const createTracker = (S: number, B: number, grid: NumBoard) => {
         colUsed[c][n] = true
         boxUsed[b][n] = true
 
-        for (let i = 0; i < S; i++) {
-            // 同行空格去掉候选 n
-            if (i !== c && grid[r][i] === 0 && cand[r][i][n]) {
-                cand[r][i][n] = false
-                count[r][i]--
-                changes.push({ r, c: i, n })
-            }
-            // 同列空格去掉候选 n
-            if (i !== r && grid[i][c] === 0 && cand[i][c][n]) {
-                cand[i][c][n] = false
-                count[i][c]--
-                changes.push({ r: i, c, n })
-            }
+        /** 空格 (i,j) 去掉候选 n（改候选 + 记账，撤销时按 changes 回滚） */
+        const drop = (i: number, j: number): void => {
+            if (grid[i][j] !== 0 || !cand[i][j][n]) return
+            cand[i][j][n] = false
+            count[i][j]--
+            changes.push({ r: i, c: j, n })
         }
-        // 同宫空格去掉候选 n
+
+        for (let i = 0; i < S; i++) {
+            if (i !== c) drop(r, i)      // 同行空格
+            if (i !== r) drop(i, c)      // 同列空格
+        }
+        // 同宫空格（宫起点来自 core/board/metrics）
         const [sr, sc] = boxOriginOf(r, c, B)
         for (let i = sr; i < sr + B; i++) {
             for (let j = sc; j < sc + B; j++) {
-                if (i === r && j === c) continue
-                if (grid[i][j] === 0 && cand[i][j][n]) {
-                    cand[i][j][n] = false
-                    count[i][j]--
-                    changes.push({ r: i, c: j, n })
-                }
+                if (i !== r || j !== c) drop(i, j)
             }
         }
 

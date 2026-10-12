@@ -34,7 +34,6 @@ const actions = computed<Actions>(() => [
     {
         key: 'submit',
         text: phase.value === CREATE_PHASE.Puzzle ? '📤 提交题目' : '📤 提交答案',
-        title: phase.value === CREATE_PHASE.Puzzle ? '提交题目' : '提交答案',
         onClick: phase.value === CREATE_PHASE.Puzzle ? submitPuzzle : submitSolution,
     },
 ])

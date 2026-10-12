@@ -103,7 +103,7 @@ export const MINE_COPY = {
     remove: '删除',
     /** 行内控件标签（竖排：标签 + 下拉） */
     visibilityLabel: '可见性',
-    solutionLabel: '答案',
+    solutionLabel: '显示答案',
     save: '保存',
     cancel: '取消',
 } as const

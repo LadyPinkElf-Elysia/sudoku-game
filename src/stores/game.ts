@@ -2,6 +2,7 @@ import { GAME_INIT_CONFIG, GAME_MODE, GAME_STATUS } from '@/constants/game'
 import { toNum, fromPuzzle } from '@/core/board/model'
 import { cloneBoard, lockGiven, applySolution, countBlanks } from '@/core/board/ops'
 import { statusOf } from '@/core/game/derive'
+import { parsePuzzle } from '@/core/sudoku/parse'
 import { cellCountOf } from '@/core/sudoku/shape'
 import { getSudoku } from '@/core/sudoku/rules'
 import type { Board, Cell, ConflictMask, NumBoard, Position, Snapshot } from '@/types/board'
@@ -68,6 +69,25 @@ export const useGameStore = defineStore('gameStore', () => {
         meta.value = source ? { ...source } : { ...EMPTY_META }
         resetHistory()
     }
+    /**
+     * 从题面 / 答案串直接开局（我的题目「挑战」与落地页「挑战」共用）
+     * · 解析与比例都在 core；答案串缺失也允许开局（胜负判定走规则，不依赖答案）
+     * · 题面串解析失败返回 false，调用方不跳页
+     */
+    const startFromTexts = (
+        puzzleText: string,
+        solutionText: string,
+        blankCount: number,
+        source?: GameMeta,
+    ): boolean => {
+        const parsed = parsePuzzle(puzzleText)
+        if (!parsed) return false
+        startGame(parsed.board, parsePuzzle(solutionText)?.board ?? [], {
+            boxSize: parsed.boxSize,
+            blankRatio: blankCount / cellCountOf(parsed.boxSize),
+        }, source)
+        return true
+    }
     /** 进入出题/编辑：puzzle 给了就预填（不锁定 → 可增量改） */
     const startCreate = (boxSize: number, puzzle?: NumBoard): void => {
         mode.value = GAME_MODE.Create
@@ -127,7 +147,7 @@ export const useGameStore = defineStore('gameStore', () => {
         conflictMask, selectedCell,
 
         // Actions
-        startGame, startCreate, lockPuzzle,
+        startGame, startCreate, startFromTexts, lockPuzzle,
         select, inputNum,
         jump, cheat,
 

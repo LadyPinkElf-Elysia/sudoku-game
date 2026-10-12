@@ -4,14 +4,13 @@ import { TITLE_MAX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { MINE_COPY } from '@/constants/puzzle'
 import { useListQuery } from '@/composables/useListQuery'
-import { parsePuzzle } from '@/core/sudoku/parse'
-import { cellCountOf } from '@/core/sudoku/shape'
+import { errorTextOf } from '@/core/message'
 import { remove as removePuzzle, update as updatePuzzle } from '@/services/api/puzzleApi'
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
 import { usePuzzlePreview } from './usePuzzlePreview'
 import type { Actions, MyPuzzleRowControls } from '@/types/item'
-import type { MyPuzzle, MyPuzzleDetail, Visibility } from '@/types/puzzle'
+import type { MyPuzzle, MyPuzzleDetail, PuzzlePatch, Visibility } from '@/types/puzzle'
 
 /** 我的题目页（FR-7 / FR-13）：列表分页→useListQuery，预览→usePuzzlePreview；
  *  pid/题面串按 rowId 现取，改动后清缓存 + 重拉当前页 */
@@ -52,23 +51,31 @@ export const useMyPuzzles = () => {
     /** pid 的「遮蔽/明文 + 👁📋」整块收在 SecretValue 组件里：这里只给「怎么取真值」 */
     const loadPid = async (rowId: string): Promise<string | null> => (await detailOf(rowId))?.pid ?? null
 
-    /** 统一 PATCH：先取 pid，再改，最后清缓存 + 重拉 */
-    const patch = async (
+    /**
+     * 行内改动统一入口：取详情拿 pid → 转圈调后端 → 清缓存 + 重拉当前页
+     * （失败只提示，不动本地数据；failText 让删除与保存有各自的文案）
+     */
+    const withDetail = async (
         rowId: string,
-        body: { title?: string; visibility?: Visibility; showSolution?: boolean },
+        run: (pid: string) => Promise<void>,
+        failText = '保存失败，请重试',
     ): Promise<void> => {
-        const detail = await detailOf(rowId)
-        if (!detail) return
+        const pid = await loadPid(rowId)
+        if (!pid) return
         busy.value = true
         try {
-            await updatePuzzle(detail.pid, body)
+            await run(pid)
             afterChange(rowId)
         } catch (err) {
-            puzzleStore.error = err instanceof Error ? err.message : '保存失败，请重试'
+            puzzleStore.error = errorTextOf(err, failText)
         } finally {
             busy.value = false
         }
     }
+
+    /** 统一 PATCH：重命名 / 可见性 / 显示答案都走它 */
+    const patch = (rowId: string, body: PuzzlePatch): Promise<void> =>
+        withDetail(rowId, async (pid) => { await updatePuzzle(pid, body) })
 
     /** 可见性下拉：值真的变了才 PATCH */
     const setVisibility = async (item: MyPuzzle, value: Visibility): Promise<void> => {
@@ -76,7 +83,7 @@ export const useMyPuzzles = () => {
         await patch(item.rowId, { visibility: value })
     }
 
-    /** 参考答案下拉（开 / 关） */
+    /** 显示答案下拉（开 / 关） */
     const setSolution = async (item: MyPuzzle, on: boolean): Promise<void> => {
         if (on === item.showSolution) return
         await patch(item.rowId, { showSolution: on })
@@ -91,20 +98,18 @@ export const useMyPuzzles = () => {
     const challenge = async (rowId: string): Promise<void> => {
         const detail = await detailOf(rowId)
         if (!detail) return
-        const parsed = parsePuzzle(detail.puzzleText)
-        if (!parsed) return
-
-        gameStore.startGame(parsed.board, parsePuzzle(detail.solutionText)?.board ?? [], {
-            boxSize: parsed.boxSize,
-            blankRatio: detail.blankCount / cellCountOf(parsed.boxSize),
-        }, { pid: detail.pid, title: detail.title, uname: detail.uname })
+        const ok = gameStore.startFromTexts(
+            detail.puzzleText, detail.solutionText, detail.blankCount,
+            { pid: detail.pid, title: detail.title, uname: detail.uname },
+        )
+        if (!ok) return
         await router.push({ name: PAGE.Game })
     }
 
     /** 编辑：拿到 pid 后进编辑页（路径参数） */
     const openEdit = async (rowId: string): Promise<void> => {
-        const detail = await detailOf(rowId)
-        if (detail) await router.push({ name: PAGE.EditPuzzle, params: { pid: detail.pid } })
+        const pid = await loadPid(rowId)
+        if (pid) await router.push({ name: PAGE.EditPuzzle, params: { pid } })
     }
 
     /** 内联重命名：点标题旁「重命名」→ 标题变输入框；回车 / 失焦提交，Esc 取消 */
@@ -119,16 +124,10 @@ export const useMyPuzzles = () => {
     }
 
     const confirmRemove = async (): Promise<void> => {
-        const detail = await detailOf(target.value)
-        if (!detail) return
-        busy.value = true
-        try {
-            await removePuzzle(detail.pid)
+        await withDetail(target.value, async (pid) => {
+            await removePuzzle(pid)
             removeOpen.value = false
-            afterChange(target.value)
-        } finally {
-            busy.value = false
-        }
+        }, '删除失败，请重试')
     }
 
     /** 每行一套行内控件（闭包随行；components 只负责画） */

@@ -2,8 +2,8 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { PAGE } from '@/constants/pages'
 import { fromPuzzle } from '@/core/board/model'
+import { errorTextOf } from '@/core/message'
 import { parsePuzzle } from '@/core/sudoku/parse'
-import { cellCountOf } from '@/core/sudoku/shape'
 import { getOne, play } from '@/services/api/puzzleApi'
 import { useGameStore } from '@/stores/game'
 import { useUserStore } from '@/stores/user'
@@ -52,7 +52,7 @@ export const usePuzzleDetail = () => {
             data.value = await getOne(nextPid)
         } catch (err) {
             data.value = null
-            error.value = err instanceof Error ? err.message : '题目加载失败'
+            error.value = errorTextOf(err, '题目加载失败')
         } finally {
             loading.value = false
         }
@@ -64,15 +64,11 @@ export const usePuzzleDetail = () => {
      * · 热度只对已登录用户上报（服务端 1 人 1 小时去重；作者不计）
      */
     const challenge = async (): Promise<void> => {
-        const p = parsed.value
         const info = data.value
-        if (!p || !info) return
+        if (!info) return
 
-        const solution = info.solutionText ? parsePuzzle(info.solutionText)?.board ?? [] : []
-        gameStore.startGame(p.board, solution, {
-            boxSize: p.boxSize,
-            blankRatio: info.blankCount / cellCountOf(p.boxSize),
-        })
+        // 题面 / 答案串 → 开局（解析与 blankRatio 都在 core / store；落地页不带来源信息）
+        if (!gameStore.startFromTexts(info.puzzleText, info.solutionText ?? '', info.blankCount)) return
 
         if (!userStore.isGuest) {
             try { await play(info.pid) } catch { /* 热度失败不影响开局 */ }

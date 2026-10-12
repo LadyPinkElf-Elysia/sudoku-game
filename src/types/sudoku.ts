@@ -24,6 +24,8 @@ export interface Sudoku {
     findConflicts(grid: NumBoard): ConflictMask
     /** 是否存在任何冲突（发现即返回） */
     hasConflict(grid: NumBoard): boolean
+    /** 是否有整行 / 整列 / 整宫全为 0（自定义 / 出题提交题面时校验；系统生成不校验） */
+    hasEmptyGroup(grid: NumBoard): boolean
     /** 校验「题面 + 答案」是否成立 */
     validatePuzzle(puzzle: NumBoard, solution: NumBoard): boolean
 }

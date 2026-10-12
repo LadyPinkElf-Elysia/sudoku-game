@@ -56,6 +56,15 @@ export interface MyPuzzleDetail extends PuzzleDetail {
     solutionText: string
 }
 
+/** 可提交的改动字段（`PATCH /api/puzzles/:pid`；services 层与组件层共用同一份形状） */
+export interface PuzzlePatch {
+    title?: string
+    puzzleText?: string
+    solutionText?: string
+    visibility?: Visibility
+    showSolution?: boolean
+}
+
 /** 统一数据：生成器 / 玩家出题 都产出这个（Worker 回传也用） */
 export interface PuzzleData {
     puzzle: NumBoard

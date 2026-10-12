@@ -164,12 +164,13 @@
     全站共用的界面          → 父路由布局（AppLayout），主内容在 <RouterView/>
     页面要显示的"算好的值"  → 由 composable 暴露（composable 才能 import core；页面禁 Math.）
     跨页共用的视觉规格      → 全局样式（styles/*.css）：card / form / overlay（`.text-btn` 就是「可点击文本」的唯一样式）
-    跨页共用的流程          → 公共组合式（useListQuery 列表查询 · usePuzzlePreview 预览 · useClipboard 复制）
+    跨页共用的流程          → 公共组合式（useListQuery 列表查询 · usePuzzlePreview 预览 · useClipboard 复制 ·
+                              usePuzzleStage 出题/编辑的「题面→答案」两阶段）
     悬浮提示 / 无障碍名      → **只在传入数据里有才用；没给就不加**（不自行发明文案）
 
 ## 八、后端约定（functions/）
 
-    · 复用 core 做服务端校验（同尺寸 / 格式 / 40~70% / 合法终盘）—— 规则只有一份
+    · 复用 core 做服务端校验（同尺寸 / 格式 / 40~70% / 无空行·空列·空宫 / 合法终盘）—— 规则只有一份
     · import core 一律用相对路径（`../../../src/core/...`）；别名靠 functions/tsconfig.json 的 paths
     · 环境相关逻辑（密码哈希 / 会话 / 限流 / id 生成）只放 functions/utils/
     · 每个接口文件只做四件事：校验参数 → 调 core → 读写 D1 → 用 utils/json 统一响应
@@ -184,12 +185,12 @@
 |---|---|---|
 | board.ts | `Cell` `Board` `NumBoard` `ConflictMask` `Snapshot` `Position` | core / stores / render / composables / components |
 | render.ts | `BoardRenderInput` | BoardView props、页面 boardParams、useBoardCanvas、renderBoard(canvas, input, contentWidth?) |
-| sudoku.ts | `Sudoku`（手写契约） | core/sudoku/rules 实现；fill/generate、stores/game 使用 |
+| sudoku.ts | `Sudoku`（手写契约；`hasEmptyGroup` = 手选题面禁「整行/列/宫全空」） | core/sudoku/rules 实现；fill/generate、stores/game、useCustomFlow、functions 使用 |
 | rng.ts | `Rng` | core/array.shuffle、core/sudoku/fill、services/sudoku/worker |
 | worker.ts | `GenerateRequest` `GenerateResponse` | services/sudoku/worker 与 workerClient |
 | game.ts | `GameConfig` `GameMeta` `GameStatus` `GameMode` `CreatePhase` | stores/game、core/game/derive、useCreateFlow/useEditFlow/useDifficultyFlow、GamePage |
 | item.ts | `Action` `Actions` `Menu` `Menus` `SelectOption` `ListBar` `ListPager` `MyPuzzleRowControls`（🔸 `Menu.disabled`） | TextAction / FormField / ListSection / HomePage、useZoom / useGameFlow / useMyPuzzles … |
-| puzzle.ts | `Visibility` · `ListSort` · `PagerMode` · `SearchResult`（含 `uname`）· `MyPuzzle` · `PuzzleDetail` · `MyPuzzleDetail` · `PuzzleData`（**均不含 uid**） | services/api、stores/puzzle、composables/puzzle、PuzzleCard / MyPuzzleRow / PagerBar |
+| puzzle.ts | `Visibility` · `ListSort` · `PagerMode` · `SearchResult`（含 `uname`）· `MyPuzzle` · `PuzzleDetail` · `MyPuzzleDetail` · `PuzzlePatch`（可提交字段）· `PuzzleData`（**均不含 uid**） | services/api、stores/puzzle、composables/puzzle、PuzzleCard / MyPuzzleRow / PagerBar |
 | page.ts | `Page`（路由名类型） | useListQuery、待 `Menu.routeName` 采用（见 E4） |
 | user.ts | `User`（含自己的 `uid`）（🔸 `RegisterPayload` `LoginPayload` `AuthResponse`） | stores/user、services/api |
 
@@ -198,14 +199,15 @@
 ## 十、目录速览（✅ 现有 · ⛔ 规划）
 
     src/
-      core/                 array · page · board/{model,ops,metrics,zoom}
+      core/                 array · page（分页 + 排序/浏览方式归一化）· message（错误文案 / 40~70% / 提交校验）
+                            board/{model,ops,metrics,zoom}
                             sudoku/{shape,rules,generate,fill,tracker,parse} · game/derive
       render/board.ts       renderBoard(canvas, input, contentWidth?) · measureContentWidth(parent) · getClickPos(canvas, e, size)
       services/             prefs.ts · api/{client,session,userApi,puzzleApi} · sudoku/{worker,workerClient}
       stores/               {game,user,puzzle}.ts
       composables/          useClipboard · useListQuery
                             auth/{useAuth,useAccountMenu,useAccountPanel} · board/{useBoardCanvas,useZoom}
-                            game/{useGameFlow,useCreateFlow,useEditFlow,useCustomFlow,useDifficultyFlow}
+                            game/{useGameFlow,useCreateFlow,useEditFlow,usePuzzleStage,useCustomFlow,useDifficultyFlow}
                             puzzle/{useSearchPuzzle,usePuzzleDetail,usePuzzlePreview,useMyPuzzles,metaText}
       components/           ——— 两个通用件 ———
                             TextAction(可点击文本；不给 onClick = 纯文本) · Flex(direction/gap/align/justify/wrap)
@@ -269,3 +271,14 @@
   为保持既有引用（§八 后端约定 / §九 types 索引 / §十 目录速览 / §十一 用法 / §十二 变更记录）
   编号留空，不回移
 - v1.8.2：§十 目录速览把 `worker-configuration.d.ts` / `README.md` 的 ⛔ 划掉（两者均已落地）
+- v1.8.3：**core 新增 `message.ts`**（`errorTextOf` / `blankRatioErrorOf` / `puzzleSubmitErrorOf`，3 个导出；
+  全站 11 处错误文案与 3 处 40%~70% 文案收口，出题 / 编辑提交校验合一）；**`Sudoku` 契约 ＋`hasEmptyGroup`**
+  （手选题面禁整行 / 整列 / 整宫全空，`functions/utils/puzzle.ts` 同规则复校）；§八 / §九 / §十 同步
+- v1.8.4：**组合式去重（P2/P3）**：`core/page.ts` ＋`sortOf` / `pagerModeOf`（条件归一化不再散在
+  `useListQuery` 里各写两遍）；`types/puzzle.ts` ＋`PuzzlePatch`（PATCH 字段一份形状）；`stores/game`
+  ＋`startFromTexts`（我的题目与落地页的「挑战」共用开局）；`stores/puzzle` 列表取数收成内部
+  `loadPage`；`useMyPuzzles` ＋`withDetail`；`tracker.place` 抽内部 `drop`；`render/board` 小整
+- v1.8.5：＋**`composables/game/usePuzzleStage.ts`**（出题页 / 编辑页共用的「题面 → 答案」两阶段状态机：
+  `phase` / `puzzleSnapshot` / `errorMsg` / `showFail` + `resetStage` / `submitPuzzle` / `checkSolution` /
+  `backToEdit`）→ `useCreateFlow` 与 `useEditFlow` 各省 ≈20 行，只留各自不同的部分（标题 / 缩放 /
+  POST / PATCH / 跳转）；页面里两个已被 `Action` 去掉的 `title` 字段一并清掉（§六、§十 同步）

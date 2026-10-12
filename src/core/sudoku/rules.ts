@@ -119,6 +119,17 @@ export const createSudoku = (boxSize: number): Sudoku => {
         return false
     }
 
+    /**
+     * 是否有整行 / 整列 / 整宫全为 0 —— 只给「手选题面」的提交用
+     * （行/列/宫的定义就在上面的 allGroups()，不另写一套；`?.` 防不规则输入越界）
+     */
+    const hasEmptyGroup = (grid: NumBoard): boolean => {
+        for (const group of allGroups()) {
+            if (group.every(([r, c]) => grid[r]?.[c] === 0)) return true
+        }
+        return false
+    }
+
 
     /**检查棋盘有没有填满*/
     const isFull = (grid: NumBoard): boolean => grid.every(row => row.every(v => v !== 0))
@@ -151,6 +162,7 @@ export const createSudoku = (boxSize: number): Sudoku => {
         S, B,
         getCandidates,
         isSolved, findConflicts, hasConflict,
+        hasEmptyGroup,
         validatePuzzle,
         makeEmptyBoard, makeEmptyMask
     }

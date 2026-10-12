@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { GAME_INIT_CONFIG } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
+import { errorTextOf } from '@/core/message'
 import { useGameStore } from '@/stores/game'
 import type { GameConfig } from '@/types/game'
 import { cellCountOf, blankCountOf } from '@/core/sudoku/shape'
@@ -32,7 +33,7 @@ export const useDifficultyFlow = () => {
             gameStore.startGame(puzzle, solution, cfg)
             router.replace({ name: PAGE.Game })
         } catch (err) {
-            error.value = err instanceof Error ? err.message : '生成失败，请重试'
+            error.value = errorTextOf(err, '生成失败，请重试')
         } finally {
             loading.value = false        // ← 修复：原先成功路径不复位，overlay 会残留
         }
