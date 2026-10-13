@@ -9,13 +9,7 @@ export const lockGiven = (board: Board): Board =>
     mapGrid(board, cell => ({ v: cell.v, lock: cell.v !== 0 }))
 
 export const applySolution = (board: Board, solution: NumBoard): Board =>
-    board.map((row, r) =>
-        row.map((cell, c) =>
-        ({
-            ...cell,
-            v: solution[r][c] ?? cell.v
-        })
-        ))
+    board.map((row, r) => row.map((cell, c) => ({ ...cell, v: solution[r][c] ?? cell.v })))
 
 /** 空格数（0 的个数） */
 export const countBlanks = (board: NumBoard): number =>
