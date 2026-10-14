@@ -24,7 +24,7 @@ export const usePuzzlePreview = (load: (id: string) => Promise<PreviewSource | n
     /** 盘面数据（zoom / interactive 由本 composable 决定，调用方不用管） */
     const previewBoard = ref<BoardRenderInput>({ board: [], boxSize: 0 })
     const previewLoading = ref(false)
-    const { zoom, resetZoom, zoomActions } = useZoom(previewBoard.value.boxSize)
+    const { zoom, resetZoom, zoomActions } = useZoom(defaultZoomOf(previewBoard.value.boxSize))
 
     /** 只读盘：不给交互，只给缩放 */
     const previewInput = computed<BoardRenderInput>(() => ({
