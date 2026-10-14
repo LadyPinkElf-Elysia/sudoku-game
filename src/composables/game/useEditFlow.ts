@@ -11,7 +11,7 @@ import { useGameStore } from '@/stores/game'
  * 编辑页流程（FR-10）：进入预填自己的题面（未锁定）→（提交题面 / 提交答案与校验交给
  * usePuzzleStage，出题页共用）→ PATCH → 回「我的题目」；不改 created_at，也不含标题/可见性
  */
-export const useEditFlow = (resetZoom: () => void) => {
+export const useEditFlow = () => {
     const route = useRoute()
     const router = useRouter()
     const gameStore = useGameStore()
@@ -42,7 +42,6 @@ export const useEditFlow = (resetZoom: () => void) => {
             }
             pid.value = id
             gameStore.startCreate(parsed.boxSize, parsed.board)   // 未锁定 → 可增量改
-            resetZoom()
         } catch (err) {
             errorMsg.value = errorTextOf(err, '题目加载失败')
             showFail.value = true

@@ -9,6 +9,7 @@ export const PAGE = {
     PuzzleView: 'puzzle-view',
     Search: 'search',
     MyPuzzles: 'my-puzzles',
+    Solve: 'solve',
     Login: 'login',
 } as const
 

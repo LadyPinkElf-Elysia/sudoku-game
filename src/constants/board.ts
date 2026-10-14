@@ -28,20 +28,23 @@ export const BOARD_ZOOM = {
     min: 1,
     max: 10,
     step: 0.25,
-    default: 1,
+    /**
+     * 默认缩放：**按宫边长 B 取**（盘面越大默认放得越大，否则字太小）
+     * · 键 = 宫边长 B（2~10）；没登记的尺寸兜底 `min`
+     * · 消费方只走 `core/board/zoom.ts` 的 `defaultZoomOf(boxSize)`（页面走 `useBoardZoom`），别自己查表
+     */
+    default: {
+        2: 1,
+        3: 1.25,
+        4: 1.5,
+        5: 2,
+        6: 2.5,
+        7: 3,
+        8: 4,
+        9: 5,
+        10: 6,
+    } as Readonly<Record<number, number>>,
 } as const
-
-export const BOARD_ZOOM_BY_BOX: Readonly<Record<number, number>> = {
-    2: 1,
-    3: 1.25,
-    4: 1.5,
-    5: 2,
-    6: 2.5,
-    7: 3,
-    8: 4,
-    9: 5,
-    10: 6,
-}
 
 // ==================== 外观 ====================
 

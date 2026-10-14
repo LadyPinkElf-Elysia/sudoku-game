@@ -32,6 +32,8 @@ const router = createRouter({
 
         { path: PAGE.Game, name: PAGE.Game, component: () => import('@/pages/GamePage.vue') },
 
+        { path: PAGE.Solve, name: PAGE.Solve, component: () => import('@/pages/SolvePage.vue') },
+
         {
           path: PAGE.Create, name: PAGE.Create, component: () => import('@/pages/CreatePage.vue'),
           meta: { requiresAuth: true }

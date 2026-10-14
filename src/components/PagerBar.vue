@@ -14,6 +14,8 @@ const props = defineProps<{
     mode: PagerMode
     /** 步骤条用：每一步的文案（不传就显示下标） */
     stepLabel?: (index: number) => string
+    /** 步骤条用：信息行文案（不传 = 历史步数语义） */
+    infoText?: string
 }>()
 
 const emit = defineEmits<{ change: [page: number] }>()
@@ -39,7 +41,7 @@ const go = (next: number): void => {
 
         <!-- 步骤条：一串可点选的步骤（游戏页历史记录） -->
         <PagerStepsView v-else-if="mode === PAGER_MODE.Steps" :page="page" :page-count="pageCount"
-            :step-label="stepLabel" @change="go" />
+            :step-label="stepLabel" :info-text="infoText" @change="go" />
 
         <!-- 进度条（默认）：上一页 / 页码 / 下一页 —— 都是可点击文本 -->
         <template v-else>

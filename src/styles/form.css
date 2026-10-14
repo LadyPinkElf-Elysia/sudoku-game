@@ -189,3 +189,39 @@
     flex-direction: column;
     gap: 10px;
 }
+
+/* 子导航 Tab 条（难度页壳 / 题目求解的输入方式共用一套视觉）—— 原先挂在 DifficultyPage 的 scoped 里 */
+.sub-nav {
+    padding: 4px;
+    margin-bottom: 18px;
+    background: #f3f4f6;
+    border-radius: 10px;
+}
+
+.sub-tab {
+    flex: 1;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    color: #6b7280;
+    font-size: 0.85rem;
+    font-family: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+.sub-tab:hover {
+    color: #4f46e5;
+}
+
+.sub-tab.is-active {
+    background: #fff;
+    color: #4f46e5;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}

@@ -7,18 +7,16 @@ import Overlay from '@/components/Overlay.vue'
 import TextAction from '@/components/TextAction.vue'
 import { CREATE_PHASE } from '@/constants/game'
 import { useGameStore } from '@/stores/game'
-import { useZoom } from '@/composables/board/useZoom'
+import { useBoardZoom } from '@/composables/board/useZoom'
 import { useEditFlow } from '@/composables/game/useEditFlow'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
-import { defaultZoomOf } from '@/core/board/zoom'
-
 const gameStore = useGameStore()
-const { zoom, zoomActions, resetZoom } = useZoom(defaultZoomOf(gameStore.config.boxSize))
+const { zoom, zoomActions } = useBoardZoom(() => gameStore.config.boxSize)
 const {
     phase, errorMsg, loading, showFail,
     submitPuzzle, submitSolution, backToEdit, goMyPuzzles,
-} = useEditFlow(resetZoom)
+} = useEditFlow()
 
 /** 棋盘渲染入参：一个对象喂给 BoardView */
 const boardParams = computed<BoardRenderInput>(() => ({

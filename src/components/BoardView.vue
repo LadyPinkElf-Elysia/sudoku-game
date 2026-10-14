@@ -19,7 +19,7 @@ const props = withDefaults(
         /** 缩放按钮的数据（`useZoom().zoomActions`）：给了就在棋盘正上方画一对，左缩小右放大 */
         zoomActions?: Actions
     }>(),
-    { selected: null, zoom: BOARD_ZOOM.default, interactive: true },
+    { selected: null, zoom: BOARD_ZOOM.min, interactive: true },
 )
 
 const emit = defineEmits<{ 'cell-click': [pos: Position] }>()

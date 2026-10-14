@@ -1,4 +1,4 @@
-import { GAME_INIT_CONFIG, GAME_MODE, GAME_STATUS } from '@/constants/game'
+import { GAME_INIT_CONFIG, GAME_MODE, GAME_ORIGIN, GAME_STATUS } from '@/constants/game'
 import { toNum, fromPuzzle } from '@/core/board/model'
 import { cloneBoard, lockGiven, applySolution, countBlanks } from '@/core/board/ops'
 import { statusOf } from '@/core/game/derive'
@@ -6,7 +6,7 @@ import { parsePuzzle } from '@/core/sudoku/parse'
 import { cellCountOf } from '@/core/sudoku/shape'
 import { getSudoku } from '@/core/sudoku/rules'
 import type { Board, Cell, ConflictMask, NumBoard, Position, Snapshot } from '@/types/board'
-import type { GameConfig, GameMeta, GameMode, GameStatus } from '@/types/game'
+import type { GameConfig, GameMeta, GameMode, GameOrigin, GameStatus } from '@/types/game'
 import type { Sudoku } from '@/types/sudoku'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -24,6 +24,8 @@ export const useGameStore = defineStore('gameStore', () => {
     const solution = ref<NumBoard>([])
     /** 当前盘面来源（FR-11 题目信息行） */
     const meta = ref<GameMeta>({ ...EMPTY_META })
+    /** 开局来源（系统生成 / 自定义 / 挑战）——游戏页据此决定给不给「导出题目」 */
+    const origin = ref<GameOrigin>(GAME_ORIGIN.System)
 
     const sudoku = computed<Sudoku>(() => getSudoku(config.value.boxSize))
     const numBoard = computed<NumBoard>(() => toNum(board.value))
@@ -60,9 +62,10 @@ export const useGameStore = defineStore('gameStore', () => {
     const getCandidates = (pos: Position): number[] =>
         sudoku.value.getCandidates(numBoard.value, pos)
 
-    /** 开始游戏：source 给了才有「标题 · 出题人」信息行 */
-    const startGame = (puzzle: NumBoard, sol: NumBoard, cfg: GameConfig, source?: GameMeta) => {
+    /** 开始游戏：from = 开局来源；source 给了才有「标题 · 出题人」信息行 */
+    const startGame = (puzzle: NumBoard, sol: NumBoard, cfg: GameConfig, from: GameOrigin, source?: GameMeta) => {
         mode.value = GAME_MODE.Game
+        origin.value = from
         config.value = { ...cfg }
         board.value = fromPuzzle(puzzle, true)
         solution.value = sol
@@ -85,21 +88,30 @@ export const useGameStore = defineStore('gameStore', () => {
         startGame(parsed.board, parsePuzzle(solutionText)?.board ?? [], {
             boxSize: parsed.boxSize,
             blankRatio: blankCount / cellCountOf(parsed.boxSize),
-        }, source)
+        }, GAME_ORIGIN.Challenge, source)
         return true
     }
-    /** 进入出题/编辑：puzzle 给了就预填（不锁定 → 可增量改） */
-    const startCreate = (boxSize: number, puzzle?: NumBoard): void => {
-        mode.value = GAME_MODE.Create
+    /**
+     * 进入「手填盘面」的模式（出题/编辑 与 题目求解）：只有 mode 不同，其余完全一致
+     * puzzle 给了就预填（不锁定 → 可增量改）；没给就按 boxSize 起一张空盘
+     */
+    const startInput = (nextMode: GameMode, boxSize: number, puzzle?: NumBoard): void => {
+        mode.value = nextMode
         config.value = {
             boxSize,
             blankRatio: puzzle ? countBlanks(puzzle) / cellCountOf(boxSize) : 0,
         }
-        board.value = puzzle ? fromPuzzle(puzzle, false) : sudoku.value.makeEmptyBoard()
+        board.value = puzzle ? fromPuzzle(puzzle, false) : getSudoku(boxSize).makeEmptyBoard()
         solution.value = []
         meta.value = { ...EMPTY_META }
         resetHistory()
     }
+
+    /** 进入出题 / 编辑：手填题面 */
+    const startCreate = (boxSize: number, puzzle?: NumBoard): void => startInput(GAME_MODE.Create, boxSize, puzzle)
+
+    /** 进入题目求解：手填 / 回填题面（求解结果不进 store，见 composables/solve/useSolveFlow） */
+    const startSolve = (boxSize: number, puzzle?: NumBoard): void => startInput(GAME_MODE.Solve, boxSize, puzzle)
     /** 提交题面：锁定规则在 core，这里只写回 */
     const lockPuzzle = (): void => {
         board.value = lockGiven(board.value)
@@ -140,14 +152,14 @@ export const useGameStore = defineStore('gameStore', () => {
         config, mode,
 
         // 状态
-        sudoku, board, numBoard, selected, status, solution, currentStep, meta,
+        sudoku, board, numBoard, selected, status, solution, currentStep, meta, origin,
 
         // 派生
         isWin, snapshots,
         conflictMask, selectedCell,
 
         // Actions
-        startGame, startCreate, startFromTexts, lockPuzzle,
+        startGame, startCreate, startSolve, startFromTexts, lockPuzzle,
         select, inputNum,
         jump, cheat,
 

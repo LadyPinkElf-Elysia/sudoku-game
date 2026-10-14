@@ -23,13 +23,15 @@ withDefaults(defineProps<{
     spinning?: boolean
     /** 按钮条（有才渲染） */
     actions?: Actions
-}>(), { text: '', desc: '', shade: true, spinning: false })
+    /** 宽盒子（长文本 / 一串题面用） */
+    wide?: boolean
+}>(), { text: '', desc: '', shade: true, spinning: false, wide: false })
 </script>
 
 <template>
     <Teleport to="body">
         <Transition name="overlay-fade">
-            <div v-if="show" class="overlay" :class="{ 'is-plain': !shade }">
+            <div v-if="show" class="overlay" :class="{ 'is-plain': !shade, 'is-wide': wide }">
                 <div class="overlay-box">
                     <div v-if="spinning" class="spinner"></div>
                     <p v-if="text" class="overlay-title">{{ text }}</p>
@@ -74,6 +76,12 @@ withDefaults(defineProps<{
 .overlay-fade-enter-active,
 .overlay-fade-leave-active {
     transition: opacity 0.2s;
+}
+
+/* wide：长文本（题面串 / 答案串）要更宽的盒子 */
+.overlay.is-wide .overlay-box {
+    max-width: 720px;
+    width: 100%;
 }
 
 /* shade=false：不遮背景，只留一个浮层框 */

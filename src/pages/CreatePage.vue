@@ -8,19 +8,18 @@ import FormField from '@/components/FormField.vue'
 import TextAction from '@/components/TextAction.vue'
 import { BOX_SIZE_SELECT_OPTIONS, CREATE_PHASE, TITLE_MAX } from '@/constants/game'
 import { useGameStore } from '@/stores/game'
-import { useZoom } from '@/composables/board/useZoom'
+import { useBoardZoom } from '@/composables/board/useZoom'
 import { useCreateFlow } from '@/composables/game/useCreateFlow'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
-import { defaultZoomOf } from '@/core/board/zoom'
 
 const gameStore = useGameStore()
-const { zoom, zoomActions, resetZoom } = useZoom(defaultZoomOf(gameStore.config.boxSize))
+const { zoom, zoomActions } = useBoardZoom(() => gameStore.config.boxSize)
 const {
     phase, title, errorMsg, loading, showSuccess, showFail,
     changeBoxSize, goMine,
     submitPuzzle, submitSolution, backToEdit,
-} = useCreateFlow(resetZoom)
+} = useCreateFlow()
 
 /** v-model 适配：读 store 的盘面大小，写回走流程切换 */
 const boxSize = computed<number>({

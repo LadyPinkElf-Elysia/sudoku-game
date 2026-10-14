@@ -53,7 +53,7 @@ export const usePuzzlePreview = (load: (id: string) => Promise<PreviewSource | n
 
             previewTitle.value = title
             previewBoard.value = { board: fromPuzzle(parsed.board, true), boxSize: parsed.boxSize }
-            resetZoom()
+            resetZoom(defaultZoomOf(parsed.boxSize))
             previewOpen.value = true
         } finally {
             previewLoading.value = false

@@ -6,16 +6,19 @@ import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import TextAction from '@/components/TextAction.vue'
+import { EXPORT_COPY } from '@/constants/game'
 import { useGameStore } from '@/stores/game'
-import { useZoom } from '@/composables/board/useZoom'
+import { useBoardZoom } from '@/composables/board/useZoom'
 import { useGameFlow } from '@/composables/game/useGameFlow'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
-import { defaultZoomOf } from '@/core/board/zoom'
-
 const gameStore = useGameStore()
-const { zoom, zoomActions } = useZoom(defaultZoomOf(gameStore.config.boxSize))
-const { tip, answerOpen, answerTitle, answerInput, answerActions, answerZoomActions, leadActions, trailActions, resultActions, winOverlay } = useGameFlow()
+const { zoom, zoomActions } = useBoardZoom(() => gameStore.config.boxSize)
+const {
+    tip, answerOpen, answerTitle, answerInput, answerActions, answerZoomActions,
+    exportOpen, exportPuzzleText, exportTip, exportActions,
+    leadActions, trailActions, resultActions, winOverlay,
+} = useGameFlow()
 
 /** 操作条：左段（返回/重开）＋ 右段（提示/参考答案/DEV 作弊）—— 缩放不在这里，贴棋盘 */
 const items = computed<Actions>(() => [...leadActions.value, ...trailActions.value])
@@ -63,6 +66,12 @@ const boardParams = computed<BoardRenderInput>(() => ({
             <BoardView v-bind="answerInput" :zoom-actions="answerZoomActions" />
         </Overlay>
 
+        <!-- 题目导出：只给当前这一盘的题面串（= 锁定格；玩家填的不进串，也不给答案），别人拿去就能在「题目求解」/「自定义」里用 -->
+        <Overlay :show="exportOpen" wide :text="EXPORT_COPY.title" :desc="exportTip" :actions="exportActions">
+            <p class="export-label">{{ EXPORT_COPY.puzzleLabel }}</p>
+            <textarea class="input textarea export-text" readonly :value="exportPuzzleText"></textarea>
+        </Overlay>
+
         <!-- 通关：文案 + 按钮条都由数据决定 -->
         <Overlay :show="!!winOverlay" :text="winOverlay?.title" :desc="winOverlay?.desc" :actions="resultActions" />
     </div>
@@ -82,5 +91,19 @@ const boardParams = computed<BoardRenderInput>(() => ({
 .game-info {
     margin: 0 0 8px;
     text-align: center;
+}
+
+/* 导出遮罩里的题面串：小标题 + 等宽只读文本（.input / .textarea 来自全局样式） */
+.export-label {
+    margin: 12px 0 4px;
+    font-size: 0.78rem;
+    color: #6b7280;
+    text-align: left;
+}
+
+.export-text {
+    width: 100%;
+    box-sizing: border-box;
+    height: 110px;
 }
 </style>

@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CUSTOM_COPY, TITLE_MAX } from '@/constants/game'
+import { CUSTOM_COPY, GAME_ORIGIN, TITLE_MAX } from '@/constants/game'
 import { VISIBILITY } from '@/constants/puzzle'
 import { PAGE } from '@/constants/pages'
 import { countBlanks, isBlankBoard } from '@/core/board/ops'
@@ -108,7 +108,7 @@ export const useCustomFlow = () => {
             gameStore.startGame(p.board, s.board, {
                 boxSize: p.boxSize,
                 blankRatio: countBlanks(p.board) / cellCountOf(p.boxSize),
-            })
+            }, GAME_ORIGIN.Custom)
             await router.push({ name: PAGE.Game })
         } catch (err) {
             error.value = errorTextOf(err, '提交失败，请重试')

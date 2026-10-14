@@ -13,6 +13,18 @@ export const GAME_STATUS = {
 export const GAME_MODE = {
     Game: 'game',
     Create: 'create',
+    Solve: 'solve',
+} as const
+
+/**
+ * 开局来源（决定游戏页给不给「导出题目」）
+ * · 只有**系统生成**的盘既没有 pid 也没有现成串 → 才需要导出
+ * · 自定义：串本来就在你手上；挑战：有 pid / 落地页可分享
+ */
+export const GAME_ORIGIN = {
+    System: 'system',
+    Custom: 'custom',
+    Challenge: 'challenge',
 } as const
 
 /** 逻辑驱动的静态文案（纯静态、无格式化 → 放数据层） */
@@ -56,6 +68,17 @@ export const RATIO_COPY = {
 /** 题面不得出现「整行 / 整列 / 整宫全空」（自定义 / 出题 / 编辑提交题面时校验） */
 export const EMPTY_GROUP_COPY = {
     bad: '题面不能有整行 / 整列 / 整宫全空',
+} as const
+
+/** 游戏页「📋 导出题目」：把这一盘的题面变成可解析的串（与 parsePuzzle 对称；**不含答案**） */
+export const EXPORT_COPY = {
+    button: '📋 导出题目',
+    title: '题目导出',
+    puzzleLabel: '题面串（粘贴到「题目求解」或「自定义」即可用）',
+    puzzleShort: '题面串',
+    copyPuzzle: '📋 复制题面',
+    copyFail: '复制失败，请手动选中文本复制',
+    close: '↩ 返回',
 } as const
 
 /** 自定义页两个 textarea 的输入上限（B=6 时最多 1296 个数字 + 分隔符，留足余量） */

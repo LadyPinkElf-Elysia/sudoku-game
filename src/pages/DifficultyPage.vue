@@ -26,36 +26,7 @@ const TABS = [
 </template>
 
 <style scoped>
-.sub-nav {
-    padding: 4px;
-    margin-bottom: 18px;
-    background: #f3f4f6;
-    border-radius: 10px;
-}
-
-.sub-tab {
-    flex: 1;
-    height: 32px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    color: #6b7280;
-    font-size: 0.85rem;
-    text-decoration: none;
-    transition: 0.15s;
-}
-
-.sub-tab:hover {
-    color: #4f46e5;
-}
-
-.sub-tab.is-active {
-    background: #fff;
-    color: #4f46e5;
-    font-weight: 600;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
+/* .sub-nav / .sub-tab 已提为全局样式（styles/form.css）—— 难度页壳与题目求解的输入方式共用同一套 Tab 视觉 */
 
 .sub-main {
     min-height: 160px;

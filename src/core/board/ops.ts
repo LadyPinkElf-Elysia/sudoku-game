@@ -14,3 +14,7 @@ export const applySolution = (board: Board, solution: NumBoard): Board =>
 /** 空格数（0 的个数） */
 export const countBlanks = (board: NumBoard): number =>
     board.reduce((n, row) => n + row.reduce((m, v) => m + (v === 0 ? 1 : 0), 0), 0)
+
+/** 题面盘：只留锁定的已知格（玩家填的与空格都算 0）——游戏页「导出题目」出题面串用 */
+export const givenBoard = (board: Board): NumBoard =>
+    mapGrid(board, cell => (cell.lock ? cell.v : 0))

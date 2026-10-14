@@ -17,9 +17,9 @@ const defaultTitleOf = (boxSize: number): string => {
 
 /**
  * 出题页流程：标题 + POST 入库；题面/答案两阶段与校验交给 usePuzzleStage（编辑页共用）
- * 每页一份；缩放由页面注入，避免再次 useZoom() 产生第二份 zoom
+ * 每页一份；缩放不在这里管（页面的 `useBoardZoom` 跟着盘面大小走）
  */
-export const useCreateFlow = (resetZoom: () => void) => {
+export const useCreateFlow = () => {
     const gameStore = useGameStore()
     const router = useRouter()
 
@@ -37,11 +37,10 @@ export const useCreateFlow = (resetZoom: () => void) => {
         showSuccess.value = false
     }
 
-    /** 重建一盘空题（切盘面用） */
+    /** 重建一盘空题（切盘面用）：缩放由页面的 useBoardZoom 跟着盘面大小自动复位 */
     const restart = (boxSize: number): void => {
         reset()
         gameStore.startCreate(boxSize)
-        resetZoom()
     }
 
     /** 切换盘面大小：必须重建 board，否则键盘与盘面尺寸不一致 */

@@ -1,6 +1,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { GAME_COPY, GAME_MODE, GAME_STATUS } from '@/constants/game'
+import { EXPORT_COPY, GAME_COPY, GAME_MODE, GAME_ORIGIN, GAME_STATUS } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
@@ -10,6 +10,9 @@ import { useZoom } from '@/composables/board/useZoom'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
 import { defaultZoomOf } from '@/core/board/zoom'
+import { givenBoard } from '@/core/board/ops'
+import { boardToStr } from '@/core/sudoku/parse'
+import { usePuzzleExport } from '@/composables/usePuzzleExport'
 
 export const useGameFlow = () => {
     const gameStore = useGameStore()
@@ -21,6 +24,17 @@ export const useGameFlow = () => {
     const tip = ref('')
     /** 参考答案遮罩开关 */
     const answerOpen = ref(false)
+
+    /** ===== 题目导出（只给系统生成的盘）：题面串，**不给答案** ===== */
+    const {
+        open: exportOpen, puzzleText: exportPuzzleText,
+        tip: exportTip, actions: exportActions, show: showExport,
+    } = usePuzzleExport()
+
+    const exportPuzzle = (): void => {
+        if (!gameStore.board.length) return
+        showExport(boardToStr(givenBoard(gameStore.board)))
+    }
 
     /** 遮罩里的只读盘：由答案生成一块独立 Board（与游玩盘无关），整对象交给 Overlay 里的 BoardView */
     const answerInput = computed<BoardRenderInput>(() => ({
@@ -56,6 +70,10 @@ export const useGameFlow = () => {
     ])
     const trailActions = computed<Actions>(() => [
         { key: 'hint', text: '💡 提示', onClick: hint },
+        // 只有系统生成的盘才给导出（自定义的串本就在手上、挑战有 pid / 落地页可分享）
+        ...(gameStore.origin === GAME_ORIGIN.System
+            ? [{ key: 'export', text: EXPORT_COPY.button, onClick: exportPuzzle }]
+            : []),
         ...(gameStore.solution.length
             ? [{ key: 'answer', text: '📖 答案', onClick: () => { answerOpen.value = true } }]
             : []),
@@ -79,5 +97,9 @@ export const useGameFlow = () => {
         if (saved) tip.value = saved
     })
 
-    return { tip, answerOpen, answerTitle, answerInput, answerActions, answerZoomActions, leadActions, trailActions, resultActions, winOverlay }
+    return {
+        tip, answerOpen, answerTitle, answerInput, answerActions, answerZoomActions,
+        exportOpen, exportPuzzleText, exportTip, exportActions,
+        leadActions, trailActions, resultActions, winOverlay,
+    }
 }

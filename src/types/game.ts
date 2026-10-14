@@ -1,4 +1,4 @@
-import type { GAME_STATUS, GAME_MODE, CREATE_PHASE } from "@/constants/game"
+import type { GAME_STATUS, GAME_MODE, CREATE_PHASE, GAME_ORIGIN } from "@/constants/game"
 
 export interface GameConfig {
     boxSize: number,
@@ -14,4 +14,6 @@ export interface GameMeta {
 
 export type GameStatus = typeof GAME_STATUS[keyof typeof GAME_STATUS]
 export type GameMode = typeof GAME_MODE[keyof typeof GAME_MODE]
+/** 开局来源（值来自 constants/game 的 GAME_ORIGIN） */
+export type GameOrigin = typeof GAME_ORIGIN[keyof typeof GAME_ORIGIN]
 export type CreatePhase = typeof CREATE_PHASE[keyof typeof CREATE_PHASE]

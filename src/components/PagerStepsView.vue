@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 const props = defineProps<{
     /** 当前步（从 0 开始） */
@@ -8,9 +8,14 @@ const props = defineProps<{
     pageCount: number
     /** 每一步的文案（不传就显示下标） */
     stepLabel?: (index: number) => string
+    /** 信息行文案（不传 = 历史步数语义 page / pageCount - 1） */
+    infoText?: string
 }>()
 
 const emit = defineEmits<{ change: [page: number] }>()
+
+/** 信息行：默认沿用历史步数语义，调用方给了 infoText 就用它 */
+const info = computed<string>(() => props.infoText ?? (props.page + ' / ' + (props.pageCount - 1)))
 
 const stepsEl = ref<HTMLElement | null>(null)
 const labelOf = (index: number): string => props.stepLabel?.(index) ?? String(index)
@@ -32,7 +37,7 @@ watch(() => props.page, async () => {
             {{ labelOf(i - 1) }}
         </button>
     </div>
-    <span class="pager-info">{{ page }} / {{ pageCount - 1 }}</span>
+    <span class="pager-info">{{ info }}</span>
 </template>
 
 <style scoped>

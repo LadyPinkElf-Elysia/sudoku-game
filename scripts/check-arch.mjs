@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * 架构守卫 —— 《ARCHITECTURE.md》R1~R15 的可执行版本（R11 已废止，见文档 §四 脚注）
+ * 架构守卫 —— 《ARCHITECTURE.md》R1~R15 的可执行版本
+ * （R11 = core 必须可测：只查「可测性」—— 纯函数 / rng 注入 / 无模块级可变状态；**不查有没有测试，也不跑测试**）
  * 原则：能机器查的一律查；查不了的明确标为「评审」。
  *
  *   node scripts/check-arch.mjs           红规则（违规 exit 1）
@@ -15,10 +16,12 @@
  *   R7   红  组合式不写算式（Math.）
  *   R9   红  体量（行数 / core 导出数 / 单函数模块）
  *   R10  红  类型归位（死类型 / Omit·Pick 派生 / constants 不许放类型）
+ *   R11  红  core 可测性（模块级可变状态；纯度与 rng 注入由 R3 覆盖）
  *   R12  红  禁桶文件（export * from）
  *   R13  红  types 是叶子（由 R2 矩阵保证，单独报错）
  *   R14  红  有棋盘必须有缩放
- *   R8（命名语义，除已机器化的常量命名）· R15（状态归位）→ 评审
+ *   R8   红  命名（constants 导出名 UPPER_SNAKE；composables/** 文件名 use*）
+ *   R8（其余命名语义）· R15（状态归位）→ 评审
  *
  * 改规矩：先改 ARCHITECTURE.md 的矩阵/规则，再改下面的 MATRIX 与预算常量。
  */
@@ -82,9 +85,13 @@ const BARREL = /^export\s+\*\s+from/m
 /** R8 常量命名（constants 只放值，且全大写） */
 const CONST_NAME = /^[A-Z][A-Z0-9_]*$/
 
+/** R8 组合式文件名：src/composables/** 的 .ts 必须 use 开头（纯函数模块登记到 COMPOSABLE_EXEMPT） */
+const COMPOSABLE_NAME = /\/use[A-Z]/
+const COMPOSABLE_EXEMPT = new Set(['src/composables/puzzle/metaText.ts'])
+
 /** R14 有棋盘就必须有缩放（缩放数据来自 useZoom() 或预览 composable 的 …ZoomActions，经 :zoom-actions 传进棋盘） */
 const BOARD_VIEW = /BoardView\.vue/
-const ZOOM_ENTRY = /useZoom\(|zoom-actions=/
+const ZOOM_ENTRY = /useZoom\(|useBoardZoom\(|zoom-actions=/
 
 /** R9 预算 */
 const MAX_LINES = 200
@@ -93,7 +100,12 @@ const MIN_SOLO_MODULE_LINES = 50
 const MAX_PAGE_DECLS = 10
 
 /** R10 / E4 预留类型白名单（当前无预留：types/ 的导出都有真实使用点） */
+/** R10 / E4 预留类型白名单（当前无预留：types/ 的导出都有真实使用点） */
 const RESERVED_TYPES = new Set([])
+
+/** R11 core 可测：模块级可变状态（顶层 let / var / Map / Set）会让用例互相串味 —— 例外登记 E1 */
+const CORE_STATE = /^(?:let|var)\s|^const\s+\w+\s*=\s*new\s+(?:Map|Set|WeakMap|WeakSet)\b/m
+const CORE_STATE_EXEMPT = new Set(['src/core/sudoku/rules.ts'])
 
 /* ═════════════════ 扫描 ═════════════════ */
 
@@ -112,7 +124,7 @@ const stripComments = s => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]
 const importsOf = code => [...code.matchAll(/(?:from|import)\s*['"]([^'"]+)['"]/g)].map(m => m[1])
 const under = (file, dir) => file.startsWith(dir + '/')
 const isVue = file => file.endsWith('.vue')
-const isTest = file => file.endsWith('.test.ts')      // 仓库里若还有 .test.ts，按豁免处理（不再纳入约束）
+const isTest = file => file.endsWith('.test.ts')      // R11：测试随时可补（.test.ts 豁免、守卫不拦），只是不强制
 const isCore = file => under(file, 'src/core')
 const isPages = file => under(file, 'src/pages')
 const dirOf = f => f.slice(0, f.lastIndexOf('/'))
@@ -189,6 +201,10 @@ for (const file of files) {
         if (IMPURE.test(bare)) err('R3', file, 'core 不得用不可控随机/时间，请由调用方注入 rng')
         if (/console\./.test(bare)) err('R3', file, 'core 不得打印')
 
+        /* R11 可测性：模块级可变状态（例外见 E1） */
+        if (!CORE_STATE_EXEMPT.has(file) && CORE_STATE.test(bare))
+            err('R11', file, 'core 不得有模块级可变状态（顶层 let / Map / Set）→ 用例会互相串味；确有必要请登记例外')
+
         const exp = (bare.match(/^export (?:const|function|async function)\s/gm) || []).length
         if (exp > MAX_CORE_EXPORTS) err('R9', file, `core 导出 ${exp} 个 > ${MAX_CORE_EXPORTS}`)
         if (exp === 1 && lines < MIN_SOLO_MODULE_LINES)
@@ -220,6 +236,11 @@ for (const file of files) {
         for (const m of bare.matchAll(/^export\s+(?:interface|type)\s+(\w+)/gm))
             err('R10', file, `${m[1]} 是类型 → 请放 types/（constants 只放值）`)
     }
+
+    /* ───── R8 组合式文件名 ───── */
+    if (under(file, 'src/composables') && file.endsWith('.ts')
+        && !COMPOSABLE_EXEMPT.has(file) && !COMPOSABLE_NAME.test(file))
+        err('R8', file, '组合式文件名必须以 use 开头（纯函数模块请登记 COMPOSABLE_EXEMPT）')
 
     /* ───── R12 禁桶文件 ───── */
     if (BARREL.test(bare)) err('R12', file, '禁止桶文件（export * from）')

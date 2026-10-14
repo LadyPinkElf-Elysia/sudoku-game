@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { GAME_INIT_CONFIG } from '@/constants/game'
+import { GAME_INIT_CONFIG, GAME_ORIGIN } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { errorTextOf } from '@/core/message'
 import { useGameStore } from '@/stores/game'
@@ -30,7 +30,7 @@ export const useDifficultyFlow = () => {
         try {
             const cfg: GameConfig = { boxSize: draft.value.boxSize, blankRatio: draft.value.blankRatio }
             const { puzzle, solution } = await generateInWorker(cfg.boxSize, blankCount.value)
-            gameStore.startGame(puzzle, solution, cfg)
+            gameStore.startGame(puzzle, solution, cfg, GAME_ORIGIN.System)
             router.replace({ name: PAGE.Game })
         } catch (err) {
             error.value = errorTextOf(err, '生成失败，请重试')
