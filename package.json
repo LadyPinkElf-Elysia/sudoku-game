@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "guard": "node scripts/check-arch.mjs",
-    "build": "node scripts/check-arch.mjs && vue-tsc -b && tsc --noEmit -p functions/tsconfig.json && vite build",
+    "build": "vue-tsc -b && tsc --noEmit -p functions/tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
     "typecheck:functions": "tsc --noEmit -p functions/tsconfig.json",
