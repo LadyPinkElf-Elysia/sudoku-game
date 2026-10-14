@@ -11,9 +11,10 @@ import { useZoom } from '@/composables/board/useZoom'
 import { useEditFlow } from '@/composables/game/useEditFlow'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
+import { defaultZoomOf } from '@/core/board/zoom'
 
 const gameStore = useGameStore()
-const { zoom, zoomActions, resetZoom } = useZoom()
+const { zoom, zoomActions, resetZoom } = useZoom(defaultZoomOf(gameStore.config.boxSize))
 const {
     phase, errorMsg, loading, showFail,
     submitPuzzle, submitSolution, backToEdit, goMyPuzzles,

@@ -40,7 +40,7 @@ export const BLANK_RATIO = {
 } as const
 
 /** 超时上限*/
-export const DEFAULT_TIMEOUT = 10000
+export const DEFAULT_TIMEOUT = 15000
 
 /** 题目标题长度上限 */
 export const TITLE_MAX = 40

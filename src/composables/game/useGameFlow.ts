@@ -9,13 +9,14 @@ import { hintTextOf } from '@/core/game/derive'
 import { useZoom } from '@/composables/board/useZoom'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
+import { defaultZoomOf } from '@/core/board/zoom'
 
 export const useGameFlow = () => {
     const gameStore = useGameStore()
     const puzzleStore = usePuzzleStore()
     const router = useRouter()
     /** 参考答案遮罩自己的缩放，与游玩盘互不影响 */
-    const { zoom, zoomActions } = useZoom()
+    const { zoom, zoomActions } = useZoom(defaultZoomOf(gameStore.config.boxSize))
 
     const tip = ref('')
     /** 参考答案遮罩开关 */

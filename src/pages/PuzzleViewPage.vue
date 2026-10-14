@@ -10,11 +10,12 @@ import { useZoom } from '@/composables/board/useZoom'
 import { usePuzzleDetail } from '@/composables/puzzle/usePuzzleDetail'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
+import { defaultZoomOf } from '@/core/board/zoom'
 
 const route = useRoute()
 const router = useRouter()
-const { zoom, zoomActions } = useZoom()
 const { loading, error, title, metaText, boardInput, load, challenge } = usePuzzleDetail()
+const { zoom, zoomActions } = useZoom(defaultZoomOf(boardInput.value.boxSize))
 
 /** 只读盘：与可玩盘同一份入参，只差 interactive=false 与 zoom */
 const boardParams = computed<BoardRenderInput>(() => ({ ...boardInput.value, zoom: zoom.value, interactive: false }))

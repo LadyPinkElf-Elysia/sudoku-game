@@ -31,6 +31,18 @@ export const BOARD_ZOOM = {
     default: 1,
 } as const
 
+export const BOARD_ZOOM_BY_BOX: Readonly<Record<number, number>> = {
+    2: 1,
+    3: 1.25,
+    4: 1.5,
+    5: 2,
+    6: 2.5,
+    7: 3,
+    8: 4,
+    9: 5,
+    10: 6,
+}
+
 // ==================== 外观 ====================
 
 /** 棋盘颜色：与 BoardView 的视觉规格一一对应 */

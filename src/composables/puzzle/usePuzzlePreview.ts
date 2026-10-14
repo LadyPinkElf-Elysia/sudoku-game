@@ -4,6 +4,7 @@ import { parsePuzzle } from '@/core/sudoku/parse'
 import { useZoom } from '@/composables/board/useZoom'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
+import { defaultZoomOf } from '@/core/board/zoom'
 
 /** 预览数据源：题面串必有，答案串可有（未开启 show_solution 时为空） */
 export interface PreviewSource {
@@ -18,12 +19,12 @@ export interface PreviewSource {
  */
 export const usePuzzlePreview = (load: (id: string) => Promise<PreviewSource | null>, closeText = '返回') => {
     /** 预览自己的缩放，与游玩盘互不影响 */
-    const { zoom, resetZoom, zoomActions } = useZoom()
     const previewOpen = ref(false)
     const previewTitle = ref('')
     /** 盘面数据（zoom / interactive 由本 composable 决定，调用方不用管） */
     const previewBoard = ref<BoardRenderInput>({ board: [], boxSize: 0 })
     const previewLoading = ref(false)
+    const { zoom, resetZoom, zoomActions } = useZoom(previewBoard.value.boxSize)
 
     /** 只读盘：不给交互，只给缩放 */
     const previewInput = computed<BoardRenderInput>(() => ({

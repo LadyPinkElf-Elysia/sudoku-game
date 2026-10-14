@@ -11,9 +11,10 @@ import { useZoom } from '@/composables/board/useZoom'
 import { useGameFlow } from '@/composables/game/useGameFlow'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
+import { defaultZoomOf } from '@/core/board/zoom'
 
 const gameStore = useGameStore()
-const { zoom, zoomActions } = useZoom()
+const { zoom, zoomActions } = useZoom(defaultZoomOf(gameStore.config.boxSize))
 const { tip, answerOpen, answerTitle, answerInput, answerActions, answerZoomActions, leadActions, trailActions, resultActions, winOverlay } = useGameFlow()
 
 /** 操作条：左段（返回/重开）＋ 右段（提示/参考答案/DEV 作弊）—— 缩放不在这里，贴棋盘 */
