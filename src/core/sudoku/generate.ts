@@ -146,8 +146,10 @@ const dfsFill = (
  *   36×36 → 0.62
  * 上限 0.65，避免骨架过密导致和模式解过于接近。
  */
-const keepRatioOf = (S: number): number =>
-    Math.min(0.75, 0.35 + (S - 9) * 0.01)
+const keepRatioOf = (S: number): number => {
+    if (S >= 100) return 0.85   // 100×100 用 0.85
+    return Math.min(0.72, 0.35 + (S - 9) * 0.014)
+}
 
 // ============================================================
 // 4. 内部：生成完整解
