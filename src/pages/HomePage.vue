@@ -16,8 +16,9 @@ const tip = ref('')
 
 /** 三入口：开始游戏 / 出题（游客灰显）/ 搜索题目 */
 const menuItems = computed<Menus>(() => [
+    { key: 'about', icon: '👤', message: '关于我的', routeName: PAGE.MyPuzzles },
     { key: 'start', icon: '▶', message: '开始游戏', routeName: PAGE.Difficulty },
-    { key: 'create', icon: '✏️', message: '出题', routeName: PAGE.Create, disabled: userStore.isGuest },
+    { key: 'create', icon: '✏️', message: '出题模式', routeName: PAGE.Create, disabled: userStore.isGuest },
     { key: 'search', icon: '🔍', message: '搜索题目', routeName: PAGE.Search },
 ])
 

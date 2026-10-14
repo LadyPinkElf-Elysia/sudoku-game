@@ -1,7 +1,10 @@
 // ============================================================
 // core/sudoku/generator.ts
-// 生成 / 求解 / 挖洞 一体
-// 对外唯一入口：generatePuzzle
+// 生成 / 求解 / 多解 / 挖洞 一体
+// 对外入口：
+//   generatePuzzle(boxSize, blanks, rng)  生成
+//   generatePuzzle(board, rng)            单解
+//   solvePuzzleMulti(board, rng, max)     多解
 // ============================================================
 
 import type { NumBoard } from '../../types/board'
@@ -13,10 +16,22 @@ import { getSudoku } from './rules'
 import { createTracker } from './tracker'
 
 // ============================================================
+// 0. 类型
+// ============================================================
+
+/** 多解结果 */
+export interface MultiSolveResult {
+    puzzle: NumBoard
+    /** 第一个解（= solutions[0]），便于调用方直接取 */
+    solution: NumBoard
+    /** 所有找到的解，长度 ≤ maxSolutions */
+    solutions: NumBoard[]
+}
+
+// ============================================================
 // 1. 模式构造 + 随机变换
 // ============================================================
 
-/** 模式基础盘：f(r, c) = (r·B + ⌊r/B⌋ + c) mod S + 1 */
 const patternBoard = (S: number, B: number): NumBoard => {
     const grid = makeGrid<number>(S, () => 0)
     for (let r = 0; r < S; r++) {
@@ -27,11 +42,9 @@ const patternBoard = (S: number, B: number): NumBoard => {
     return grid
 }
 
-/** 随机变换：数字置换 + 行置换（宫内/宫间）+ 列置换（宫内/宫间）+ 转置 */
 const randomTransform = (grid: NumBoard, S: number, B: number, rng: Rng): void => {
     const blocks = S / B
 
-    // 数字置换
     const digits: number[] = []
     for (let n = 1; n <= S; n++) digits.push(n)
     shuffle(digits, rng)
@@ -41,7 +54,6 @@ const randomTransform = (grid: NumBoard, S: number, B: number, rng: Rng): void =
         }
     }
 
-    // 行置换：宫内
     for (let bi = 0; bi < blocks; bi++) {
         const rows: number[] = []
         for (let i = 0; i < B; i++) rows.push(bi * B + i)
@@ -50,7 +62,6 @@ const randomTransform = (grid: NumBoard, S: number, B: number, rng: Rng): void =
         for (let i = 0; i < B; i++) grid[bi * B + i] = copies[i]
     }
 
-    // 行置换：宫间
     const boxRows: number[] = []
     for (let i = 0; i < blocks; i++) boxRows.push(i)
     shuffle(boxRows, rng)
@@ -60,7 +71,6 @@ const randomTransform = (grid: NumBoard, S: number, B: number, rng: Rng): void =
     }
     for (let r = 0; r < S; r++) grid[r] = reordered[r]
 
-    // 列置换：宫内
     for (let bi = 0; bi < blocks; bi++) {
         const cols: number[] = []
         for (let j = 0; j < B; j++) cols.push(bi * B + j)
@@ -71,7 +81,6 @@ const randomTransform = (grid: NumBoard, S: number, B: number, rng: Rng): void =
         }
     }
 
-    // 列置换：宫间
     const boxCols: number[] = []
     for (let i = 0; i < blocks; i++) boxCols.push(i)
     shuffle(boxCols, rng)
@@ -86,7 +95,6 @@ const randomTransform = (grid: NumBoard, S: number, B: number, rng: Rng): void =
         grid[r] = newRow
     }
 
-    // 转置（可选）
     if (rng() < 0.5) {
         for (let r = 0; r < S; r++) {
             for (let c = r + 1; c < S; c++) {
@@ -99,10 +107,10 @@ const randomTransform = (grid: NumBoard, S: number, B: number, rng: Rng): void =
 }
 
 // ============================================================
-// 2. DFS 回溯（用 tracker）
+// 2. DFS 回溯（单解 / 多解）
 // ============================================================
 
-/** tracker 驱动的 MRV + 回溯；原地修改 grid，成功返回 true */
+/** 单解：找到即停，返回 true */
 const dfsFill = (
     S: number,
     B: number,
@@ -134,20 +142,51 @@ const dfsFill = (
     return dfs()
 }
 
+/** 多解：找到解存下继续搜，直到数量达到上限或迭代超限 */
+const dfsEnumerate = (
+    S: number,
+    B: number,
+    grid: NumBoard,
+    rng: Rng,
+    maxSolutions: number,
+    maxIter: number,
+): NumBoard[] => {
+    const { pickCell, candidatesOf, place } = createTracker(S, B, grid)
+    const solutions: NumBoard[] = []
+    let iter = 0
+
+    const dfs = (): void => {
+        if (solutions.length >= maxSolutions) return
+        if (++iter > maxIter) return
+
+        const { r, c, full, dead } = pickCell()
+        if (dead) return
+        if (full) {
+            solutions.push(grid.map(row => [...row]))
+            return
+        }
+
+        const list = candidatesOf(r, c)
+        shuffle(list, rng)
+
+        for (const n of list) {
+            if (solutions.length >= maxSolutions) return
+            const undo = place(r, c, n)
+            dfs()
+            undo()
+        }
+    }
+
+    dfs()
+    return solutions
+}
+
 // ============================================================
-// 3. 骨架保留比例（动态）
+// 3. 骨架保留比例
 // ============================================================
 
-/**
- * 按盘面边长动态计算骨架保留比例。
- *   9×9   → 0.35
- *   16×16 → 0.42
- *   25×25 → 0.51
- *   36×36 → 0.62
- * 上限 0.65，避免骨架过密导致和模式解过于接近。
- */
 const keepRatioOf = (S: number): number => {
-    if (S >= 100) return 0.85   // 100×100 用 0.85
+    if (S >= 100) return 0.85
     return Math.min(0.72, 0.35 + (S - 9) * 0.014)
 }
 
@@ -155,20 +194,14 @@ const keepRatioOf = (S: number): number => {
 // 4. 内部：生成完整解
 // ============================================================
 
-/**
- * 模式构造 → 随机变换 → 挖骨架（动态比例）→ 回溯填满
- * 结果不再是纯模式解，而是回溯产物
- */
 const buildSolution = (boxSize: number, rng: Rng): NumBoard => {
     const { S, B } = getSudoku(boxSize)
     const total = S * S
     const keepRatio = keepRatioOf(S)
 
-    // 1. 模式盘 + 打乱规律
     const full = patternBoard(S, B)
     randomTransform(full, S, B, rng)
 
-    // 2. 随机挖空得骨架
     const indices: number[] = []
     for (let i = 0; i < total; i++) indices.push(i)
     shuffle(indices, rng)
@@ -183,7 +216,6 @@ const buildSolution = (boxSize: number, rng: Rng): NumBoard => {
         }
     }
 
-    // 3. 回溯填满
     const ok = dfsFill(S, B, seed, rng, 20_000_000)
     if (!ok) throw new Error('生成失败')
     return seed
@@ -193,20 +225,12 @@ const buildSolution = (boxSize: number, rng: Rng): NumBoard => {
 // 5. 内部：挖洞
 // ============================================================
 
-/**
- * 四约束挖洞：
- *   A 每行/列/宫至少保留 1（硬）
- *   B 每行/列/宫至少挖   1（硬，阶段 1 保底）
- *   D 每行/列的每个宫段至少保留 k（软，阶段 2 优先满足）
- *   实际挖空比例夹到 [40%, 65%]
- */
 const digHoles = (solution: NumBoard, blanks: number, rng: Rng): NumBoard => {
     const S = solution.length
     const B = Math.round(Math.sqrt(S))
     const total = S * S
     const puzzle = solution.map(row => [...row])
 
-    // 夹到 [40%, 65%]
     const minBlanks = Math.ceil(total * 0.4)
     const maxBlanks = Math.floor(total * 0.65)
     const target = Math.max(minBlanks, Math.min(blanks, maxBlanks))
@@ -245,7 +269,6 @@ const digHoles = (solution: NumBoard, blanks: number, rng: Rng): NumBoard => {
 
     let removed = 0
 
-    // ---- 阶段 1：保底 B（每行/列/宫至少挖 1）----
     const rowDug = new Uint8Array(S)
     const colDug = new Uint8Array(S)
     const boxDug = new Uint8Array(S)
@@ -269,7 +292,6 @@ const digHoles = (solution: NumBoard, blanks: number, rng: Rng): NumBoard => {
         if (!boxDug[b]) { boxDug[b] = 1; boxesLeft-- }
     }
 
-    // ---- 阶段 2：主挖（A + D）----
     for (let i = 0; i < total && removed < target; i++) {
         const idx = indices[i]
         const r = Math.floor(idx / S)
@@ -280,7 +302,6 @@ const digHoles = (solution: NumBoard, blanks: number, rng: Rng): NumBoard => {
         removed++
     }
 
-    // ---- 阶段 3：兜底（只 A，放弃 D）----
     for (let i = 0; i < total && removed < target; i++) {
         const idx = indices[i]
         const r = Math.floor(idx / S)
@@ -308,8 +329,22 @@ const solveBoard = (board: NumBoard, rng: Rng): NumBoard | null => {
     return ok ? grid : null
 }
 
+const solveBoardMulti = (
+    board: NumBoard,
+    rng: Rng,
+    maxSolutions: number,
+    maxIter = 20_000_000,
+): NumBoard[] => {
+    const S = board.length
+    const B = Math.round(Math.sqrt(S))
+    if (B * B !== S) return []
+
+    const grid = board.map(row => [...row])
+    return dfsEnumerate(S, B, grid, rng, maxSolutions, maxIter)
+}
+
 // ============================================================
-// 7. 对外唯一入口 generatePuzzle
+// 7. 对外入口
 // ============================================================
 
 /** 生成：传 boxSize + blanks（要挖多少格） */
@@ -319,7 +354,7 @@ export function generatePuzzle(
     rng: Rng,
 ): PuzzleData
 
-/** 求解：传题面 */
+/** 求解（单解）：传题面 */
 export function generatePuzzle(
     board: NumBoard,
     rng: Rng,
@@ -330,7 +365,6 @@ export function generatePuzzle(
     blanksOrRng: number | Rng,
     maybeRng?: Rng,
 ): PuzzleData | null {
-    // ---------- 生成分支 ----------
     if (typeof boxSizeOrBoard === 'number') {
         const boxSize = boxSizeOrBoard
         const blanks = blanksOrRng as number
@@ -341,7 +375,6 @@ export function generatePuzzle(
         return { puzzle, solution }
     }
 
-    // ---------- 求解分支 ----------
     const board = boxSizeOrBoard
     const rng = blanksOrRng as Rng
 
@@ -350,5 +383,25 @@ export function generatePuzzle(
     return {
         puzzle: board.map(row => [...row]),
         solution,
+    }
+}
+
+/**
+ * 多解枚举：独立入口，和单解完全分开。
+ * 最多找 maxSolutions 个解；找不到返回 null。
+ */
+export function solvePuzzleMulti(
+    board: NumBoard,
+    rng: Rng,
+    maxSolutions: number,
+): MultiSolveResult | null {
+    const max = Math.max(1, Math.floor(maxSolutions))
+    const solutions = solveBoardMulti(board, rng, max)
+    if (solutions.length === 0) return null
+
+    return {
+        puzzle: board.map(row => [...row]),
+        solution: solutions[0],
+        solutions,
     }
 }
