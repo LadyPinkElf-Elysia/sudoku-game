@@ -27,7 +27,7 @@ export const CREATE_PHASE = {
 } as const
 
 /** 盘面大小可选值 */
-export const BOX_SIZE_OPTIONS = [3, 4, 5, 6] as const
+export const BOX_SIZE_OPTIONS = [2, 3, 4, 5, 6, 7, 8] as const
 
 /** 盘面大小下拉项（值 = 宫边长 B，文案 = 盘面边长 S×S；FormField(type='select') 用） */
 export const BOX_SIZE_SELECT_OPTIONS = BOX_SIZE_OPTIONS.map((b) => ({ value: b, label: `${b * b} X ${b * b}` }))
@@ -35,12 +35,12 @@ export const BOX_SIZE_SELECT_OPTIONS = BOX_SIZE_OPTIONS.map((b) => ({ value: b, 
 /** 挖空比例范围（占盘面总格数） */
 export const BLANK_RATIO = {
     min: 0.4,
-    max: 0.7,
+    max: 0.65,
     step: 0.01
 } as const
 
 /** 超时上限*/
-export const DEFAULT_TIMEOUT = 20000
+export const DEFAULT_TIMEOUT = 10000
 
 /** 题目标题长度上限 */
 export const TITLE_MAX = 40

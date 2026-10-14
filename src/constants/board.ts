@@ -26,7 +26,7 @@ export const BOARD_LINE = {
 /** 缩放配置 */
 export const BOARD_ZOOM = {
     min: 0.5,
-    max: 3,
+    max: 5,
     step: 0.1,
     default: 1,
 } as const

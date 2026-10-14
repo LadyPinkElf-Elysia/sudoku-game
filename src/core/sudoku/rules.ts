@@ -130,7 +130,6 @@ export const createSudoku = (boxSize: number): Sudoku => {
         return false
     }
 
-
     /**检查棋盘有没有填满*/
     const isFull = (grid: NumBoard): boolean => grid.every(row => row.every(v => v !== 0))
 
@@ -155,8 +154,6 @@ export const createSudoku = (boxSize: number): Sudoku => {
         if (!isSolved(solution)) return false
         return true
     }
-
-
 
     return {
         S, B,
