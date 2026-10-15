@@ -34,6 +34,9 @@
 第 3 步（把上面串起来）
   09-数据流与端到端链路.md     ← 一条功能从点击到落库，逐跳标注
   10-工程化与调试.md          ← 命令 / 配置 / 调试 / 报错速查 / 发布
+
+第 4 步（学"怎么从规则推出实现"——方法论，可迁移到任何项目）
+  11-从规则到实现：数独拆解全流程.md  ← 规则→判定→类型→函数→算法→状态→校验→界面→表
 ```
 
 ## 1.5 进度表（写一册登记一册）
@@ -51,7 +54,7 @@
 | 07 | `07-组件与页面逐文件.md` | ✅ 完成（**15 组件 + 13 页面全解**：TextAction（`:is` 切换/禁用契约）· Flex · EyeGlyph · FormField（五形态 + DOM 值类型还原）· Overlay（Teleport/插槽/五块可缺省）· SecretValue · RenameText（nextTick focus/Esc 与 blur）· NumberPad · PagerBar 三形态（索引语义归一化）· ListSection（泛型 + 三插槽）· MyPuzzleRow（可写 computed）· PuzzleCard · **BoardView** · 13 个页面逐个接线核对 · 横向模式与两份检查清单 · 25 题自测） |
 | 08 | `08-适配器 render 与 services.md` | ✅ 完成（render/board.ts 逐段（DPR / setTransform / drawCell / drawLines / getClickPos）· prefs · **client（四出口 + 401 广播 + 非 JSON 翻译）** · session · userApi · puzzleApi（`qs` / `offsetOf`）· worker（`reference lib` + 随机注入 + 错误回传）· workerClient（两端契约图）· **适配器四条纪律** + 两份检查清单 · 20 题自测）（D1 与后端适配器见 02 册） |
 | 09 | `09-数据流与端到端链路.md` | ✅ 完成（**12 条端到端链路**逐跳标注（生成/落子/提示/历史/导出/出题/编辑/自定义/登录五子链/搜索挑战/求解/行内改动）· **症状→链路排查法**（5 步顺序 + 10 种症状对照表 + 推理演示）· 12 题自测 · 链路速查） |
-| 10 | `10-工程化与调试.md` | ✅ 完成（从零跑起来五步 + 两种后端模式 · **七条命令逐条**（build 为何不含 guard）+ wrangler 命令 · **四个 tsconfig 逐项**（含 `functions` 为何借 DOM lib）· wrangler.toml / .gitignore / 各工程文件 · **调试四件套**（DevTools/Network/Worker/守卫）+ 决策树 · **26 条报错速查** · 发布六步与验证五项 · 15 题自测 · 全系列结语） |
+| 11 | `11-从规则到实现：数独拆解全流程.md` | ✅ 完成（**方法论教程**：八步拆解法 · 规则判定化（R-1~R-9，含"**负需求**：不要求唯一解"）· 领域词汇表 · 数据结构四决策（`lock`/三种表示/`Position`/二维）· **规则→判定函数**（两两比较→Map 分组、`sameShape`、EPS、`validatePuzzle` 四步顺序）· **规则→算法**（模式盘公式手算验证、四类保性质变换、`keepRatioOf`、`digPuzzle` 三阶段、MRV + tracker、**"不要求唯一解"这笔减法三笔账**）· 状态机与四守卫 · 快照栈 · 校验阶梯 · UI 参数从规则算 · 表结构逐字段 · **反向验证 8 题** · 八步法检查表 · 四个"拆不动的症状"+ 一个常见混淆 · 12 题自测） |
 
 > 每册结尾都有「**本册自测**」；答不上来就说明那一册还没吃透，建议回看对应小节再往下走。
 
