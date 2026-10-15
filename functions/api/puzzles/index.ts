@@ -60,7 +60,7 @@ const visibilityOf = (raw: unknown): string =>
         : raw === VISIBILITY.Protected ? VISIBILITY.Protected
             : VISIBILITY.Public
 
-/** POST：新建（服务端复校：格式 / 同尺寸 / 非空 / 40~70% / 题面答案一致） */
+/** POST：新建（服务端复校：格式 / 同尺寸 / 非空 / 40~65% / 题面答案一致） */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const me = await requireUser(request, env)
     if (me instanceof Response) return me

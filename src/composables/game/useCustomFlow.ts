@@ -67,7 +67,7 @@ export const useCustomFlow = () => {
         return true
     }
 
-    /** 提交到我的题目：标题必填 + 40%~70% + POST(private) */
+    /** 提交到我的题目：标题必填 + 40%~65% + POST(private) */
     const save = async (): Promise<boolean> => {
         const p = puzzleParsed.value
         const s = solutionParsed.value

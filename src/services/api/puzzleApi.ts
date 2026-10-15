@@ -41,7 +41,7 @@ export const getOne = (pid: string): Promise<PuzzleDetail> => request<PuzzleDeta
 /** 作者态详情：一次拿全 pid + 题面 + 答案（显示/复制 pid、答案预览、编辑、挑战都走它） */
 export const getMine = (rowId: string): Promise<MyPuzzleDetail> => request<MyPuzzleDetail>(`/puzzles/mine/${rowId}`)
 
-/** 新建（服务端复校 40%~70%）；出题页默认 public，自定义提交传 private */
+/** 新建（服务端复校 40%~65%）；出题页默认 public，自定义提交传 private */
 export const create = (
     payload: { title: string; puzzleText: string; solutionText: string; visibility?: Visibility },
 ): Promise<{ pid: string; rowId: string }> =>

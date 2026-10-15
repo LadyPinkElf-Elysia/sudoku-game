@@ -62,7 +62,7 @@ export const TITLE_PREFIX = '我的题目'
 
 /** 入库前的挖空比例提示（出题 / 编辑 / 自定义共用；当前百分比现场拼） */
 export const RATIO_COPY = {
-    bad: '挖空比例需在 40%~70% 之间',
+    bad: '挖空比例需在 40%~65% 之间',
 } as const
 
 /** 题面不得出现「整行 / 整列 / 整宫全空」（自定义 / 出题 / 编辑提交题面时校验） */
@@ -81,8 +81,11 @@ export const EXPORT_COPY = {
     close: '↩ 返回',
 } as const
 
-/** 自定义页两个 textarea 的输入上限（B=6 时最多 1296 个数字 + 分隔符，留足余量） */
-export const CUSTOM_TEXT_MAX = 4000
+/**
+ * 自定义 / 求解页 textarea 的输入上限：按最大盘面 B=10 算（100×100 = 10000 个数字
+ * + 最多 9999 个分隔符 ≈ 2 万字符），再留余量 —— 原来只按 B=6（1296）算，大棋盘串会被截断
+ */
+export const CUSTOM_TEXT_MAX = 20000
 
 /** 自定义开局页静态文案 */
 export const CUSTOM_COPY = {
@@ -92,7 +95,7 @@ export const CUSTOM_COPY = {
     titlePlaceholder: '给这道题起个名字（1~40 位）',
     validating: '正在校验并提交…',
     empty: '题面与答案都必须填写',
-    badPuzzle: '题面格式不对（数字个数需为 16 / 81 / 256 / 625 / 1296）',
+    badPuzzle: '题面格式不对（数字个数需为 16 / 81 / 256 / 625 / 1296 / 2401 / 4096 / 6561 / 10000）',
     badSolution: '答案格式不对（应为全非 0 的合法终盘）',
     sizeMismatch: '盘面大小必须一致',
     puzzleBlank: '题面不能全空',

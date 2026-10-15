@@ -1,22 +1,22 @@
 # 数独 · 需求与功能文档 v1.5
 
-> 关联：`ARCHITECTURE.md`（架构硬约束，含 §八 后端约定）· `scripts/check-arch.mjs`（守卫）
+> 关联：`ARCHITECTURE.md`（架构硬约束，含 §八 后端约定）· `scripts/check-arch.mjs`（守卫）· `PROJECT.md`（项目全景导读：框架 / 设计 / 为什么 / 实现 / 数据流）· `CODE-GUIDE.md`（各层代码导读：pages / components / composables / stores / core）
 > 标记：✅ 已实现 · 🟡 部分 · ⛔ 未实现 · 🔸 默认取值（未否决即按此执行）
 
 ## 0. 术语表
 
 | 词 | 含义 | 备注 |
 |---|---|---|
-| **B / boxSize** | 宫边长 | 3 / 4 / 5 / 6 |
-| **S / sideS** | 盘面边长 = B² | 9 / 16 / 25 / 36 |
-| **题面串 puzzleText** | 空格/逗号/换行分隔、行优先、`0` = 空格 | 个数必须是 16 / 81 / 256 / 625 / 1296 |
+| **B / boxSize** | 宫边长 | 2 ~ 10（下拉 `BOX_SIZE_OPTIONS`：4×4 ~ 100×100） |
+| **S / sideS** | 盘面边长 = B² | 4 / 9 / 16 / 25 / 36 / 49 / 64 / 81 / 100 |
+| **题面串 puzzleText** | 空格/逗号/换行分隔、行优先、`0` = 空格 | 个数必须是 16 / 81 / 256 / 625 / 1296 / 2401 / 4096 / 6561 / 10000 |
 | **答案串 solutionText** | 同上，全非 0 | 必须是合法终盘 |
 | **uid** | 用户标识 = **登录凭据** | 20 位 base62；**敏感，不对外展示** |
 | **pid** | 题目标识 / 分享用 | 20 位 base62；搜索列表会返回；我的题目列表不返回 |
 | **rowId** | 我的题目**列表行标识** | 8 位 base62，不敏感 |
 | **可见性** | 公开 / 受保护 / 私有 | 见 FR-13 |
 | **预览 / 答案预览 / 答案** | 三种只读遮罩 | 见 FR-8 |
-| **挑战** | 以某道题的题面直接开局 | `parsePuzzle` → `startGame` |
+| **挑战** | 以某道题的题面直接开局 | `gameStore.startFromTexts`（内部 `parsePuzzle` → `startGame`） |
 | **重开** | 用同一题面/答案把棋局恢复到初始状态 | `gameStore.jump(0)` |
 
 ## 1. 角色与权限
@@ -30,11 +30,9 @@
 | 我的题目（预览 / 答案预览 / 挑战 / 重命名 / 可见性下拉 / 编辑 / 删除） | ⛔ 需登录（游客点顶栏「👤 登录」→ 登录页） | ✅ |
 | 注册 / 登录 | ✅ | 退出登录 |
 
-- **灰显规则**：不用 HTML `disabled` → `aria-disabled` + `.is-disabled` —— 灰显态**不渲染 RouterLink**，
-  改用 `<button type="button">`，点击只冒泡 `blocked` → 页面显示「该功能需要登录才可以使用」，**不导航**。
-  （原因：RouterLink 的 `onClick:navigate` 是内部 `<a>` 自身的监听，父级 `@click` 只是透传属性；
-  Vue 的 `mergeProps` 把内部监听排在前面，其 `guardEvent` 先于我们的 handler 检查 `defaultPrevented`，
-  所以 `@click.prevent` 拦不住导航。）
+- **灰显规则**：入口用 `Menu.disabled` 标记（如主页「出题模式」在游客态），点击由页面 `go()` 把
+  `AUTH_COPY.needLogin`（「该功能需要登录才可以使用」）写进**本页提示条**（`.tip`），**不导航**；
+  路由变化后提示条自动消失。入口本身是可点击文本（`TextAction`），不复用 HTML `disabled`。
 - **全站顶栏**（`AppLayout`，外壳带整页外框）：任意页面可见**左侧常驻「主页」**（标题左边，登录页也在）
   与「数独（**居中**，纯标题、不可点）」；右侧账号位——游客「👤 登录」（→ `/login`）、登录后「👤 用户名」
   （→ `/my-puzzles`：账号区 + 我的题目）；**不设「我的题目」入口**（已并入头像）；登录页隐藏右侧那组
@@ -68,13 +66,13 @@
 | `PAGE.Solve` | `/solve` | SolvePage（题目求解） | —（游客可用） | ✅ |
 
 **约定（R15）**：位置放路由、过程放 state、影响数据请求的放 query、纯 UI 偏好的放本地偏好；
-`{ name: PAGE.Difficulty }` 经 `''` 子路由 redirect 落到**系统生成**；
+`{ name: PAGE.Difficulty }` 由**守卫补默认 Tab** 落到**系统生成**（决策 44：按 name 跳父路由不触发子路由 redirect）；
 换排序/关键词 → `page` 重置 1；`page` 越界 → 收敛最后一页；`pageCount ≤ 1` → 隐藏分页条；
 **返回来源靠历史**（`router.back()`，无历史兜底 `/difficulty`）。
 
 ## 3. 功能需求
 
-> 14 条全部实现；🔸 为默认取值约定。
+> 15 条全部实现（FR-1~FR-15）；🔸 为默认取值约定。
 
 ### FR-1 全站顶栏（AppLayout）✅
 - **左侧常驻「主页」**（标题左边的按钮）→ 任何页面（含登录页）一键回主页；**「数独」是纯标题、不可点**。
@@ -91,9 +89,9 @@
 - 卡片内**不放**「数独」标题（顶栏已有品牌名）。
 
 ### FR-3 难度页 · 系统生成 ✅
-- 参数：B（3/4/5/6）、挖空比例 0.4~0.7；显示「共 N 格，挖空 M 格」。
+- 参数：B（2~10 → 盘面 4×4 ~ 100×100）、挖空比例 0.4~0.65（`BLANK_RATIO`）；显示「共 N 格，挖空 M 格」。
   （百分比由 composable 用 core 的 `percentOf` 算好暴露给页面 —— 页面禁 `Math.`）
-- Worker 生成（20s 超时）+ loading 遮罩；失败中文错误、可重试、`loading` 必须复位。
+- Worker 生成（15s 超时：`DEFAULT_TIMEOUT = 15000`）+ loading 遮罩；失败中文错误、可重试、`loading` 必须复位。
 - 成功：`startGame(puzzle, solution, { boxSize, blankRatio })` → `/game`。答案按钮：有（本地答案）。
 
 ### FR-4 难度页 · 自定义 ✅
@@ -102,11 +100,12 @@
   `!isBlankBoard(题面)` → **`!hasEmptyGroup(题面)`（任意整行 / 整列 / 整宫不得全空）** →
   `validatePuzzle(题面, 答案)` → 通过；**纯游玩不校验挖空比例**。
 - 「**提交到我的题目**」：**可选项，默认不勾**；**勾选后展开补充项**（必填：**标题小输入框** 1~40）；
-  提交时额外校验 **40%~70%** → `POST /api/puzzles`（🔸 默认 `visibility=private`）→ 再开局；
+  提交时额外校验 **40%~65%** → `POST /api/puzzles`（🔸 默认 `visibility=private`）→ 再开局；
   **成功后提示「已保存到我的题目」**（游戏页顶部轻提示）。可见性 / 答案开关等详情到「我的题目」改。
 - 失败文案：格式不对 / 盘面大小必须一致 / 题面不能全空 / 题面不能有整行 / 整列 / 整宫全空 /
-  题面与答案不一致或答案非法 / 挖空比例需在 40%~70% 之间（当前 xx%）。
+  题面与答案不一致或答案非法 / 挖空比例需在 40%~65% 之间（当前 xx%）。
 - 不检查唯一解。
+- 两个 textarea 的上限 **`CUSTOM_TEXT_MAX = 20000`**（按最大盘面 B=10 → 10000 格 + 分隔符算；原值 4000 只够 B=6 → 大棋盘串会被截断）
 
 ### FR-5 搜索页 ✅
 布局：**最上面搜索框** → 主内容（列表）；主内容**左上**「浏览方式」、**右上**「排序」（两者都是**下拉，同在一个框里**）；底部 `PagerBar`。
@@ -137,7 +136,7 @@
 ### FR-7 我的题目（需登录）✅
 页首「**账号区**」：显示名 + uid（**默认遮蔽** `uid ▮▮▮▮…`；值右侧裸图标组 👁 睁/闭 + 📋 复制，与 pid 同规则；**明文时保留 `uid ` 前缀** → `uid <值>`）。
 账号区一行：**「👤 显示名」·「重命名」·「退出」**（退出在最右）（点了名字就地变输入框，回车 / 失焦提交、Esc 取消，2~16 位复校）→ `PATCH /api/me`。
-页头：左上「浏览方式」、右上「排序（时间 / 热度）」——**都是下拉，两项同在一个框里**；底部 `PagerBar`（10/页）。
+页头：左上「浏览方式」、右上「排序」（下拉标签 = `SORT_OPTIONS` 的「时间优先」/「热度优先」）——**都是下拉，两项同在一个框里**；底部 `PagerBar`（10/页）。
 
     [ 标题 · 重命名 ]                                          [ 删除 · 编辑 ]
       └ 点「重命名」→ 标题就地变成输入框（回车 / 失焦提交，Esc 取消）；右上角纯文字，左删除右编辑
@@ -153,10 +152,10 @@
 - 重命名**行内**（点标题旁「重命名」→ 标题变输入框）→ `PATCH { title }`；可见性 / 答案**下拉** → `PATCH { visibility }` / `{ showSolution }`；
   删除 → 二次确认 → `DELETE`（连带清理 `puzzle_play`）。
 - **改动后**：清该 `rowId` 的缓存 + 重拉当前页列表。
-- 挑战自己的题**不计热度**；作者不受可见性限制。空态：「你还没有出过题，去出题 →」。
+- 挑战自己的题**不计热度**；作者不受可见性限制。空态：`MINE_COPY.empty`「你还没有出过题」+ `MINE_COPY.goCreate`「去出题 →」。
 
 ### FR-8 遮罩 `Overlay`（全站唯一一个遮罩）✅
-- props：`show` · `text?`（主文案）· `desc?` · `shade?`（要不要背景遮蔽）· `spinning?`（要不要转圈）· `actions?`（按钮条 = 一排**可点击文本** `TextAction`）；默认插槽放还要显示的东西（只读棋盘）。
+- props：`show` · `text?`（主文案）· `desc?` · `shade?`（要不要背景遮蔽）· `spinning?`（要不要转圈）· `actions?`（按钮条 = 一排**可点击文本** `TextAction`）· `wide?`（**宽盒子**：题面串 / 答案串这类长文本用；不传 = 原宽度）；默认插槽放还要显示的东西（只读棋盘）。
 - 三种用途从此**同一个组件**：转圈加载（`spinning`）/ 文案 + 按钮条（成功 · 失败 · 删除确认 · 通关）/ 只读棋盘预览（插槽 = `BoardView`）。
 - 预览的只读棋盘：`interactive=false` → `BoardView` 只画 canvas、不接任何动作；缩放数据与按钮条由 `usePuzzlePreview` 一并给出（`previewInput` / `previewZoomActions` / `previewActions`）。
 - **副作用为零**（不跳路由、不写 store）→ 挑战中关闭后**已填内容原样保留**。
@@ -172,7 +171,7 @@
 
 ### FR-9 出题页 `/create` ✅
 - 顶部区块：**标题输入框**（必填，🔸 1~40，默认 `我的题目 9×9`）+ **盘面大小选择器**；**不给**可见性/答案开关。
-- 阶段① 题面：`!isBlankBoard` + **无空行/列/宫** + 无冲突 + **挖空比例 40%~70%**（整数比较）→ 锁定；
+- 阶段① 题面：`!isBlankBoard` + **无空行/列/宫** + 无冲突 + **挖空比例 40%~65%**（整数比较）→ 锁定；
   这几条校验都在 `core/message.ts` 的 `puzzleSubmitErrorOf` 里（与编辑页共用一份）。
 - 阶段② 答案 → `validatePuzzle`。
 - 提交 → **转圈遮罩（校验 + 上传）** → 「🎉 出题完成」+「去我的题目」（🔸 只此一个；回主页只保留顶栏那一个入口，遮罩必须有出口）。
@@ -180,7 +179,7 @@
 
 ### FR-10 编辑页 `/puzzle/:pid/edit` ✅
 - **无**大小选择器；进入即预填**自己上传的题面**（未锁定，可增量改）；不预填旧答案。
-- 「提交题目」→ 校验（全空 / 空行空列空宫 / 冲突 / 40%~70%）→ 锁定 → 阶段② **重新填答案** → 提交 → 转圈（校验 + `PATCH`）→ 回「我的题目」。
+- 「提交题目」→ 校验（全空 / 空行空列空宫 / 冲突 / 40%~65%）→ 锁定 → 阶段② **重新填答案** → 提交 → 转圈（校验 + `PATCH`）→ 回「我的题目」。
 - **不更新 `created_at`**；不含标题 / 可见性 / 答案开关（在列表里改）。
 
 ### FR-11 游戏页 `/game` ✅
@@ -248,7 +247,7 @@
 
     A 系统生成（✅）  顶栏/主页→/difficulty/system→选B·比例→开始游戏→generateInWorker→startGame→/game
     B 自定义（✅）    /difficulty/custom→两串→parsePuzzle×2→同B→!blank→validatePuzzle
-                      →（可选勾选提交：弹标题小框、查 40%~70%、POST、提示已保存）→startGame→/game
+                      →（可选勾选提交：就地展开标题输入框、查 40%~65%、POST、提示已保存）→startGame→/game
     C 搜索·预览（✅） /search?q=&sort=&page=→列表（无题面串）→预览→GET /api/puzzles/:pid→Overlay(只读棋盘)→返回
     D 搜索·挑战（✅） 列表→挑战→GET /api/puzzles/:pid→parsePuzzle→（登录）play→startGame→/game
                       └─答案（对方开启）→Overlay(只读棋盘 +「回到挑战」)→关闭保留进度
@@ -258,7 +257,7 @@
                       ├─显示/复制 pid / 题目预览 / 答案预览 / 编辑 / 挑战 → GET /api/puzzles/mine/:rowId
                       ├─重命名 → PATCH{title} · 三态 → PATCH{visibility} · 开关 → PATCH{showSolution}
                       └─删除 → 二次确认 → DELETE（清理 puzzle_play）；改动后清缓存 + 重拉当前页
-    G 出题（✅）      /create→标题+大小+阶段①(40~70%)→阶段②→转圈(校验+POST)→出题完成→去我的题目
+    G 出题（✅）      /create→标题+大小+阶段①(40~65%)→阶段②→转圈(校验+POST)→出题完成→去我的题目
     H 编辑（✅）      /puzzle/:pid/edit→预填题面→提交→重填答案→转圈(PATCH)→回我的题目（创建时间不变）
     I 账号（✅）      注册→展示 uid+复制→本地存 lastUid；登录→uid+密码（uid 限流）；刷新 GET /api/me 恢复
     J 求解（✅）      /solve→①粘题面串（「🧮 求解」先解析回填）/②棋盘手填→本地校验（全空·B>6·冲突）
@@ -271,6 +270,8 @@
 |---|---|---|
 | 字符串↔盘面 / S↔B / 挖空数与比例 | 纯函数 | `core/sudoku/{parse,shape}.ts` · `core/board/ops.ts` |
 | 题面/答案校验（含同尺寸） | 纯函数 | `core/sudoku/rules.ts` |
+| 错误文案 / 40~65% 与提交校验 | 纯函数 | `core/message.ts`（`errorTextOf` · `blankRatioErrorOf` · `puzzleSubmitErrorOf`） |
+| 网格工具（建表 / 映射 / 洗牌 / 分块） | 纯函数 | `core/array.ts` |
 | 终盘生成 / 挖空 / 求解 / 多解（MRV 回溯；**单解与多解共用一份引擎**） | 纯函数 | `core/sudoku/{generator,digger,solver,multiSolver,tracker}.ts` |
 | 导出题面（只留已知格 → 串） | 纯函数 | `core/board/ops.ts` 的 `givenBoard` · `core/sudoku/parse.ts` 的 `boardToStr` |
 | 盘面构造 / 缩放换算 / 百分比 / 分页页数 / 宫坐标 | 纯函数 | `core/board/{model,ops,metrics,zoom}.ts` · `core/game/derive.ts` · `core/page.ts` |
@@ -333,11 +334,11 @@ CREATE TABLE puzzle_play (
 | POST | `/api/logout` | Bearer | 删 session |
 | GET | `/api/me` | Bearer | 恢复登录态 |
 | PATCH | `/api/me` | Bearer | **改显示名**（`{uname}`，2~16 位复校；uname 仅显示名、**可重名** → 不做唯一性校验） |
-| GET | `/api/puzzles` | 公开 | `?keyword=&uid=&sort=time\|hot&limit=10&offset=` → **搜索列表**：只回公开题，`{ items: pid · title · sideS · blankCount · playCount · createdAt · uname, total }`<br>`?mine=1`（Bearer）→ **我的题目列表**：`{ items: rowId · title · sideS · blankCount · visibility · showSolution · playCount · createdAt, total }` |
+| GET | `/api/puzzles` | 公开 | `?keyword=&uid=&sort=time\|hot&limit=10（上限 50）&offset=` → **搜索列表**：只回公开题，`{ items: pid · title · sideS · blankCount · playCount · createdAt · uname, total }`<br>`?mine=1`（Bearer）→ **我的题目列表**：`{ items: rowId · title · sideS · blankCount · visibility · showSolution · playCount · createdAt, total }` |
 | GET | `/api/puzzles/:pid` | 公开 | 三态判定（private 非作者 404）；返回 `pid · title · uname · sideS · blankCount · createdAt · puzzleText · solutionText?`（答案仅当 `show_solution=1` 或我是作者） |
 | GET | `/api/puzzles/mine/:rowId` | Bearer·作者 | **作者态详情**：`pid · rowId · title · uname · sideS · blankCount · visibility · showSolution · playCount · createdAt · puzzleText · solutionText` |
-| POST | `/api/puzzles` | Bearer | 新建（生成 pid + rowId、算 blankCount、复校非空 / 无空行空列空宫 / 40~70%）；`visibility?` 走三态白名单，🔸 缺省 `public` |
-| PATCH | `/api/puzzles/:pid` | Bearer·作者 | `title / puzzle / solution / visibility / showSolution`；改题面或答案时复校非空 / 无空行空列空宫 / 40~70% 并**重算 blank_count**；**不改 created_at** |
+| POST | `/api/puzzles` | Bearer | 新建（生成 pid + rowId、算 blankCount、复校非空 / 无空行空列空宫 / 40~65%）；`visibility?` 走三态白名单，🔸 缺省 `public` |
+| PATCH | `/api/puzzles/:pid` | Bearer·作者 | `title / puzzle / solution / visibility / showSolution`；改题面或答案时复校非空 / 无空行空列空宫 / 40~65% 并**重算 blank_count**；**不改 created_at** |
 | DELETE | `/api/puzzles/:pid` | Bearer·作者 | 硬删 + 清理 `puzzle_play` |
 | POST | `/api/puzzles/:pid/play` | Bearer | 热度 +1（1 人 1 小时 1 次；**作者本人不计**；游客不调用） |
 
@@ -349,16 +350,16 @@ CREATE TABLE puzzle_play (
 | 尺寸不一致 | 「盘面大小必须一致」 |
 | 题面全空 / 有冲突 / 与答案不符 | 分别给明确文案 |
 | 题面有整行 / 整列 / 整宫全空（自定义 · 出题 · 编辑提交） | 「题面不能有整行 / 整列 / 整宫全空」，不入库；**系统生成不校验**（概率极小） |
-| 入库挖空比例不在 40%~70% | 「挖空比例需在 40%~70% 之间（当前 xx%）」 |
-| 大盘（B=6）生成慢 | Worker + loading；玩家用缩放按钮放大 |
-| 搜索无结果 / 接口失败 | 「没有找到题目」/「加载失败，点击重试」 |
+| 入库挖空比例不在 40%~65% | 「挖空比例需在 40%~65% 之间（当前 xx%）」 |
+| 大盘（B 越大越慢，最大 B=10 → 100×100）生成慢 | Worker + loading；玩家用缩放按钮放大 |
+| 搜索无结果 / 接口失败 | 「没有找到题目」（`SEARCH_COPY.empty`）/ 错误文案（各 flow 的 `errorTextOf` 兜底，如「题目加载失败」）+ `ListSection` 的「重试」按钮 |
 | `page` 越界 / `pageCount ≤ 1` | 收敛到最后一页 / 隐藏分页条 |
 | `private` 被非作者访问 | 「题目不存在或不可访问」 |
 | 挑战他人题且未开答案 | 无该按钮；胜利判定走规则 |
 | 连续登录失败 5 次 | 锁定 10 分钟；文案统一「账号 ID 或密码错误」 |
 | token 过期 / 未登录 | 401 → 清 token；灰显入口提示；直入受保护页跳登录并回跳 |
 | `?redirect=` 是外站地址 | 忽略，回主页 |
-| uid 丢失 | 无法登录（登录页提示「只存在你本地，请妥善保管」） |
+| uid 丢失 | 无法登录（登录页提示 `AUTH_COPY.uidHint`：「登录需要它，请保存到安全的地方（只存在你本地）」） |
 | 手输地址无棋局进 `/game` | 回 `/difficulty`（系统生成） |
 | 挑战中刷新 | 棋局丢失回难度页（v1 已知限制） |
 | 重名作者 | 无法区分（v1 已知限制，不做作者主页） |
@@ -369,7 +370,7 @@ CREATE TABLE puzzle_play (
 | 求解：字符串模式空串 / 格式错 | 「题面不能全空」/「题面格式不对…」；都不动现有盘面 |
 | 导出：自定义 / 挑战开局 | 游戏页**不显示**该按钮（自定义的串本就在手上；挑战有 pid / 落地页） |
 | 导出：玩家已填数 / 无随题答案 | 题面串只含**锁定格**，玩家填的不进串；**不导出答案**（不剧透） |
-| 导出：大盘面（1296 位） | 只读框可横向滚动 / 全选；一键复制成败写进遮罩说明行 |
+| 导出：大盘面（最多 10000 位） | 只读框可横向滚动 / 全选；一键复制成败写进遮罩说明行 |
 ## 9. 验收用例
 
 | # | 操作 | 期望 | 现状 |
@@ -381,7 +382,7 @@ CREATE TABLE puzzle_play (
 | 5 | 换设备粘贴 uid 登录 | 成功（粘贴自动去空白）；「我的」页账号区可显示/复制自己的 uid | ✅ |
 | 6 | 搜索结果 | 看不到任何 uid；列表项只有 标题/盘面大小/挖空/创建时间/热度/预览/挑战 | ✅ |
 | 7 | 出题（标题 + 两阶段 + 挖空 45%） | 转圈后「出题完成」；`/my-puzzles` 立即可见（默认公开） | ✅ |
-| 8 | 出题时挖空 10% | 提示「挖空比例需在 40%~70% 之间」，不入库 | ✅ |
+| 8 | 出题时挖空 10% | 提示「挖空比例需在 40%~65% 之间」，不入库 | ✅ |
 | 9 | 自定义勾选「提交到我的题目」 | 展开标题输入框（必填）；提交后我的题目可见（默认私有）并提示「已保存」 | ✅ |
 | 10 | 我的题目点「显示/复制/答案预览/编辑/挑战」 | 都只调一次 `mine/:rowId`（缓存）；**复制 pid 不显示在界面** | ✅ |
 | 11 | 我的题目：重命名 / 三态 / 答案开关 / 排序 / 浏览方式 | 全部生效；排序与页码进 URL，浏览方式下次仍保留 | ✅ |
@@ -395,7 +396,7 @@ CREATE TABLE puzzle_play (
 | 19 | 连续输错密码 5 次 | 第 6 次被锁定 10 分钟 | ✅ |
 | 20 | 切换排序/关键词 / 输 `?page=999` | page 自动回 1 / 收敛到最后一页 | ✅ |
 | 21 | `/difficulty/custom` 直达 / 后退 | 正常；`{ name: PAGE.Difficulty }` 落系统生成 | ✅ |
-| 22 | 任意棋盘（B=6） | 缩放可用、到界变灰；不预设缩放 | ✅ |
+| 22 | 任意棋盘（如 B=6） | 缩放可用、到界变灰；**默认缩放按盘面大小取**（B=6 → 2.5） | ✅ |
 | 23 | 在 `/create` 退出登录 | 跳 `/home`；再点「出题」被守卫送登录 | ✅ |
 | 24 | `pnpm guard && pnpm typecheck && pnpm typecheck:functions` | 全绿 | ✅ |
 | 25 | 手选题面故意留**一整行 / 一整列 / 一整宫全空**（出题 · 编辑 · 自定义提交） | 提示「题面不能有整行 / 整列 / 整宫全空」，不入库；系统生成不受影响 | ✅ |
@@ -429,7 +430,7 @@ i18n / 深色模式 / 完整 a11y。
 | 5 | **uid 敏感**：不出现在搜索结果、题目列表与出题人信息里（前端题目类型不含 uid） |
 | 6 | 可见性三态：`public`（默认，出题）/ `protected`（pid 可达）/ `private`（仅作者，404） |
 | 7 | 自定义提交默认 `private`；答案 `show_solution` 默认关 |
-| 8 | **入库必须 40%~70% 挖空**（出题/编辑/自定义提交）；纯自定义游玩不校验；整数比较 |
+| 8 | **入库必须 40%~65% 挖空**（`BLANK_RATIO.max` = 0.65）（出题/编辑/自定义提交）；纯自定义游玩不校验；整数比较 |
 | 9 | 热度：同一人 1 小时 1 次；**游客与作者本人不计**；并列按创建时间倒序；分页 **10/页** |
 | 10 | 排序放 query（搜索与我的题目都有）；**浏览形态存本地偏好**（`sudoku.pagerMode`） |
 | 11 | 搜索分流：空 → 公开列表；20 位串 → 先 pid（跳 `/p/:pid`）后 uid；其它 → 标题/uname 模糊 |
@@ -456,7 +457,7 @@ i18n / 深色模式 / 完整 a11y。
 | 32 | `?redirect=` 必须是站内路径（`/` 开头且非 `//`） |
 | 33 | localStorage 键名统一 `sudoku.` 前缀；移除未使用的 `axios` |
 | 34 | 后端类型检查用**同一个** `functions/tsconfig.json`（esbuild + tsc 双用）；**R11 = core 必须可测（不强制测试）** —— 见决策 73 |
-| 35 | 灰显入口**不渲染 RouterLink**：灰态用 `<button aria-disabled>` + `@click` 冒泡 `blocked`（`@click.prevent` 拦不住 RouterLink 自身导航，见 FR-1 原因） |
+| 35 | 灰显入口**不渲染 RouterLink**：灰态用 `<button aria-disabled>` + `@click` 冒泡 `blocked`（`@click.prevent` 拦不住 RouterLink 自身导航，见 FR-1 原因） —— **已被取代**：v1.9.13 起入口改为可点击文本 `TextAction` + `Menu.disabled` + `go()` 写本页提示条，见 FR-1 / §1；本行仅存档 |
 | 36 | 顶栏「数独」**居中**（三栏 grid）；`AppLayout` 外壳带整页外框（`App.vue` 保持纯 `<RouterView>`） |
 | 37 | 列表接口统一回 `{ items, total }`；`SearchResult` 增 `uname`（仅供「出题人」表头，列表不显示） |
 | 38 | 棋盘一律用 `BoardRenderInput` 对象传参；容器宽度由 `ResizeObserver` 单点测量后按参数传入渲染器 |
@@ -498,6 +499,9 @@ i18n / 深色模式 / 完整 a11y。
 | 74 | **棋盘默认缩放跟着盘面大小走（修 bug）**：＋useBoardZoom(boxSize)（useZoom(defaultZoomOf(b)) + watch 尺寸变化复位），出题 / 编辑 / 游戏 / 落地页 4 页改用它 —— 原先 resetZoom() 复位的是 setup 那次捕获的默认值（切到 B=6 仍是 1.25；落地页 setup 时 boxSize=0 → 全程 1×）；useCreateFlow / useEditFlow 不再注入 resetZoom，预览遮罩复位也改按解析尺寸。顺带：难度页 .sub-nav / .sub-tab 提为全局样式，**题目求解页的输入方式改用同一套 Tab 视觉**；守卫 ZOOM_ENTRY ＋useBoardZoom | ✅ |
 | 75 | **求解页动作行收成一行两件**：题面工具（字符串模式「⬇ 填入棋盘」/ 棋盘模式「🧹 清空棋盘」）移到「🧮 求解」**左边同一行**，删掉原先单独那一行；按钮名从「✏️ 在棋盘里修改」改回「⬇ 填入棋盘」（v1.9.1 曾改过一次，以这个名字为准） | ✅ |
 | 76 | **缩放默认值收成一个字典**：`BOARD_ZOOM.default` 由标量 `1` 改成**按宫边长 B 的字典**（并入原 `BOARD_ZOOM_BY_BOX`，全站只留一个入口），`defaultZoomOf(boxSize)` 缺省兜底 `BOARD_ZOOM.min`；`useZoom()` 缺省参数与 `BoardView` 的 `zoom` 默认值都改指 `BOARD_ZOOM.min`（数值仍为 1，语义更清楚） | ✅ |
+| 77 | **文档按文件事实对齐（内容级扫描）**：正文里的陈旧数值全部改成代码现值 —— 盘面大小 B **2~10**（原写 3/4/5/6）· 挖空比例 **40%~65%**（原写 40%~70%；`BLANK_RATIO.max` 早在那次「优化生成器」就改成 0.65，用户可见文案 `RATIO_COPY.bad` 同步改成 65%）· Worker 生成超时 **15s**（原写 20s）· `pnpm build` **不含 guard**；另补 §5 漏掉的 `core/message.ts` / `core/array.ts`、§7 的 `limit ≤ 50`、§12 第 14 批 | ✅ |
+| 78 | **注释与硬编码文案扫一遍（按现状更新）**：① 修 `tracker.ts` 里早已不存在的 `fill.ts`（→ `generator.ts / solver.ts`）；② **修两个真 bug** —— `CUSTOM_TEXT_MAX` 由 4000 提到 **20000**（原值只够 B=6=1296 格，但盘面支持到 B=10 = 10000 格 → 自定义 / 求解页粘大棋盘串会被截断），数字个数提示由 `16/81/256/625/1296` 补全到 **…/2401/4096/6561/10000**（`CUSTOM_COPY` · `SOLVE_COPY` · 后端 `fail` 文案三处同源）| ✅ |
+| 79 | **需求文档整篇对文件（第二轮）**：§0 术语表 B `3/4/5/6` → **2~10**、S `9/16/25/36` → **4~100**、挑战动作改 `startFromTexts`；§1 「灰显规则」整段重写（`aria-disabled` / `.is-disabled` / `blocked` 在 src 里**已无**，现状 = `Menu.disabled` + `go()` 写本页提示条）；§2 默认 Tab 由「子路由 redirect」改为「**守卫补**」（与决策 44 一致）；§3 「14 条」→ **15 条**；§4 自定义「弹标题小框」→ **就地展开**、`40~70%` → `40~65%`；§12 · §13 的 `40~70%` 与「functions 的 paths」一并改正 | ✅ |
 
 ## 12. 分批路线
 
@@ -508,15 +512,16 @@ i18n / 深色模式 / 完整 a11y。
 | 6C | 前端数据层：types/constants 定稿 · `services/{prefs.ts,api/*}` · `stores/{user,puzzle}` · `AppLayout` + 路由重排 · 守卫 + `/login` · `SecretField` · `useAuth` · `LoginPage` · 主页瘦身 | ✅ |
 | 7 | 题目页面：`BoardOverlay` · `PuzzleCard` · `PagerBar` · `SearchPage` · `PuzzleViewPage` · `MyPuzzlesPage` · `MyPuzzleRow` · `useMyPuzzles` | ✅ |
 | 8 | 难度页：壳 + `difficulty/{SystemPage,CustomPage}` + `useCustomFlow` | ✅ |
-| 9 | 管理闭环：出题保存（标题 + 40~70% + `POST`）· `EditPuzzlePage` + `useEditFlow` · 重命名 · 三态 · 答案开关 · 删除 · 游戏页题目信息行 | ✅ |
+| 9 | 管理闭环：出题保存（标题 + 40~65% + `POST`）· `EditPuzzlePage` + `useEditFlow` · 重命名 · 三态 · 答案开关 · 删除 · 游戏页题目信息行 | ✅ |
 | 10 | 清理与收口：`styles/{form,overlay}` 收编 · `LoadingOverlay` · `useClipboard` · `useListQuery` · `usePuzzlePreview` · 拆 `core/sudoku/{fill,tracker}` · 渲染宽度单点测量 · 去测试工具链 | ✅ |
 | 11 | 文档与脚本对齐：`ARCHITECTURE v1.8.x` · `REQUIREMENTS v1.5` · 新版守卫（无 `--strict`/黄提醒 + 行数口径修正）· `README.md` · `worker-configuration.d.ts` · `public/favicon.svg` | ✅ |
 | 12 | 组件收口（决策 55~57）：通用件「传数据 + 传渲染方式」· 遮罩/敏感值/菜单/列表骨架各留一个 · 游戏页历史记录并入 `PagerBar(mode='steps')` · 组件 31 → 18，`MyPuzzleRow` 收身约 80 行 · 守卫 R14 同步 | ✅ |
 | 13 | 求解与导出：拆 `core/sudoku/generate.ts` → `{generator,digger,solver,multiSolver}`（单解 / 多解共用一份引擎）· `solvePuzzle` / `solvePuzzleMulti` 补「题面自带冲突 → null」入口守卫 · `PAGE.Solve` + `useSolveFlow` + `SolvePage`（两种输入 + 多解 + 步骤条）· Worker 判别式协议 + `runInWorker` · `GAME_MODE ＋Solve`（与出题共用 `startInput`）· 游戏页「📋 导出题目」（`givenBoard` + `usePuzzleExport`）· 主页入口图标列对齐 · 守卫 ＋R8 文件名检查 · 文档 / 需求 / 约束三处同步 | ✅ |
+| 14 | 求解 / 导出之后的收尾：默认缩放改成**一个字典**（`BOARD_ZOOM.default` 并入 `BOARD_ZOOM_BY_BOX`）· 缩放复位跟着盘面大小（`useBoardZoom`）· 求解页 Tab 与难度页统一（`.sub-nav` 提全局）· 动作行一行两件 · 守卫 ＋R8 文件名 / R11 可测性 / `ZOOM_ENTRY` 认 `useBoardZoom(` · 文档按文件事实对齐（B 2~10 · 挖空 40~65% · 超时 15s · build 不含 guard） | ✅ |
 
 ## 13. 工程注记
 
-    · 后端类型检查：同一个 functions/tsconfig.json（esbuild 读 paths；tsc -p 检查）
+    · 后端类型检查：同一个 functions/tsconfig.json（**无 paths** —— 后端 import core 一律相对路径；tsc -p 检查）
       → "typecheck:functions": "tsc --noEmit -p functions/tsconfig.json"，并串进 build        ✅
     · 移除未使用的 axios（dependencies）                                                    ✅
     · 测试工具链仍不预置（无 vitest / 无 test 脚本）：R11 只要求 core「可测」，**不强制写测试、不强制跑**      ✅

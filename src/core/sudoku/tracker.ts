@@ -12,7 +12,7 @@ interface Change {
  * 回溯用「候选簿记器」：维护 行/列/宫 已用数字 + 每格候选与候选个数
  * · 初始化时把 grid 里已有的数字登记进去
  * · place() 直接就地写 grid，并返回**撤销函数**（候选回滚 + 释放已用 + 清空格）
- * 这里只有数据与计数，不含任何规则/随机 —— 候选怎么用由调用方（fill.ts）决定
+ * 这里只有数据与计数，不含任何规则/随机 —— 候选怎么用由调用方（generator.ts / solver.ts）决定
  */
 export const createTracker = (S: number, B: number, grid: NumBoard) => {
     /** rowUsed[r][n] = 第 r 行已用数字 n */

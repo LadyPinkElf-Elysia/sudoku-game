@@ -1,7 +1,7 @@
 # 架构约束 v1.9.6（数据 · 纯函数 · 组合式）
 
 > **硬约束**：`scripts/check-arch.mjs` 是本文 R1~R15 的可执行版本（R15 与 R8 的命名语义为评审规则；
-> R11 = core 必须可测但**不强制测试**，见 §三 R11）；`pnpm guard` 违规 exit 1，`pnpm build` 已串上它。
+> R11 = core 必须可测但**不强制测试**，见 §三 R11）；`pnpm guard` 违规 exit 1，`pnpm build` 不含它（= vue-tsc -b + typecheck:functions + vite build），guard 单独跑。
 > **改规矩的顺序**：先改这一页（矩阵/规则）→ 再改守卫脚本的 `MATRIX` 与预算常量 → 再改代码。
 
 ## 一、三层 + 三类适配器
@@ -182,13 +182,14 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
 
 ## 八、后端约定（functions/）
 
-    · 复用 core 做服务端校验（同尺寸 / 格式 / 40~70% / 无空行·空列·空宫 / 合法终盘）—— 规则只有一份
-    · import core 一律用相对路径（`../../../src/core/...`）；别名靠 functions/tsconfig.json 的 paths
+    · 复用 core 做服务端校验（同尺寸 / 格式 / 40~65% / 无空行·空列·空宫 / 合法终盘）—— 规则只有一份
+    · import core 一律用相对路径（`../../../src/core/...`）（functions 的 tsconfig **没有 paths**，后端只用相对路径）
     · 环境相关逻辑（密码哈希 / 会话 / 限流 / id 生成）只放 functions/utils/
     · 每个接口文件只做四件事：校验参数 → 调 core → 读写 D1 → 用 utils/json 统一响应
     · 列表类接口统一回 { items, total }；可选字段一律走白名单（例：visibility 只认三态常量）
     · 类型检查关卡：pnpm typecheck:functions（同一个 functions/tsconfig.json，esbuild 与 tsc 双用）
-    · 限流只按 uid（连败 5 次锁 10 分钟）；PBKDF2 迭代 = 10000（Workers CPU 限额）
+    · 限流只按 uid（连败 5 次锁 10 分钟）；PBKDF2 迭代 = 10000（Workers CPU 限额）· 会话 7 天
+    · 热度去重：同一人 1 小时 1 次（作者本人不计）
     · 守卫扫描范围含 functions/（矩阵行见 §二）
 
 ## 九、types/ 索引
@@ -211,7 +212,7 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
 ## 十、目录速览（✅ 现有 · ⛔ 规划）
 
     src/
-      core/                 array · page（分页 + 排序/浏览方式归一化）· message（错误文案 / 40~70% / 提交校验）
+      core/                 array · page（分页 + 排序/浏览方式归一化）· message（错误文案 / 40~65% / 提交校验）
                             board/{model,ops,metrics,zoom}
                             sudoku/{shape,rules,generator,digger,solver,multiSolver,tracker,parse} · game/derive
       render/board.ts       renderBoard(canvas, input, contentWidth?) · measureContentWidth(parent) · getClickPos(canvas, e, size)
@@ -242,20 +243,23 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
       router/
 
     仓库顶层：
-      functions/tsconfig.json            esbuild 与 tsc 双用（paths 让 @/ 可解析）
+      functions/tsconfig.json            esbuild 与 tsc 双用（无 paths：后端只用相对路径）
       functions/types.ts · _middleware.ts · utils/{id,auth,json,user,puzzle}.ts
       functions/api/{register,login,logout,me}.ts
       functions/api/puzzles/{index,[pid],mine/[rowId],[pid]/play}.ts
       schema.sql（幂等：CREATE TABLE / INDEX IF NOT EXISTS）· wrangler.toml
       worker-configuration.d.ts（wrangler types 生成并已提交）· README.md（极简版）
+      PROJECT.md（项目全景导读：框架 / 设计 / 为什么这么设计 / 实现细节 / 数据流动 / 决策与坑）
+      CODE-GUIDE.md（代码导读：pages / components / composables / stores / core 各层为什么这么写 + 反模式清单）
+      REQUIREMENTS.md（需求与验收）· ARCHITECTURE.md（本文）
 
 ## 十一、用法
 
-    pnpm guard                # 红规则（违规 exit 1；build 前自动跑）
+    pnpm guard                # 红规则（违规 exit 1；build **不含**它，需单独跑）
     pnpm typecheck            # vue-tsc（只查 src/）
     pnpm typecheck:functions  # tsc -p functions/tsconfig.json（查后端）
     pnpm format               # prettier（src/**/*.{ts,vue,css}）
-    pnpm build                # guard + vue-tsc + typecheck:functions + vite build
+    pnpm build                # vue-tsc -b + typecheck:functions + vite build（guard 单独跑）
 
     后端本地联调（6B 起）：
     npx wrangler types                                    # 生成 worker-configuration.d.ts
@@ -343,4 +347,31 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
 - v1.9.9：缩放默认值**收成一个字典**：`BOARD_ZOOM.default` 由标量 `1` 改成**按宫边长 B 的字典**（并入原 `BOARD_ZOOM_BY_BOX`，
   全站只留一个入口），`defaultZoomOf(boxSize)` 缺省兜底 `BOARD_ZOOM.min`；`useZoom()` 的缺省参数与 `BoardView` 的 `zoom`
   默认值都改指 `BOARD_ZOOM.min`（数值仍是 1，只是语义更明确）
+
+- v1.9.10：**文档按文件事实对齐**：盘面大小 B `2~10`、挖空比例 `40%~65%`（`BLANK_RATIO.max` = 0.65，原文档写 70%）、
+  生成超时 15s、`pnpm build` 不含 guard；§八 后端约定补「会话 7 天 · 热度去重 1 小时 1 次」；§十一 用法同步
+
+- v1.9.11：**注释与硬编码文案按现状扫一遍**：`tracker.ts` 里早已不存在的 `fill.ts` → `generator.ts / solver.ts`；
+  顺带修两个真 bug —— `CUSTOM_TEXT_MAX` 4000 → **20000**（原值只够 B=6 = 1296 格，而盘面支持到 B=10 = 10000 格，
+  自定义 / 求解页粘大棋盘串会被截断）；数字个数提示补全到 `…/2401/4096/6561/10000`（`CUSTOM_COPY` · `SOLVE_COPY` ·
+  后端 `fail` 文案三处同源）；§九 术语表与 FR-4 同步
+
+- v1.9.12：**文档引用按文件修正（纯文档，不动代码）**：`REQUIREMENTS.md` 四处引用改成文件现值 ——
+  FR-8 遮罩补 `wide?`（Overlay 里已有）· FR-7 排序下拉的真实标签「时间优先 / 热度优先」· FR-7 空态是两段文案
+  （`MINE_COPY.empty` + `goCreate`）· §8 的「加载失败，点击重试」与 uid 提示改成实际文案（`errorTextOf` 兜底 +
+  `ListSection`「重试」按钮 / `AUTH_COPY.uidHint`）。做法：把文档里「」引用的文案全部拿去 `src` + `functions` 里比对，
+  逐条分诊（只有 4 条真引用错，其余是行文转述）
+
+- v1.9.13：**需求文档整篇核一遍（第二轮）**：§0 B/S 的取值范围、§1 灰显规则整段（`aria-disabled` / `.is-disabled` /
+  `blocked` 早已不在 src 里）、§2 默认 Tab 改「守卫补」（与决策 44 对齐）、§3 条数 14 → 15、§4「弹标题小框」→ 就地展开、
+  各处 `40~70%` → `40~65%`；§八 / §十 的「functions tsconfig 的 paths」改正（该文件**没有 paths**）
+
+- v1.9.14：＋**`PROJECT.md`「项目全景导读」**（给自己看的重启记忆文档）：框架与选型理由 · 分层与依赖铁律 ·
+  `NumBoard`/`Board` 两种盘面表示 · core 逐模块 · **10 条端到端数据流** · stores / composables / 三个适配器 ·
+  守卫与命令 · 关键决策与踩过的坑 · 改需求的正确顺序与自检清单；三份文档互相引用
+
+- v1.9.15：＋**`CODE-GUIDE.md`「代码导读」**（各层为什么这么写）：先整体（一次交互的五个阶段：pages → components → composables → stores → core，含依赖铁律与四个真实痛点）
+  → 再逐层（`core` 纯函数与 rng 注入 · `store` 只记"要记住的"与 computed 单一事实源 · `composable` 为什么是
+  store 与组件之间的缺环 · `pages` 为什么必须最薄 / `component` 为什么必须"笨"）→ 两条完整链条（游戏页落子 / 求解页）标注各层各自在做的事
+  → §6 决策树「这段逻辑该写哪一层」＋ §7 跨层反模式 12 条（每条都对应一条机器检查）
 

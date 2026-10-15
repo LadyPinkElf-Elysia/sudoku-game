@@ -16,7 +16,7 @@ export const blankRatioErrorOf = (blanks: number, boxSize: number): string =>
         : `${RATIO_COPY.bad}（当前 ${percentOf(blanks / cellCountOf(boxSize))}%）`
 
 /**
- * 提交题面的校验（出题 / 编辑共用）：整盘全空 → 有空行/列/宫 → 冲突 → 40%~70%
+ * 提交题面的校验（出题 / 编辑共用）：整盘全空 → 有空行/列/宫 → 冲突 → 40%~65%
  * '' = 通过；否则返回第一条不合格的文案（书写顺序即报错优先级）
  */
 export const puzzleSubmitErrorOf = (numBoard: NumBoard, boxSize: number, sudoku: Sudoku): string => {
