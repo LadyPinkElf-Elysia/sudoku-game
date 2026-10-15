@@ -31,7 +31,8 @@
 | `board/zoom.ts` | 16 | 6 | 缩放：夹紧、增减、能否增减（抗浮点）、按盘面取默认值 |
 | `sudoku/shape.ts` | 25 | 5 | 盘面"形状与比例"：S/B 互推、总格数、挖空数、比例是否合规 |
 | `sudoku/parse.ts` | 40 | 3 | 字符串 ↔ 盘面（题面串解析 + 反向输出） |
-| `sudoku/rules.ts` | 178 | 2 | **规则工厂**（`createSudoku`/`getSudoku`）：行列宫枚举、候选、冲突、判胜、题面校验 |
+| `sudoku/rules.ts` | 95 | 2 | **规则工厂**（`createSudoku`/`getSudoku`）：候选、判胜、题面校验（行列宫的枚举与冲突扫描已拆到 `groups.ts`） |
+| `sudoku/groups.ts` | 141 | 2 | **组单元表 + 三个扫描**（契约 `GroupTable` / `GroupScanner` 在 `types/sudoku.ts`）：`createGroupTable(S, B)`（3S 个组的扁平下标表）· `createGroupScanner(S, B)` → `{ findConflicts, hasConflict, hasEmptyGroup }`（复用计数缓冲、零小对象分配） |
 | `sudoku/tracker.ts` | 127 | 1 | 回溯用**候选簿记器**：缓存每格候选 + MRV 挑格 + 落子/撤销（闭包） |
 | `sudoku/solver.ts` | 70 | 2 | **回溯引擎**（DFS）+ 单解入口 |
 | `sudoku/multiSolver.ts` | 45 | 2 | 多解枚举（共用同一引擎，换停止策略） |
@@ -701,7 +702,7 @@ board.flat().join(' ')     // 9×9 → "0 0 5 0 ..."（81 个数字）
 
 ---
 
-## 9. `core/sudoku/rules.ts`（178 行 · 2 个导出）—— 数独规则的唯一实现
+## 9. `core/sudoku/rules.ts`（95 行）+ `groups.ts`（141 行）—— 数独规则的唯一实现
 
 **① 这个文件是干嘛的**：**整个项目里最重要的一个文件**。它定义"什么叫做合法数独"：行列宫冲突、候选数、判胜、题面校验。
 **它被谁用**：
@@ -743,22 +744,31 @@ getCandidates(grid, pos, boxSize)
 
 **为什么还要 `getSudoku`**：工厂每次都建一批新闭包 + 新的 `S/B`；而**同一个 `boxSize` 的规则对象完全可以复用**（它是无状态的），所以外层加一个 `Map` 缓存（§9.10，也是 R11 的例外 E1）。
 
-### 9.2 `findGroupConflicts`：从"一组格子"里找出重复数字
+### 9.2 组内计数：`tally` + `settle`（在 `groups.ts` 里，替换了早期的 `Map` 版本）
 
 ```ts
-const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
-    const map = new Map<number, Position[]>()
-    for (const [r, c] of cells) {
-        const v = grid[r][c]
-        if (v === 0) continue                                   // ① 空格不参与
-        if (!map.has(v)) map.set(v, [])                         // ② 没见过 → 先建空数组
-        map.get(v)!.push([r, c])                                // ③ 记下这个位置
+/** ① 数一遍本组：写 counts，并把出现过的值记进 touched；返回动过几个值 */
+const tally = (grid: NumBoard, g: Int32Array): number => {
+    let n = 0
+    for (let i = 0; i < g.length; i++) {
+        const p = g[i]
+        const v = grid[(p / S) | 0][p % S]
+        if (v === 0) continue                    // 空格不参与
+        if (counts[v] === 0) touched[n++] = v     // 第一次见到 → 记下来（复位时按它清）
+        counts[v]++
     }
-    const conflicts: Position[] = []
-    for (const ps of map.values()) {
-        if (ps.length > 1) conflicts.push(...ps)                // ④ 重复 ≥2 → 全是冲突
+    return n
+}
+
+/** ② 复位 counts（顺带挑出"出现 ≥2 次"的值写进 dups）；返回重复值的个数 */
+const settle = (n: number): number => {
+    let dn = 0
+    for (let i = 0; i < n; i++) {
+        const v = touched[i]
+        if (counts[v] > 1) dups[dn++] = v
+        counts[v] = 0
     }
-    return conflicts
+    return dn
 }
 ```
 
@@ -766,64 +776,59 @@ const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
 
 | # | 代码 | 说明 |
 |---|---|---|
-| ① | `if (v === 0) continue` | **0 是空格**，多个空格不算冲突（这是整个数独逻辑的基石约定） |
-| ② | `if (!map.has(v)) map.set(v, [])` | 用 `Map<数字, 位置数组>` 统计"每个数字出现在哪些格子" |
-| ③ | `map.get(v)!.push([r, c])` | `!` 告诉 TS"我刚 `set` 过，一定存在"（00 册 §4.8） |
-| ④ | `if (ps.length > 1) conflicts.push(...ps)` | 某数字出现 ≥2 次 → **这些位置全是冲突格**（**全部返回**，不是只报一个） |
+| ① | 扁平下标 `p = g[i]` → `grid[(p / S) \| 0][p % S]` | 组里存的是**一维下标**（不是 `[r,c]` 坐标对）→ 扫描时不产生任何小对象 |
+| ② | `if (v === 0) continue` | **0 是空格**，多个空格不算冲突（整个数独逻辑的基石约定） |
+| ③ | `if (counts[v] === 0) touched[n++] = v` | `counts` 是**复用缓冲**：先记下"这次动过哪些值"，复位时只清这些（O(出现数)），不必每次清零整张表 |
+| ④ | `counts[v]++` | 用**数组下标当键**统计"值 v 在这组出现了几次"（比 `Map` 少一层哈希） |
+| ⑤ | `settle` 里 `counts[v] > 1` | 出现 ≥2 次 → 这个值在这组里"重复"了 |
 
-**为什么返回"全部冲突位置"而不是 `boolean`**：上层要**把冲突格画成红底**（`BOARD_COLOR.conflictBg`）。
-如果只返回"有冲突"，渲染层就无法知道"哪几格红了" —— 这就是"**返回信息要够用**"的设计原则（`hasConflict` 才是布尔版，见 §9.6）。
+**为什么是"两遍 + 一张表"，而不是早期那种"`Map<数字, 位置数组>`"**：
 
-**复杂度**：设这组有 `n` 个格子（行/列/宫分别是 `S`/`S`/`B²`）→ **O(n)**（`Map` 的 `has/get/set` 都是 O(1)）。
-**边界**：全是空格 → 每个 `v === 0` 都 `continue` → `map` 空 → 返回 `[]` ✅。
+| | 早期（`Map` + `Position[]`） | 现在（计数数组 + 扁平下标） |
+|---|---|---|
+| 每次调用分配 | 每组一个 `Map` + 每个非空格一个 `[r,c]` 数组（`B=10` 时约 **3 万个小对象**） | **零分配**（缓冲随实例建一次，掩码除外） |
+| 复杂度 | O(n)（有哈希开销） | O(n)（纯数组下标） |
+| 实测（`B=10`） | 2.68 ms/次 | **0.46 ms/次（5.8×）** |
 
-### 9.3 三个生成器 + `allGroups`：把"行/列/宫"变成可遍历的序列
+> **这是"同一逻辑、换个数据表示"的典型收益**：算法没变（都是"数一数有没有重复"），
+> 只是把"临时容器"从**每次新建的 `Map`**换成**实例内复用的计数数组**。
+> **推动力是"调用频率 × 单次成本"**：`conflictMask` 是 computed，**每次落子都会重算一次**，
+> 所以这条路径值得"零分配"（而 9×9 时两者都是 0.02ms 级，本来无所谓）。
+
+**边界**：全是空格 → 全 `continue` → `n = 0` → `settle` 直接返回 0 → 这组跳过 ✅。
+
+### 9.3 `createGroupTable`：把"行/列/宫"变成**一张建一次的表**
 
 ```ts
-function* allRows(): Generator<Position[]> {
-    for (let r = 0; r < S; r++) {
-        const cells: Position[] = []
-        for (let c = 0; c < S; c++) cells.push([r, c])
-        yield cells
-    }
+for (let r = 0; r < S; r++) {                  // ① 行：S 组
+    const g = new Int32Array(S)
+    for (let c = 0; c < S; c++) g[c] = r * S + c
+    cells.push(g)
 }
-
-function* allCols(): Generator<Position[]> {
-    for (let c = 0; c < S; c++) {
-        const cells: Position[] = []
-        for (let r = 0; r < S; r++) cells.push([r, c])
-        yield cells
+for (let c = 0; c < S; c++) { /* ② 列：同理，g[r] = r * S + c */ }
+for (let br = 0; br < S; br += B) {            // ③ 宫：宫左上角的行（步长 B）
+    for (let bc = 0; bc < S; bc += B) {        //    宫左上角的列（步长 B）
+        const g = new Int32Array(B * B)
+        let k = 0
+        for (let i = 0; i < B; i++)
+            for (let j = 0; j < B; j++) g[k++] = (br + i) * S + (bc + j)
+        cells.push(g)
     }
-}
-
-function* allBoxes(): Generator<Position[]> {
-    for (let br = 0; br < S; br += B) {                 // 宫的左上角行（步长 B）
-        for (let bc = 0; bc < S; bc += B) {             // 宫的左上角列（步长 B）
-            const cells: Position[] = []
-            for (let i = 0; i < B; i++)
-                for (let j = 0; j < B; j++)
-                    cells.push([br + i, bc + j])          // 宫内的 B×B 个格
-            yield cells
-        }
-    }
-}
-
-/** 生成行、列、宫格等位置组 */
-function* allGroups(): Generator<Position[]> {
-    yield* allRows()      // 先所有行
-    yield* allCols()      // 再所有列
-    yield* allBoxes()     // 再所有宫
 }
 ```
 
-**为什么用生成器（`function*` + `yield`）**（00 册 §3.9 已讲过原理，这里看它的收益）：
+**三个要点**：
 
-| 返回 `Position[][]` | 生成器 |
-|---|---|
-| 一次把 `S` 行 + `S` 列 + `S` 宫（9 阶 = **27 组、243 个坐标对**）全建出来 | **用到才建下一组** |
-| 调用方要自己写"三套遍历 + 顺序" | `for (const group of allGroups())` 一行，**顺序被封在函数里** |
+1. **`Int32Array` 而不是 `number[]` / `Position[]`**：① 内存紧凑（`B=10` 时整张表约 120KB）；② 元素是**扁平下标**，扫描时不需要解构、也不产生小对象。
+2. **`g[r] = r * S + c` 的换算与 `boxIndexAt`（§3.6）配对**：组内元素用扁平下标、格子的三个组编号也用数字（行 = `r`、列 = `S + c`、宫 = `2S + boxIndexAt`，见 `GroupTable` 的 `row/col/box` 三张表）。
+3. **建表时机**：在 `createSudoku(B)` 里建一次，随 `getSudoku(B)` 的 `Map` 缓存复用（§9.10）——**不是每次扫描都建**。
 
-**`allBoxes` 的循环写法**（容易写错的地方）：
+**为什么不再用生成器（早期是 `allRows/allCols/allBoxes` + `allGroups()`）**：
+生成器每次 `yield` 出一个 `Position[]`，**每格都要新建 `[r, c]` 数组**；而"组"是**每次落子都要遍历**的东西（见 §9.2 的频率分析）。
+换成"建一次的表"后，**遍历成本只剩数组下标访问**；代价是**每个 `boxSize` 多约 120KB 常驻内存**（只有用到该尺寸时才建）。
+> **一般的判断**：**"每次调用都重建的结构"换成"实例内复用"，是热路径上最划算的一类优化** —— 数据形状不变、语义不变，只是不再重复付"建造费"。
+
+**`allBoxes` 的循环写法**（容易写错的地方，原样保留）：
 
 ```ts
 for (let br = 0; br < S; br += B)         // br = 0, 3, 6（9 阶）
@@ -833,8 +838,8 @@ for (let br = 0; br < S; br += B)         // br = 0, 3, 6（9 阶）
 **注意是 `br += B` 而不是 `br++`**：宫是"每隔 B 行开始一个"。写错成 `br++` → 会枚举出 9×9 个重叠的"伪宫" → 判定结果完全错（这个 bug 会让正常盘面被判成有冲突）。
 **宫的数量**：`(S/B)² = B²` 个（9 阶是 9 个宫，正好等于 `S`）—— 这就是为什么 `boxIndexAt`（§3.6）的取值是 `0 ~ B²-1`。
 
-**`allGroups` 的顺序有意义吗**：有（**性能**层面）：
-`hasConflict` 是"发现即返回"，所以**先查行**（最容易出现冲突、且连续内存访问快）→ 大概率第一轮就返回 `true`；而 `findConflicts` 必须走完全部组（要标出所有冲突格），所以顺序对它无影响。
+**表的顺序有意义吗**：有（**性能**层面）：
+表的顺序是"先 S 行、再 S 列、最后 S 宫"。`hasConflict` 是"发现即返回"，所以**先查行**（连续内存访问快、最容易出现冲突）→ 大概率第一轮就返回 `true`；而 `findConflicts` 必须走完全部组（要标出所有冲突格），所以顺序对它无影响。
 
 ### 9.4 `getCandidates`：某一格还能填哪些数字（**"提示"按钮的核心**）
 
@@ -904,21 +909,35 @@ const makeEmptyMask = (): ConflictMask => makeGrid<boolean>(S, () => false)
 ### 9.6 `findConflicts` vs `hasConflict`：同一逻辑的"完整版"与"短路版"
 
 ```ts
-/** 找出所有冲突格 */
+/** 所有冲突格：同组里"自己的值出现过 ≥2 次"的格子（空格的 v=0 → dup[0] 恒 0，自动跳过） */
 const findConflicts = (grid: NumBoard): ConflictMask => {
-    const mask: ConflictMask = makeEmptyMask()
-    for (const group of allGroups()) {
-        for (const [r, c] of findGroupConflicts(grid, group)) {
-            mask[r][c] = true
+    const mask = makeGrid<boolean>(S, () => false)
+    for (const g of table.cells) {
+        const dn = settle(tally(grid, g))
+        if (!dn) continue
+        for (let i = 0; i < dn; i++) dup[dups[i]] = 1        // 这组里重复的值，逐个打上临时标记
+
+        for (let i = 0; i < g.length; i++) {
+            const p = g[i]
+            if (dup[grid[(p / S) | 0][p % S]]) mask[(p / S) | 0][p % S] = true
         }
+
+        for (let i = 0; i < dn; i++) dup[dups[i]] = 0        // 清干净，下一组复用
     }
     return mask
 }
 
-/** 盘面是否存在任何冲突（发现即返回，不构造整张掩码） */
+/** 是否存在任何冲突（每组发现重复就立刻返回） */
 const hasConflict = (grid: NumBoard): boolean => {
-    for (const group of allGroups()) {
-        if (findGroupConflicts(grid, group).length) return true
+    for (const g of table.cells) {
+        const n = tally(grid, g)
+        let has = false
+        for (let i = 0; i < n; i++) {
+            const v = touched[i]
+            if (counts[v] > 1) has = true
+            counts[v] = 0                                          // 复位（复用缓冲，返回前也要清）
+        }
+        if (has) return true
     }
     return false
 }
@@ -942,13 +961,18 @@ const hasConflict = (grid: NumBoard): boolean => {
 ### 9.7 `hasEmptyGroup`：有没有"整行/整列/整宫全空"
 
 ```ts
-/**
- * 是否有整行 / 整列 / 整宫全为 0 —— 只给「手选题面」的提交用
- * （行/列/宫的定义就在上面的 allGroups()，不另写一套；`?.` 防不规则输入越界）
- */
+/** 是否有整行 / 整列 / 整宫全为 0（`?.` 防不规则输入越界 → 缺失行按"非空"处理） */
 const hasEmptyGroup = (grid: NumBoard): boolean => {
-    for (const group of allGroups()) {
-        if (group.every(([r, c]) => grid[r]?.[c] === 0)) return true
+    for (const g of table.cells) {
+        let allZero = true
+        for (let i = 0; i < g.length; i++) {
+            const p = g[i]
+            if (grid[(p / S) | 0]?.[p % S] !== 0) {
+                allZero = false
+                break
+            }
+        }
+        if (allZero) return true
     }
     return false
 }
@@ -959,7 +983,7 @@ const hasEmptyGroup = (grid: NumBoard): boolean => {
 1. **`group.every(...)` 全为 0 才成立** —— 注意与 `isBlankBoard`（§5.2，**整盘**全空）的区别：这里是**任意一组**全空。
 2. **`grid[r]?.[c]` 的可选链**：如果传入的 `grid` 行数不足（**不规则输入**，比如只有 5 行），`grid[r]` 是 `undefined` → `?.` 短路 → 整体得 `undefined` → `undefined === 0` 为 `false` → 这一组"不算全空"。
    **没有 `?.` 会怎样**：`TypeError: Cannot read properties of undefined (reading '0')` → 500 错误。**这就是"防御不规则输入"的最小代价写法**。
-3. **为什么"行/列/宫的定义不另写一套"**：直接复用 `allGroups()`（§9.3）→ 如果将来"宫"的定义变了，这里自动跟着变。**注释专门写这句，是提醒后人别在这里手写第二套遍历。**
+3. **为什么"行/列/宫的定义不另写一套"**：直接复用**组单元表**（§9.3）→ 如果将来"宫"的定义变了，这里自动跟着变。**注释专门写这句，是提醒后人别在这里手写第二套遍历。**
 
 **为什么只给"手选题面"用**（注释原文）：
 - **系统生成**的题面由 `digPuzzle` 保证"每行/每列/每宫至少留 1 个数"（§14）→ 不可能出现空组，**不需要校验**；
@@ -1746,7 +1770,7 @@ const randomTransform = (grid: NumBoard, S: number, B: number, rng: Rng): void =
 ```ts
 /** 骨架保留比例（盘面越大保留越多，补全才是「秒收」而不是「长考」） */
 const keepRatioOf = (S: number): number => {
-    if (S >= 100) return 0.85
+    if (S >= 64) return 0.85
     return Math.min(0.72, 0.35 + (S - 9) * 0.014)
 }
 ```
@@ -1760,12 +1784,16 @@ const keepRatioOf = (S: number): number => {
 | 16（16×16） | `0.35 + 7×0.014 = 0.448` | 0.448 |
 | 25（25×25） | `0.35 + 16×0.014 = 0.574` | 0.574 |
 | 36（36×36） | `0.35 + 27×0.014 = 0.728` | **0.72**（被 `min` 截断） |
-| 49+ | 更大 | **0.72**（封顶） |
-| 100（100×100） | — | **0.85**（特判） |
+| 49（49×49） | `0.35 + 40×0.014 = 0.91` | **0.72**（封顶） |
+| **64 / 81 / 100**（B=8/9/10） | — | **0.85**（`S ≥ 64` 直接固定） |
 
 **为什么要"盘面越大保留越多"**（注释原文："补全才是「秒收」而不是「长考」"）：
-- **保留太少**（例如 36×36 只留 35% ≈ 441 格）：留给求解器的空格有 800+ 个，**搜索空间爆炸** → 可能跑几秒甚至触发保险丝（`maxIter`）→ 生成失败；
-- **保留够多**：空格大多是"唯一候选"，MRV 一路 `count === 1` 推下去 → **几毫秒就补完**（"秒收"）。
+- **保留太少**（实测：把曲线去掉、固定 `0.35` 时，36×36 **每一次都跑 16~19 秒后触发保险丝 `maxIter`，抛 `生成失败`** —— 不是"可能慢"，是**必然失败**）：留给求解器的空格有 800+ 个 → **搜索空间爆炸**；
+- **保留够多**：空格大多是"唯一候选"，MRV 一路 `count === 1` 推下去 → **毫秒就补完**（实测：S=36 `0.72` → 1.1 ms；S=64/81/100 用 `0.85` → 2.8 / 5.6 / 9.6 ms）。
+
+**为什么"从 64 起就一路 0.85"**：曲线到 49 已经封顶在 `0.72`，而 64×64 有 **4096 格**、100×100 有 **1 万格** —— 空格再多一点，补全就可能从"秒收"变成"长考"。所以大盘**不再走曲线，直接给 0.85**。
+**实测（同 seed、预热后 10 次平均）**：S=64 → `0.72` 4.2 ms vs `0.85` **2.8 ms**（1.5×）；S=81 → 11.5 ms vs **5.6 ms**（2.1×）。B=10 的 `S=100` 本来就走特判 0.85，所以那档没变。
+**宁可骨架更规整，也不要生成时间不可控**（用户等 2 秒可以接受，等 30 秒还被超时杀掉不可接受）。
 
 **代价要认识**：保留越多 → 骨架越接近模式盘 → **题目的"结构性"越强**（更规整、更难挖出"有趣"的题面）。
 **这是一个典型的工程取舍**：**"生成时间可控"优先于"每一盘都极致随机"** —— 因为用户点"生成"之后等 2 秒是可以接受的，等 30 秒（还被超时杀掉）不可接受。
@@ -2342,7 +2370,7 @@ String(raw ?? '') === SORT.Hot ? SORT.Hot : SORT.Time
 | `board/zoom.ts` | 缩放规则 | 键是 `B`；`EPS` 防浮点导致按钮"能点没反应" |
 | `sudoku/shape.ts` | 尺寸与比例 | `B⁴` 关系；`boxSizeOf` 用平方回验 |
 | `sudoku/parse.ts` | 字符串 ↔ 盘面 | 四道关卡；总格数必须是"四次方数" |
-| `sudoku/rules.ts` | 规则唯一实现 | 工厂 + `Map` 缓存（E1）；`findConflicts`/`hasConflict` 双版本 |
+| `sudoku/rules.ts` + `groups.ts` | 规则唯一实现（工厂 + `Map` 缓存 E1） | `groups.ts` 出**组单元表**与三个扫描（`findConflicts` 出掩码 / `hasConflict` 早退 / `hasEmptyGroup`）；`rules.ts` 出候选、判胜、题面校验 |
 | `sudoku/tracker.ts` | 候选簿记器 | MRV；`drop` 双守卫；撤销闭包（E7） |
 | `sudoku/solver.ts` | 回溯引擎 | 一个引擎两种策略；冲突必须先拦；`maxIter` 保险丝 |
 | `sudoku/multiSolver.ts` | 多解枚举 | 上限归一化 `[1,50]`；返回 `[]` 而非 `null` |

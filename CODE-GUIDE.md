@@ -511,7 +511,7 @@ emits:  cell-click: [pos]
 1. **只读 = 纯 canvas**：`interactive=false` 时 `v-on="{}"`（不绑 click）、不加手型样式 → 预览/答案/解题结果都用它，**零副作用**（不写 store、不改状态）。
 2. **zoom 贴棋盘**：`zoomActions` 渲染在 `.board-scroll-container` **外面**的 `.board-zoom` 行（所以放大后横向滚动时，➖/➕ 不会跟着滚走，见 E2/E6 与决策 63）。
 3. **canvas 的一切留在 `useBoardCanvas`**：绑定 canvas、随入参重绘、`ResizeObserver` 量宽度、把点击换算成行列 —— 这些是**副作用**，不属于"画"的职责；组件只给两个 `ref`（canvas 与滚动框）。
-4. **渲染细节全在 `render/board.ts`**：逐格（底色/冲突色/数字字体/选中框）→ 细线 → 粗线；`devicePixelRatio` 处理高清屏。
+4. **渲染细节全在 `render/`（五文件、无状态）**：`geometry.ts` 算几何（纯）→ `paint.ts` 画一格（纯）→ `layer.ts` 给线层（纯工厂）→ `dirty.ts` 算脏格与决策（纯）→ `board.ts` 只留"适配 DOM + 调用绘制"；`devicePixelRatio` 处理高清屏。状态（快照 / 线层 / 上次边长）都在 `useBoardCanvas`。
 
 ### 4.6 什么时候该拆组件（体量判据）
 

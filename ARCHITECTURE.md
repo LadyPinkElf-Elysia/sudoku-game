@@ -214,8 +214,9 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
     src/
       core/                 array · page（分页 + 排序/浏览方式归一化）· message（错误文案 / 40~65% / 提交校验）
                             board/{model,ops,metrics,zoom}
-                            sudoku/{shape,rules,generator,digger,solver,multiSolver,tracker,parse} · game/derive
-      render/board.ts       renderBoard(canvas, input, contentWidth?) · measureContentWidth(parent) · getClickPos(canvas, e, size)
+                            sudoku/{shape,rules,groups,generator,digger,solver,multiSolver,tracker,parse} · game/derive
+      render/               geometry.ts（几何，纯计算）· board.ts（prepareCanvas / paintBoard / paintDirtyCells / getClickPos）
+                            layer.ts（线层纯工厂）· paint.ts（单格绘制）· dirty.ts（脏格 + 重绘决策，全纯函数）
       services/             prefs.ts · api/{client,session,userApi,puzzleApi} · sudoku/{worker,workerClient}
       stores/               {game,user,puzzle}.ts
       composables/          useClipboard · useListQuery · usePuzzleExport（题目串导出）

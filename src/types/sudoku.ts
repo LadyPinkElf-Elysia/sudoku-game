@@ -29,3 +29,26 @@ export interface Sudoku {
     /** 校验「题面 + 答案」是否成立 */
     validatePuzzle(puzzle: NumBoard, solution: NumBoard): boolean
 }
+
+/**
+ * 「组」单元表（由 core/sudoku/groups 的 createGroupTable 建一次，随 Sudoku 实例缓存）
+ * 3S 个组：前 S 个是行、接着 S 个是列、最后 S 个是宫；每组存**扁平下标**（r*S+c）
+ */
+export interface GroupTable {
+    /** 组的格子（扁平下标列表） */
+    cells: Int32Array[]
+    /** 每格所属的三个组编号：行 = r、列 = S + c、宫 = 2S + boxIndexAt */
+    row: Int32Array
+    col: Int32Array
+    box: Int32Array
+}
+
+/** 三个"查冲突"扫描（由 core/sudoku/groups 的 createGroupScanner 实现；共用计数缓冲） */
+export interface GroupScanner {
+    /** 所有冲突格（每次返回**新掩码**：store 的 computed 靠它通知下游） */
+    findConflicts(grid: NumBoard): ConflictMask
+    /** 是否存在任何冲突（发现即返回，不构造掩码） */
+    hasConflict(grid: NumBoard): boolean
+    /** 是否有整行 / 整列 / 整宫全为 0（缺失行按"非空"处理） */
+    hasEmptyGroup(grid: NumBoard): boolean
+}

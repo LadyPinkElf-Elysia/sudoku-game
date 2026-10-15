@@ -139,11 +139,12 @@ Cloudflare Functions（服务端）—— functions/** → 也直接 import core
 | 文件 | 关键导出 | 记什么 |
 |---|---|---|
 | `shape.ts` | `sideOf(B)` · `cellCountOf(B)` · `blankCountOf(B, ratio)` · `boxSizeOf(S)` · `isBlankRatioOk(blanks, B)` | 只在 `B ↔ S = B²` 之间换算；挖空比例合法区间取自 `BLANK_RATIO`（**0.4 ~ 0.65**，见 §10） |
-| `rules.ts` | `createSudoku(B)` → `Sudoku` 契约；`getSudoku(B)`（记忆化 `Map`，E1） | `allRows/allCols/allBoxes` 是**生成器**，`allGroups()` 把它们串起来 —— 冲突检测、`hasEmptyGroup`、候选都复用它（"行/列/宫"的定义只有一份）；`findConflicts` 出掩码、`hasConflict` 早退、`hasEmptyGroup` 判"整行/列/宫全空"、`isSolved`、`validatePuzzle(puzzle, solution)`（同尺寸 + 题面无冲突 + 题面是答案子集 + 答案是合法终盘） |
+| `rules.ts` | `createSudoku(B)` → `Sudoku` 契约；`getSudoku(B)`（记忆化 `Map`，E1） | 候选（`getCandidates`）、判胜（`isSolved`）、题面校验（`isSubset` / `sameShape` / `validatePuzzle`）、`makeEmptyBoard` / `makeEmptyMask`；**行/列/宫的枚举与三个冲突扫描已拆到 `groups.ts`** |
+| `groups.ts` | `createGroupTable(S, B)` · `createGroupScanner(S, B)` → `{ findConflicts, hasConflict, hasEmptyGroup }`（契约 `GroupTable` / `GroupScanner` 在 `types/sudoku.ts`） | **"组" = 行/列/宫的统一表示**：3S 个组各存一串**扁平下标**（`Int32Array`），随实例建一次（约 120KB @ B=10，换来扫描零小对象）；三个扫描共用一张计数缓冲（`tally` 数一遍 → `settle` 复位并挑出"出现 ≥2 次"的值）→ `findConflicts` 出掩码、`hasConflict` 早退、`hasEmptyGroup` 判"整行/列/宫全空"。**"行/列/宫"的定义只有这一份** |
 | `tracker.ts` | `createTracker(S, B, grid)` → `{ pickCell, candidatesOf, place }` | **回溯的候选簿记**：`rowUsed/colUsed/boxUsed` + 每格候选 `cand[r][c][n]` + 候选计数 `count[r][c]`。`pickCell()` 用 **MRV**（候选最少的空格）并同时报告 `full`（无空格）/`dead`（有 0 候选的死路）；`place(r,c,n)` 就地写盘 + 删同行/列/宫候选，**返回撤销闭包**（撤销只需回放 changes，E7） |
 | `solver.ts` | `solveGrid(grid, B, rng, onSolution, maxIter?)` · `solvePuzzle(board, rng)` | **一份引擎**：每凑满一盘就调一次 `onSolution`（传拷贝），回调返回 `true` 就停；`maxIter` 是保险丝（默认 2000 万步）。`solvePuzzle` 入口先查尺寸与**题面自带冲突**（冲突直接 `null`） |
 | `multiSolver.ts` | `solvePuzzleMulti(board, rng, max)` · `solveLimitOf(n)` | 与求解器**共用同一引擎**，只换停止策略：每找到一个就 `push`，存够 `limit` 才停 → 返回 `NumBoard[]`（`[]` = 无解/尺寸非法/自带冲突）。上限硬顶 50 |
-| `generator.ts` | `generateSolution(B, rng)` · `generatePuzzle(B, blanks, rng)` | ① `patternBoard`：用 `((r·B + ⌊r/B⌋ + c) mod S)+1` 构造一个**天然合法的终盘**（不用搜）② `randomTransform`：数字置换 → 宫内行置换 → 行带置换 → 宫内列置换 → 半概率转置（都保合法性）③ 按 `keepRatioOf(S)` 随机保留一部分 ④ 交给 `solveGrid` 补全 → 完整解；`generatePuzzle` = `generateSolution` + `digPuzzle` |
+| `generator.ts` | `generateSolution(B, rng)` · `generatePuzzle(B, blanks, rng)` | ① `patternBoard`：用 `((r·B + ⌊r/B⌋ + c) mod S)+1` 构造一个**天然合法的终盘**（不用搜）② `randomTransform`：数字置换 → 宫内行置换 → 行带置换 → 宫内列置换 → 半概率转置（都保合法性）③ 按 `keepRatioOf(S)` 随机保留一部分（小盘按曲线 0.35 起；**`S ≥ 64` 固定 0.85**） ④ 交给 `solveGrid` 补全 → 完整解；`generatePuzzle` = `generateSolution` + `digPuzzle` |
 | `digger.ts` | `digPuzzle(solution, blanks, rng)` | **三阶段挖洞**（目标 = `clamp(blanks, 40%~65%)`）：① 保证每行/每列/每宫**至少留 1 个数**（这也是"系统生成的题面不会有空行/列/宫"的来源）② 硬+软约束（行-宫/列-宫交叉至少留 `k` 个）③ 只守硬底线兜底 |
 | `parse.ts` | `parseNumBoard` · `parsePuzzle` · `boardToStr` | 串 ↔ 盘面：**空格/逗号/中文逗号/换行分隔、行优先、`0` = 空格**；`boardToStr` 用空格分隔 —— **导出串与自定义/求解的输入完全对称**（§5.8） |
 
@@ -443,7 +444,12 @@ workerClient.ts：
 
 **为什么 Worker 协议要判别式**：`kind` 让一个 Worker 文件服务两种重活，且主线程侧的响应类型是窄的（`PuzzleData` vs `NumBoard[]`），不用 `any`。
 
-### 8.2 `render/board.ts` —— 唯一碰 canvas
+### 8.2 `render/` —— 唯一碰 canvas（board / layer / paint / dirty）
+
+> **五文件分工**：`geometry.ts` 几何（纯计算）· `board.ts` 适配与绘制（`prepareCanvas` 是**唯一写 DOM** 的点，`paintBoard` / `paintDirtyCells` 是纯绘制）· `paint.ts` 画一格 · `layer.ts` 线层纯工厂 · `dirty.ts` 脏格 + 重绘决策（全纯函数）。
+> **两种重绘**：`paintBoard`（整盘：清屏 → 铺白底 → 逐格 → **贴一次线层**）· `paintDirtyCells`（只重画脏格：`paintCell` + **把线层那一小块贴回**）；**走哪条由纯函数 `redrawModeOf` 判**。
+> **状态在哪**：上一帧快照 / 线层 / 上次边长全部由 `useBoardCanvas` 持有 —— **`render/` 里没有模块级可变状态，也没有隐藏缓存**；类型（`BoardGeometry` / `CellFonts` / `FrameState` / `RedrawMode`）都在 `types/render.ts`。
+> **为什么需要线层**：网格线必须画在格子内容**之上**，所以不能"先贴底图再画格"；做成**透明底离屏层**后，整盘只需 1 次 `drawImage`（省 3S 次 `stroke`），局量只需贴回一格。
 
 ```
 measureContentWidth(parent)          量"内容宽"（clientWidth − 左右 padding）；只在 ResizeObserver/首帧调
@@ -544,6 +550,9 @@ npx wrangler pages dev --port 8788                    # 后端 + 本地 D1
 8. **B 支持 2~10**（下拉 `BOX_SIZE_OPTIONS`，最大 100×100 = 10000 格）：因此**粘贴上限必须按 100×100 算** —— `CUSTOM_TEXT_MAX = 20000`（早期 4000 只够 B=6，大棋盘串会被 textarea 截断），数字个数提示也要列到 `…/2401/4096/6561/10000`。
 9. **Worker 必须"一次性 + 判别式协议"**：复用 Worker 会带上一次的状态；`kind` 让生成/多解的请求与响应类型都是窄的。超时：生成 15s / 求解 30s。
 10. **monorepo 陷阱（搬家后最容易被吓到）**：`pnpm-workspace.yaml` 在 `学习资料/vue3`；**lockfile 与 `node_modules` 只在仓库根**；所以包内没有 `pnpm-lock.yaml` / `.modules.yaml`、`.bin/*.CMD` 指向根的 `.pnpm` —— **这些都是正常布局，不是文件丢失**。
+11. **冲突扫描改成"组单元表 + 计数缓冲"**（core/sudoku/groups.ts，11 册 §4.1 / 04 册 §9.2）：早期实现是"每组现造 `Position[]` + `Map` 分组"，一次整盘扫描（`B=10`）要造约 3 万个小对象；而 `conflictMask` 是 computed、**每次落子都会重算**。换成"3S 个组各存一串扁平下标（`Int32Array`，随实例建一次）+ 复用计数数组"后：实测 `2.68ms → 0.46ms（5.8×）`、零小对象。**代价**：每个用到的 `boxSize` 多约 120KB 常驻内存。
+12. **棋盘重绘分"整盘 / 局量"**（render/ 五文件，08 册 §2.3）：网格线必须画在格子内容**之上**，所以不能"先贴底图再画格"；把它画进一张**透明底离屏层**后 —— 整盘重绘只需 1 次 `drawImage`（省 3S 次 `stroke`），而"填一个数"只重画 **1~5 个脏格** + 把线层那一小块贴回。脏格由 `dirty.ts` 用两张**帧快照**（值 / 归属 / 冲突标记 / 选中）比对得出：**快照只记"会被画出来的东西"，所以不可能漏画**（含"`lock` 变了但 `v` 没变"这种）；尺寸/缩放/DPR 变了或脏格超过总量 1/3 时由纯函数 `redrawModeOf` 判回整盘。**状态归属**：脏格快照 / 线层 / 上次边长都存在 `useBoardCanvas`，`render/` 只给纯函数（几何 / 脏格 / 决策 / 绘制），类型统一进 `types/render.ts`。
+13. **骨架保留比例：`S ≥ 64` 固定 0.85**（`generator.ts` 的 `keepRatioOf`）：曲线（`0.35 + (S-9)×0.014`，封顶 0.72）只服务中小盘；64 / 81 / 100 直接 0.85。**实测**（同 seed、预热后 10 次平均）：S=64 → `0.72` 4.2ms vs `0.85` 2.8ms；S=81 → 11.5ms vs 5.6ms。**反证更关键**：把骨架固定成 `0.35` 时，36×36 **每次都跑 16~19 秒后触发 `maxIter` 保险丝、抛「生成失败」** —— 所以这个比例不是"性能调优"，而是"**能不能生成出来**"的开关（大盘宁可骨架更规整）。
 11. **文档会腐烂，数值最先烂**：B 范围 / 挖空比例 / 超时 / `build` 是否含 guard 这类"事实型数字"最容易和代码脱节。对策：改完代码按 §11 三处同步；必要时用机器审计（见下）。
 
 ## 11. 改需求的正确顺序 + 自检清单

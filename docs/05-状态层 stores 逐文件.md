@@ -249,7 +249,7 @@ const conflictMask = computed<ConflictMask>(() =>
 ```
 
 **为什么必须写这个三元（不能直接调 `findConflicts`）**：
-`findConflicts` 内部会走 `allGroups()`（按 `S` 生成行列宫坐标）并对 `grid[r][c]` 取值。
+`findConflicts` 内部会遍历**组单元表**（按 `S` 生成 3S 个组）并对 `grid[(p / S) | 0][p % S]` 取值。
 如果此时 `board` 是**空数组**（还没开局 / 刚退出），`grid[0]` 是 `undefined` → `grid[r][c]` 会抛 **`TypeError: Cannot read properties of undefined`**。
 > **注意**：`S` 来自 `sudoku`（只要 `config.boxSize` 合法就存在）→ 所以"盘面为空但 S 有效"这个组合**真的会发生**，必须防。
 

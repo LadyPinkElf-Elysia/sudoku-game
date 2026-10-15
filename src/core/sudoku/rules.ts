@@ -2,70 +2,17 @@ import type { NumBoard, Position, ConflictMask, Board, Cell } from "../../types/
 import { makeGrid } from "../array";
 import { boxOriginOf } from "../board/metrics";
 import { makeCell } from "../board/model";
+import { createGroupScanner } from "./groups";
 import { sideOf } from "./shape";
 import type { Sudoku } from "../../types/sudoku";
-
-/**检查一组格子中有无冲突*/
-const findGroupConflicts = (grid: NumBoard, cells: Position[]): Position[] => {
-    const map = new Map<number, Position[]>()
-    for (const [r, c] of cells) {
-        const v = grid[r][c]
-        if (v === 0) {
-            continue
-        }
-        if (!map.has(v)) {
-            map.set(v, [])
-        }
-        map.get(v)!.push([r, c])
-    }
-    const conflicts: Position[] = []
-    for (const ps of map.values()) {
-        if (ps.length > 1) {
-            conflicts.push(...ps)
-        }
-    }
-    return conflicts
-}
 
 /**Sudoku工厂函数*/
 export const createSudoku = (boxSize: number): Sudoku => {
     const B = boxSize
     const S = sideOf(B)
 
-    function* allRows(): Generator<Position[]> {
-        for (let r = 0; r < S; r++) {
-            const cells: Position[] = []
-            for (let c = 0; c < S; c++) cells.push([r, c])
-            yield cells
-        }
-    }
-
-    function* allCols(): Generator<Position[]> {
-        for (let c = 0; c < S; c++) {
-            const cells: Position[] = []
-            for (let r = 0; r < S; r++) cells.push([r, c])
-            yield cells
-        }
-    }
-
-    function* allBoxes(): Generator<Position[]> {
-        for (let br = 0; br < S; br += B) {
-            for (let bc = 0; bc < S; bc += B) {
-                const cells: Position[] = []
-                for (let i = 0; i < B; i++)
-                    for (let j = 0; j < B; j++)
-                        cells.push([br + i, bc + j])
-                yield cells
-            }
-        }
-    }
-
-    /**生成行，列，宫格等位置组*/
-    function* allGroups(): Generator<Position[]> {
-        yield* allRows()
-        yield* allCols()
-        yield* allBoxes()
-    }
+    /** 行 / 列 / 宫 的组单元表 + 三个扫描（表随本实例建一次、扫描零小对象分配；见 groups.ts） */
+    const { findConflicts, hasConflict, hasEmptyGroup } = createGroupScanner(S, B)
 
     /**检查该格子所在行列宫格，寻找该格子的可以填入的数字*/
     const getCandidates = (grid: NumBoard, [r, c]: Position): number[] => {
@@ -99,36 +46,6 @@ export const createSudoku = (boxSize: number): Sudoku => {
     const makeEmptyBoard = (): Board => makeGrid<Cell>(S, () => makeCell(0, false))
 
     const makeEmptyMask = (): ConflictMask => makeGrid<boolean>(S, () => false)
-
-    /**找出所有冲突格*/
-    const findConflicts = (grid: NumBoard): ConflictMask => {
-        const mask: ConflictMask = makeEmptyMask()
-        for (const group of allGroups()) {
-            for (const [r, c] of findGroupConflicts(grid, group)) {
-                mask[r][c] = true
-            }
-        }
-        return mask
-    }
-
-    /** 盘面是否存在任何冲突（发现即返回，不构造整张掩码） */
-    const hasConflict = (grid: NumBoard): boolean => {
-        for (const group of allGroups()) {
-            if (findGroupConflicts(grid, group).length) return true
-        }
-        return false
-    }
-
-    /**
-     * 是否有整行 / 整列 / 整宫全为 0 —— 只给「手选题面」的提交用
-     * （行/列/宫的定义就在上面的 allGroups()，不另写一套；`?.` 防不规则输入越界）
-     */
-    const hasEmptyGroup = (grid: NumBoard): boolean => {
-        for (const group of allGroups()) {
-            if (group.every(([r, c]) => grid[r]?.[c] === 0)) return true
-        }
-        return false
-    }
 
     /**检查棋盘有没有填满*/
     const isFull = (grid: NumBoard): boolean => grid.every(row => row.every(v => v !== 0))

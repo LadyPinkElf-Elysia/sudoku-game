@@ -52,19 +52,31 @@ services/  允许：services/ · core/ · constants/ · types/      外部包：
 
 ---
 
-## 2. `render/board.ts`（130 行）—— canvas 渲染器
+## 2. `render/` 五个文件（geometry 34 · board 96 · layer 62 · paint 76 · dirty 89 行）—— canvas 渲染器
 
-**① 它是谁**：**唯一把棋盘画到 canvas 上的地方**。
+**① 它是谁**：**唯一把棋盘画到 canvas 上的地方**（拆成 4 个小文件，一文件一职责）。
 **依赖**：`constants/board`（颜色/字体/线宽）+ `core/board/metrics`（尺寸换算）+ `types` —— **不碰 store、不碰业务**。
 
-**三个导出**：
-| 导出 | 作用 | 调用方 |
-|---|---|---|
-| `measureContentWidth(parent)` | 量容器的"内容宽"（去掉左右 padding） | `useBoardCanvas.measure` |
-| `renderBoard(canvas, params, contentWidth?)` | **画一整盘** | `useBoardCanvas.draw` |
-| `getClickPos(canvas, e, size)` | 点击 → 行列坐标 | `useBoardCanvas.onCanvasClick` |
+**分工与导出**（**类型全部在 `types/render.ts`**：`BoardGeometry` / `CellFonts` / `FrameState` / `RedrawMode`）：
 
-### 2.1 `measureContentWidth`：量容器（**只在一处调用**）
+| 文件 | 导出 | 作用 |
+|---|---|---|
+| `geometry.ts` | `measureContentWidth(parent)` · `boardGeometryOf(canvas, size, zoom, contentWidth?)` | **纯计算**：内容宽 → CSS 边长 → 每格边长 → 位图边长（DPR 在这里读） |
+| `board.ts` | `prepareCanvas(canvas, g)` | **唯一写 DOM 的点**：按几何设位图/CSS 尺寸 + 坐标系；返回 `{ ctx, resized }` |
+| | `paintBoard(ctx, g, params, layer)` | **整盘重绘**（纯绘制） |
+| | `paintDirtyCells(ctx, g, params, dirty, layer)` | **局量重绘**（纯绘制） |
+| | `getClickPos(canvas, e, size)` | 点击 → 行列坐标 |
+| `layer.ts` | `drawLinesOn(...)` · `linesLayerKeyOf(...)` · `createLinesLayer(...)` | 网格线画法 + **离屏线层**（**纯工厂、不缓存**；层由调用方保管，见 §2.3） |
+| `paint.ts` | `fontsOf(cellSize)` · `paintCell(...)` · `blitCellLines(...)` | 一格的内容（**两种重绘共用**）+ 把线层贴回一格 |
+| `dirty.ts` | `makeFrameState` · `fillFrameState` · `dirtyCellsOf` · `redrawModeOf` | **纯函数模块**：帧快照 + 脏格 + 走整盘还是局量（见 §2.3 的"局量重绘"） |
+
+> **一句话记这一层**：**几何是纯计算、绘制是纯绘制、只有 `prepareCanvas` 碰 DOM**；
+> 状态（上一帧快照 / 线层 / 上次边长）全部由调用方 `useBoardCanvas` 持有 —— `render/` 里没有一行模块级可变状态。
+
+
+### 2.1 `geometry.ts` 的 `measureContentWidth`：量容器（**在 `boardGeometryOf` 与 `useBoardCanvas.measure` 各调一次**）
+
+> **它在 `render/geometry.ts`**（几何的输入之一）；**重绘路径不读布局** —— 宽度由 ResizeObserver 量一次存进 ref，之后一路传进来。
 
 ```ts
 /**
@@ -82,36 +94,50 @@ export const measureContentWidth = (parent: HTMLElement): number => {
 2. **为什么减 padding**：`clientWidth` 包含 padding → 棋盘要贴在"内容区"里，必须减掉左右 padding（否则棋盘会溢出一点点）；
 3. **`parseFloat('12px')`**：计算样式返回的是带单位的字符串 → `parseFloat` 取数字（`'12px'` → `12`）。
 
-### 2.2 `setupCanvas`：初始化画布的四大步（**DPR 的核心**）
+### 2.2 `geometry.ts` + `prepareCanvas`：几何与画布适配（**DPR 的核心**）
+
+**几何（纯计算）** —— 算出来的东西由调用方保管：
 
 ```ts
-/** 初始化画布：清晰度、尺寸、坐标对齐；返回画笔、边长、每格边长 */
-const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number, contentWidth?: number) => {
+/** 解析棋盘几何：容器宽（没给就量一次）→ CSS 边长 → 每格边长 → 位图边长 */
+export const boardGeometryOf = (canvas, size, zoom, contentWidth?): BoardGeometry | null => {
     const parent = canvas.parentElement
-    if (!parent) return null
+    if (!parent || size <= 0) return null
 
     const dpr = window.devicePixelRatio || 1
-    const width = contentWidth ?? measureContentWidth(parent)     // 没传宽度就自己量一次（兜底）
+    const width = contentWidth ?? measureContentWidth(parent)
     const side = boardSideOf(width, zoom)
-    const pixel = Math.round(side * dpr)
-
-    if (canvas.width !== pixel) {
-        canvas.width = pixel
-        canvas.height = pixel
-    }
-    canvas.style.width = `${side}px`
-    canvas.style.height = `${side}px`
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return null
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-
-    return { ctx, side, cellSize: cellSizeOf(side, size) }
+    return { side, cellSize: cellSizeOf(side, size), pixel: Math.round(side * dpr), dpr }
 }
 ```
+
+**画布适配（`render/` 里唯一写 DOM 的点）** —— `render/board.ts`：
+
+```ts
+/** 初始化画布：清晰度、尺寸、坐标对齐；resized = 位图刚被重建（画面已空，只能整盘重画） */
+export const prepareCanvas = (canvas: HTMLCanvasElement, g: BoardGeometry): { ctx; resized } => {
+    let resized = false
+    if (canvas.width !== g.pixel) {              // 赋值会清空位图 + 重置上下文状态
+        canvas.width = g.pixel
+        canvas.height = g.pixel
+        resized = true
+    }
+    canvas.style.width = `${g.side}px`
+    canvas.style.height = `${g.side}px`
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return { ctx: null, resized }
+
+    ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0)   // 之后一律按 CSS 像素画
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    return { ctx, resized }
+}
+```
+
+> **为什么要拆成两半**：`boardGeometryOf` 是**纯计算**（同入参 → 同结果，可单测），
+> `prepareCanvas` 是**副作用**（写 canvas 尺寸、取画笔）。
+> 混在一起时几何没法单独测、也没法在别处复用（"点击换算"也要用 `side`）；现在**几何算一次、处处用同一份**。
 
 | 步骤 | 代码 | 说明 |
 |---|---|---|
@@ -127,35 +153,31 @@ const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number, cont
 
 **⑩ `if (!parent) return null`**：极端情况（canvas 还没挂到 DOM）→ 返回 `null` 让调用方早退（**不抛错**，与 core 的"用返回值表达失败"一致）。
 
-### 2.3 `renderBoard`：画一整盘（**顺序就是图层顺序**）
+### 2.3 `paintBoard`：画一整盘（**顺序就是图层顺序**）
 
 ```ts
-export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput, contentWidth?: number): void => {
-    const { board, selected, conflictMask, boxSize, zoom = 1 } = params
+export const paintBoard = (ctx: CanvasRenderingContext2D, g: BoardGeometry, params: BoardRenderInput, layer: HTMLCanvasElement | null): void => {
+    const { board, selected, conflictMask, boxSize } = params
     if (!board.length) return
 
     const size = board.length
-    const info = setupCanvas(canvas, size, zoom, contentWidth)
-    if (!info) return
-    const { ctx, side, cellSize } = info
-
-    const fontSize = fontPxOf(cellSize)
-    const fontGiven = `${BOARD_FONT.given} ${fontSize}px ${BOARD_FONT.family}`
-    const fontPlayer = `${BOARD_FONT.player} ${fontSize}px ${BOARD_FONT.family}`
+    const fonts = fontsOf(g.cellSize)              // 两种字重预先拼好（paint.ts）
     …
     // 擦干净 + 铺白底
     ctx.clearRect(0, 0, side, side)
     ctx.fillStyle = BOARD_COLOR.bg
     ctx.fillRect(0, 0, side, side)
 
-    // 逐格画
+    // 逐格画内容（paint.ts 的 paintCell：底色 → 数字 → 选中框）
     for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
-            drawCell(r, c)
+            paintCell(ctx, board, conflictMask, selected, r, c, cellSize, fonts)
         }
     }
 
-    drawLines()
+    // 网格线：优先一次贴离屏层（1 次调用顶掉 3S 次 stroke）；拿不到层才逐条画
+    if (layer) ctx.drawImage(layer, 0, 0, g.side, g.side)
+    else drawLinesOn(ctx, size, boxSize, g.side, g.cellSize)
 }
 ```
 
@@ -172,7 +194,7 @@ export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput,
 const fontGiven = `${BOARD_FONT.given} ${fontSize}px ${BOARD_FONT.family}`
 ```
 `ctx.font` 的赋值是**昂贵**的（浏览器要解析字体串）→ **每格都拼一次就会白费**；
-而且**两种字重（题目粗 / 玩家常规）预先拼成两个字符串**，格子里直接用（见 `drawCell`）。
+而且**两种字重（题目粗 / 玩家常规）预先拼成两个字符串**，格子里直接用（见 `paint.ts` 的 `paintCell`）。
 > **知识点**：**canvas 的"状态设置"（`font` / `fillStyle` / `lineWidth`）比"绘制命令"更贵** —— 能挪到循环外就挪出去。
 
 **③ 绘制顺序 = 图层顺序**（一定要记住）：
@@ -185,32 +207,39 @@ const fontGiven = `${BOARD_FONT.given} ${fontSize}px ${BOARD_FONT.family}`
 **为什么线在最后**：网格线要**覆盖**在格子底色与数字之上（否则会被格子底色盖住）。
 **为什么先铺白底**：`clearRect` 之后是**透明**的；如果只透明不铺白，深色主题/纱窗背景下会透出后面的东西。
 
-#### `drawCell`：一格的三层（底色 → 数字 → 选中框）
+#### `paint.ts` 的 `paintCell`：一格的三层（底色 → 数字 → 选中框）
 
 ```ts
-/** 画第 r 行第 c 列这一格 */
-const drawCell = (r: number, c: number): void => {
+/** 画第 r 行第 c 列的内容 */
+export const paintCell = (
+    ctx: CanvasRenderingContext2D,
+    board: Board,
+    conflictMask: ConflictMask | undefined,
+    selected: Position | null | undefined,
+    r: number,
+    c: number,
+    cellSize: number,
+    fonts: CellFonts,
+): void => {
     const cell = board[r][c]
     if (!cell) return
 
     const x = c * cellSize
     const y = r * cellSize
-    const isSelected = !!selected && selected[0] === r && selected[1] === c
-    const isConflict = conflictMask?.[r]?.[c] ?? false
 
-    // 底色
-    ctx.fillStyle = isConflict ? BOARD_COLOR.conflictBg : BOARD_COLOR.bg
+    // 底色（冲突格红底）
+    ctx.fillStyle = conflictMask?.[r]?.[c] ? BOARD_COLOR.conflictBg : BOARD_COLOR.bg
     ctx.fillRect(x, y, cellSize, cellSize)
 
-    // 数字
+    // 数字（题面粗体深色 / 玩家常规蓝色）
     if (cell.v !== 0) {
-        ctx.font = cell.lock ? fontGiven : fontPlayer
+        ctx.font = cell.lock ? fonts.given : fonts.player
         ctx.fillStyle = cell.lock ? BOARD_COLOR.givenText : BOARD_COLOR.playerText
         ctx.fillText(String(cell.v), x + cellSize / 2, y + cellSize / 2)
     }
 
-    // 选中框
-    if (isSelected) {
+    // 选中框（内缩半个线宽，笔画才不会越到邻格）
+    if (selected && selected[0] === r && selected[1] === c) {
         const inset = BOARD_LINE.selected / 2
         ctx.strokeStyle = BOARD_COLOR.selectedBorder
         ctx.lineWidth = BOARD_LINE.selected
@@ -219,19 +248,23 @@ const drawCell = (r: number, c: number): void => {
 }
 ```
 
+> **为什么把它单独放一个文件（`render/paint.ts`）**：**整盘重绘与局量重绘都要用它** ——
+> 它只管"一格的内容"（不清屏、不画网格线、不算尺寸），所以两种重绘路径能**共用同一份**，
+> 从而保证"局量画出来的像素 = 整盘画出来的那一格"。
+> 同文件还有 `fontsOf(cellSize)`（预拼两种字重）与 `blitCellLines(...)`（把线层贴回一格，见 §2.4）。
+
 **四个要点**：
 1. **`x = c * cellSize` / `y = r * cellSize`**：**列 → x、行 → y**（写反了棋盘会转置 —— 这是最容易犯的错，**和 `[r, c]` 的顺序对照着看**）；
-2. **`conflictMask?.[r]?.[c] ?? false`**：**两层可选链 + 兜底** —— 因为 `conflictMask` 本身是可选的、且可能比盘面小（防御不规则数据）；
-3. **"锁定的格用粗体深色、玩家填的用常规蓝色"**：直接读 `cell.lock` **决定字体与颜色**（这就是 `Cell` 比 `number` 多带的那点信息的用途）；
+2. **`conflictMask?.[r]?.[c]`**：**两层可选链** —— 因为 `conflictMask` 本身是可选的、且可能比盘面小（防御不规则数据）；
+3. **"锁定的格用粗体深色、玩家填的用常规蓝色"**：直接读 `cell.lock` **决定字体与颜色**（这就是 `Cell` 比 `number` 多带的那点信息的用途）；**注意 `lock` 变化也会改变像素** —— 局量重绘的快照因此必须把 `lock` 也记进去（§2.5）；
 4. **选中框用 `inset = lineWidth / 2`**：
    `strokeRect` 是**沿路径居中描边**（笔画一半在内、一半在外）→ 不内缩半个线宽就会**盖住相邻格子**的边缘（看起来像越界）。
    `cellSize - BOARD_LINE.selected` 保证右边/下边与左边/上边**对称内缩**。
 
-#### `drawLines`：两遍画线（细线 + 粗线）
+#### `layer.ts` 的 `drawLinesOn`：两遍画线（细线 + 粗线）
 
 ```ts
-/** 画网格线（boardSide === side：直接用棋盘 CSS 边长，不再重算） */
-const drawLines = (): void => {
+export const drawLinesOn = (ctx: CanvasRenderingContext2D, size: number, boxSize: number, side: number, cellSize: number): void => {
     ctx.strokeStyle = BOARD_COLOR.thinLine
     ctx.lineWidth = BOARD_LINE.thin
     ctx.beginPath()
@@ -261,7 +294,113 @@ const drawLines = (): void => {
 **如果每条线都 `stroke()` 一次**，等于给浏览器发几千次绘制调用（36×36 盘面就是 72 条线）→ 慢且没必要。
 > **知识点：`beginPath()` 开一批、`stroke()` 提交一批** —— canvas 里最常用的性能优化。
 
-### 2.4 `getClickPos`：点击 → 行列（**换算全在 core**）
+**④ 但"每帧都画这 3S 条线"仍然是浪费** —— 它们只随「`size` / `boxSize` / `side` / `cellSize` / DPR」变，
+而重绘**每次落子都会发生**。所以现在把它画进一张**透明底的离屏层**：
+
+```ts
+/** 线层的尺寸签名（纯函数）：任一项变化都要重建 */
+export const linesLayerKeyOf = (size: number, boxSize: number, g: BoardGeometry): string =>
+    `${size}|${boxSize}|${g.side}|${g.cellSize}|${g.dpr}`
+
+/** 建一张线层（**纯工厂**：同入参 → 同样的层；**不缓存**） */
+export const createLinesLayer = (size: number, boxSize: number, g: BoardGeometry): HTMLCanvasElement | null => {
+    const layer = document.createElement("canvas")        // 与主画布同像素尺寸
+    layer.width = g.pixel
+    layer.height = g.pixel
+    const ctx = layer.getContext("2d")
+    if (!ctx) return null
+    ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0)
+    drawLinesOn(ctx, size, boxSize, g.side, g.cellSize)   // 画法与上面完全一致
+    return layer
+}
+```
+**四个要点**：
+1. **透明底**（层里不铺白底）：贴回主画布时**只叠线**、不会盖掉格子内容 ✅ 这正是"线压在内容之上"的落地方式；
+2. **整盘重绘末尾一次 `ctx.drawImage(layer, 0, 0, g.side, g.side)`**：**1 次调用顶掉 3S 次 `stroke`**；
+3. **工厂是纯的、不缓存**：`linesLayerKeyOf` 给签名、`createLinesLayer` 造层；**"要不要重建、层存在哪"由调用方决定**
+   （`useBoardCanvas` 里就是 `if (key !== layerKey) { layer = createLinesLayer(...); layerKey = key }`）→ **渲染层没有隐藏状态**；
+4. **拿不到 2d 上下文时返回 `null`** → 调用方走整盘 + `drawLinesOn` 逐条画（兜底、不丢网格线）。
+
+
+#### 局量重绘：只重画"脏格"（`paintDirtyCells` + `dirty.ts`）
+
+**动机**：一次落子只改变 1 格数字（+ 可能几十格的红底），但整盘重绘要重画 `S²` 格。
+`B=10` 时整盘 1 万格 ≈ 10~30ms；而"填一个数"通常只涉及 **1~5 格**。
+
+**链路**（`composables/board/useBoardCanvas.ts` —— **状态都在这里，判断全在纯函数里**）：
+```
+① boardGeometryOf(...)                      纯：几何（边长 / 格宽 / 位图边长）
+② linesLayerKeyOf(...) 比签名 → 变了才 createLinesLayer(...)   纯签名 + 纯工厂（层存在这里）
+③ prepareCanvas(canvas, geom) → { ctx, resized }              唯一副作用
+④ fillFrameState(next, …) + dirtyCellsOf(prev, next)          纯：脏格
+⑤ redrawModeOf(dirty, resized, side, lastSide) → 'dirty' | 'full'   纯：走哪条
+⑥ paintDirtyCells(…) 或 paintBoard(…)                          纯绘制
+⑦ 交换 prev / next（下帧以"刚画出来的那帧"为基准）
+```
+
+`render/dirty.ts` 是**纯函数模块**（可单测）：`dirtyCellsOf` 算脏格，`redrawModeOf` 决定路径。
+```ts
+/** 本帧该走哪条重绘路径（纯函数）：位图刚重建 / 边长变了 → 整盘；否则"有脏格"就走局量 */
+export const redrawModeOf = (
+    dirty: readonly number[] | null, resized: boolean, side: number, lastSide: number,
+): RedrawMode => (dirty && !resized && side === lastSide ? 'dirty' : 'full')
+```
+```ts
+export const dirtyCellsOf = (prev: FrameState, next: FrameState, maxRatio = 1 / 3): number[] | null => {
+    const dirty: number[] = []
+    for (let i = 0; i < total; i++) {
+        if (nv[i] !== pv[i] || nl[i] !== pl[i] || nm[i] !== pm[i]) dirty.push(i)   // 值 / 归属 / 掩码
+    }
+    // 选中变化 → 旧格要去框、新格要画框（两个都要重画）
+    if (a !== b) { if (a >= 0) dirty.push(a); if (b >= 0) dirty.push(b) }
+
+    if (dirty.length > total * maxRatio) return null      // 太碎 → 整盘一遍更划算
+    return dirty
+}
+```
+**为什么"不会漏画"**（这是设计的关键）：**快照只记录"会被画出来的东西"** ——
+`v`（数字）、`lock`（字体/颜色）、`mask`（红底）、`selected`（选中框），正好是 `paintCell` 的全部输入。
+所以"两帧快照不同" ⟺ "两帧画面不同"，**不需要去猜"哪些格子可能受影响"**。
+> 注意 `lock` 那一项：**`v` 没变、`lock` 变了也要重画**（出题"提交题面"时会把题面格锁定 → 数字要从"玩家蓝"换成"题面黑"）。
+
+**脏格的三步**（`render/board.ts` 的 `renderBoardDirty`）：
+```ts
+for (const i of dirty) {
+    const r = (i / size) | 0
+    const c = i % size
+    paintCell(ctx, board, conflictMask, selected, r, c, cellSize, fonts)   // ① 内容（与整盘同一个函数）
+    blitCellLines(ctx, layer, r, c, cellSize, dpr)                         // ② 贴回该格的网格线
+}
+```
+**② 就是把线层里"那一格的小矩形"贴回来**（`paint.ts` 的 `blitCellLines`）：
+```ts
+const sx = Math.min(Math.round(x * dpr), layer.width)                        // 源：设备像素
+const sy = Math.min(Math.round(y * dpr), layer.height)
+const sw = Math.max(0, Math.min(Math.round(cellSize * dpr), layer.width - sx))   // 夹到层边界内
+const sh = Math.max(0, Math.min(Math.round(cellSize * dpr), layer.height - sy))
+if (!sw || !sh) return
+ctx.drawImage(layer, sx, sy, sw, sh, sx / dpr, sy / dpr, sw / dpr, sh / dpr)     // 目标：CSS 像素（1:1）
+```
+- **为什么要贴回线**：线必须压在内容之上（§2.3 的顺序）；贴回的那一小块里含**该格 4 条边的"内侧一半"**，外侧一半本来就在画布上、没被擦掉 → 合起来正好是整条居中描边的线 ✅
+- **为什么要夹边界**：`Math.round` 会让最后一列/行的源矩形超出层 1px，浏览器遇到越界源矩形会**拉伸**（画面会歪 1px）
+- **目标矩形用 `sx / dpr`**：保证与源**同尺寸**（不缩放）✅
+
+**`redrawModeOf` 判"整盘"的三种情况**（纯函数，一条表达式；再加上"没有线层"——见下面的注）：
+
+| 情况 | 为什么 |
+|---|---|
+| `resized`（`canvas.width` 刚被重建） | 位图已被清空（首帧 / **zoom 变了** / 容器宽变了 / **DPR 变了**）→ 画面上什么都没有 |
+| `side !== lastSide` | 棋盘 CSS 边长变了 → `cellSize` 变了，旧像素的位置全对不上 |
+| `dirty === null`（脏格 > 总量 1/3） | 小块贴图的调用次数太多，不如整盘一遍 |
+
+> **还有"没有线层"这一条**：`createLinesLayer` 拿不到 2d 上下文时会返回 `null`（极端降级），此时局量贴不出正确的线
+> → 调用方写的是 `if (layer && redrawModeOf(...) === 'dirty' && dirty)`：**层为 null 就走整盘**（整盘有 `drawLinesOn` 兜底）；
+> `paintDirtyCells` 开头还有一道 `if (!layer) return` 作为"别画错"的最后防线。
+
+**收益**：`B=10` 时"填一个数"从"重画 1 万格 + 600 条线"降到"重画 1~5 格 + 5 次小贴图"；
+叠加离屏线层后，**整盘重绘**本身也从"3S 次 stroke"降到"1 次 drawImage"。
+
+
 
 ```ts
 /** 点击位置 → 行列坐标；越界返回 null */
@@ -271,6 +410,8 @@ export const getClickPos = (canvas: HTMLCanvasElement, e: MouseEvent, size: numb
     return offsetToCell(e.clientX - rect.left, e.clientY - rect.top, rect.width, size)
 }
 ```
+
+### 2.4 `getClickPos`：点击 → 行列（**换算全在 core**）
 
 **三行代码，职责切得极干净**：
 | 部分 | 谁做 | 为什么 |
@@ -780,7 +921,7 @@ core/sudoku/{generator,multiSolver}
 | `fetch` 的 4 种响应形态 + 401 + 非 JSON | `request<T>(path, opts)` → 要么返回 `T`、要么抛 `ApiError` |
 | postMessage / 超时 / terminate / 只结算一次 | `generateInWorker(...)` / `solveMultiInWorker(...)`（两个普通函数） |
 | localStorage 隐私模式抛错 / 前缀 / null | `readPref` / `writePref` / `clearPref`（永远不抛、永远返回字符串） |
-| canvas 的 DPR / 像素尺寸 / 坐标系 | `renderBoard(canvas, params)`（一行画好） |
+| canvas 的 DPR / 像素尺寸 / 坐标系 | `boardGeometryOf`（几何）+ `prepareCanvas`（适配）+ `paintBoard`（绘制） |
 
 **纪律三：把"底层报错"翻译成"人能看懂的话"**
 | 底层 | 翻译后 |
@@ -824,9 +965,9 @@ core/sudoku/{generator,multiSolver}
 3. `setupCanvas` 里 `canvas.width`（像素尺寸）与 `canvas.style.width`（CSS 尺寸）为什么必须都设？`if (canvas.width !== pixel)` 这个判断是优化什么？
 4. `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` 之后，绘制代码里的坐标是什么单位？
 5. `renderBoard` 的绘制顺序（底色 → 数字 → 选中框 → 网格线）为什么不能乱？
-6. `drawCell` 里 `x = c * cellSize` / `y = r * cellSize` —— 如果写反了会看到什么？
+6. `paintCell` 里 `x = c * cellSize` / `y = r * cellSize` —— 如果写反了会看到什么？
 7. 选中框为什么要 `inset = lineWidth / 2`？不内缩会怎样？
-8. `drawLines` 里细线为什么跳过 `i % boxSize === 0`？为什么两次循环各自只 `stroke()` 一次？
+8. `drawLinesOn` 里细线为什么跳过 `i % boxSize === 0`？为什么两次循环各自只 `stroke()` 一次？**离屏线层**又是怎么把"每帧 3S 次 stroke"降到"1 次 drawImage"的？
 9. `getClickPos` 为什么用 `getBoundingClientRect().width` 而不是 `canvas.offsetWidth`？为什么"偏移 → 行列"的换算放在 core？
 
 ### HTTP 与存储适配器（§3~§7）
@@ -859,8 +1000,9 @@ core/sudoku/{generator,multiSolver}
 | 401 处理 | `client` 广播 → `stores/user` 订阅 | **不反向依赖 store** |
 | 存/读偏好 | `prefs.readPref/writePref` | 前缀 `sudoku.`；隐私模式安全 |
 | 存/读凭据 | `services/api/session` | 只有 token 与 lastUid |
-| 量容器宽 | `render.measureContentWidth` | 只在 ResizeObserver 里调 |
-| 画整盘 | `renderBoard(canvas, params)` | 需要 `board` + `boxSize`；`zoom`/`selected`/`conflictMask` 可选 |
+| 量容器宽 | `render/geometry.ts` 的 `measureContentWidth` | 只在 ResizeObserver 里调 |
+| 画整盘 | `paintBoard(ctx, g, params, layer)` | 几何 `g` 由 `boardGeometryOf` 算、线层可传 null（退回逐条画线） |
+| 只重画脏格 | `dirtyCellsOf` + `redrawModeOf` + `paintDirtyCells` | 全纯函数：先算脏格、再判路径、最后只画那几格 |
 | 点击 → 坐标 | `getClickPos` → `core.offsetToCell` | DOM 在适配器、数学在 core |
 | 生成/求解 | `generateInWorker` / `solveMultiInWorker` | 一次性 Worker、超时、只结算一次 |
 

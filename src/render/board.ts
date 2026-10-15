@@ -1,125 +1,91 @@
-import { BOARD_COLOR, BOARD_FONT, BOARD_LINE } from "@/constants/board"
+import { BOARD_COLOR } from "@/constants/board"
 import type { Position } from "@/types/board"
-import { boardSideOf, cellSizeOf, fontPxOf, offsetToCell } from "@/core/board/metrics"
-import type { BoardRenderInput } from "@/types/render"
+import { offsetToCell } from "@/core/board/metrics"
+import type { BoardGeometry, BoardRenderInput } from "@/types/render"
+import { drawLinesOn } from "./layer"
+import { blitCellLines, fontsOf, paintCell } from "./paint"
 
 /**
- * 量一次容器的「内容宽」（去掉左右 padding）
- * 只在 ResizeObserver 回调/首帧调用，避免每次重绘都触发强制布局
+ * 画布适配：`render/` 里**唯一写 DOM** 的地方
+ * 让"位图尺寸 + CSS 尺寸"与几何一致，并设好坐标系与文字对齐；
+ * `resized = true` 表示位图刚被重建（内容已清空 → 本次**必须**整盘重画）
+ * 几何由外面传进来（`render/geometry.ts` 的 `boardGeometryOf`），所以这里不查布局、不留状态
  */
-export const measureContentWidth = (parent: HTMLElement): number => {
-    const style = getComputedStyle(parent)
-    return parent.clientWidth - (parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
-}
-
-/** 初始化画布：清晰度、尺寸、坐标对齐；返回画笔、边长、每格边长 */
-const setupCanvas = (canvas: HTMLCanvasElement, size: number, zoom: number, contentWidth?: number) => {
-    const parent = canvas.parentElement
-    if (!parent) return null
-
-    const dpr = window.devicePixelRatio || 1
-    const width = contentWidth ?? measureContentWidth(parent)     // 没传宽度就自己量一次（兜底）
-
-    const side = boardSideOf(width, zoom)
-    const pixel = Math.round(side * dpr)
-
-    if (canvas.width !== pixel) {
-        canvas.width = pixel
-        canvas.height = pixel
+export const prepareCanvas = (
+    canvas: HTMLCanvasElement,
+    g: BoardGeometry,
+): { ctx: CanvasRenderingContext2D | null; resized: boolean } => {
+    let resized = false
+    if (canvas.width !== g.pixel) {              // 给 width 赋值会清空位图 + 重置上下文状态
+        canvas.width = g.pixel
+        canvas.height = g.pixel
+        resized = true
     }
-    canvas.style.width = `${side}px`
-    canvas.style.height = `${side}px`
+    canvas.style.width = `${g.side}px`
+    canvas.style.height = `${g.side}px`
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return null
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return { ctx: null, resized }
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-
-    return { ctx, side, cellSize: cellSizeOf(side, size) }
+    ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0)   // 之后一律按 CSS 像素画
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+    return { ctx, resized }
 }
 
-export const renderBoard = (canvas: HTMLCanvasElement, params: BoardRenderInput, contentWidth?: number): void => {
-    const { board, selected, conflictMask, boxSize, zoom = 1 } = params
-    if (!board.length) return
-
+/** 整盘重绘（**纯绘制**：给 ctx + 几何 + 数据 + 线层就画；不查 DOM、不留状态、没有返回值） */
+export const paintBoard = (
+    ctx: CanvasRenderingContext2D,
+    g: BoardGeometry,
+    params: BoardRenderInput,
+    layer: HTMLCanvasElement | null,
+): void => {
+    const { board, selected, conflictMask, boxSize } = params
     const size = board.length
-    const info = setupCanvas(canvas, size, zoom, contentWidth)
-    if (!info) return
-    const { ctx, side, cellSize } = info
+    if (!size) return
 
-    const fontSize = fontPxOf(cellSize)
-    const fontGiven = `${BOARD_FONT.given} ${fontSize}px ${BOARD_FONT.family}`
-    const fontPlayer = `${BOARD_FONT.player} ${fontSize}px ${BOARD_FONT.family}`
-
-    /** 画第 r 行第 c 列这一格 */
-    const drawCell = (r: number, c: number): void => {
-        const cell = board[r][c]
-        if (!cell) return
-
-        const x = c * cellSize
-        const y = r * cellSize
-        const isSelected = !!selected && selected[0] === r && selected[1] === c
-        const isConflict = conflictMask?.[r]?.[c] ?? false
-
-        // 底色
-        ctx.fillStyle = isConflict ? BOARD_COLOR.conflictBg : BOARD_COLOR.bg
-        ctx.fillRect(x, y, cellSize, cellSize)
-
-        // 数字
-        if (cell.v !== 0) {
-            ctx.font = cell.lock ? fontGiven : fontPlayer
-            ctx.fillStyle = cell.lock ? BOARD_COLOR.givenText : BOARD_COLOR.playerText
-            ctx.fillText(String(cell.v), x + cellSize / 2, y + cellSize / 2)
-        }
-
-        // 选中框
-        if (isSelected) {
-            const inset = BOARD_LINE.selected / 2
-            ctx.strokeStyle = BOARD_COLOR.selectedBorder
-            ctx.lineWidth = BOARD_LINE.selected
-            ctx.strokeRect(x + inset, y + inset, cellSize - BOARD_LINE.selected, cellSize - BOARD_LINE.selected)
-        }
-    }
-
-    /** 画网格线（boardSide === side：直接用棋盘 CSS 边长，不再重算） */
-    const drawLines = (): void => {
-        ctx.strokeStyle = BOARD_COLOR.thinLine
-        ctx.lineWidth = BOARD_LINE.thin
-        ctx.beginPath()
-        for (let i = 1; i < size; i++) {
-            if (i % boxSize === 0) continue
-            const p = i * cellSize
-            ctx.moveTo(p, 0); ctx.lineTo(p, side)
-            ctx.moveTo(0, p); ctx.lineTo(side, p)
-        }
-        ctx.stroke()
-
-        ctx.strokeStyle = BOARD_COLOR.thickLine
-        ctx.lineWidth = BOARD_LINE.thick
-        ctx.beginPath()
-        for (let i = 0; i <= size; i += boxSize) {
-            const p = i * cellSize
-            ctx.moveTo(p, 0); ctx.lineTo(p, side)
-            ctx.moveTo(0, p); ctx.lineTo(side, p)
-        }
-        ctx.stroke()
-    }
+    const fonts = fontsOf(g.cellSize)
 
     // 擦干净 + 铺白底
-    ctx.clearRect(0, 0, side, side)
+    ctx.clearRect(0, 0, g.side, g.side)
     ctx.fillStyle = BOARD_COLOR.bg
-    ctx.fillRect(0, 0, side, side)
+    ctx.fillRect(0, 0, g.side, g.side)
 
-    // 逐格画
+    // 逐格画内容
     for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
-            drawCell(r, c)
+            paintCell(ctx, board, conflictMask, selected, r, c, g.cellSize, fonts)
         }
     }
 
-    drawLines()
+    // 网格线：优先一次贴离屏层（1 次调用顶掉 3S 次 stroke）；拿不到层才逐条画
+    if (layer) ctx.drawImage(layer, 0, 0, g.side, g.side)
+    else drawLinesOn(ctx, size, boxSize, g.side, g.cellSize)
+}
+
+/**
+ * 局量重绘：只重画脏格（`dirty` = 扁平下标 `r*S+c`）—— **纯绘制**
+ * 调用方负责保证"这次真的可以局量"（见 `dirty.ts` 的 `redrawModeOf`：位图刚重建 / 边长变了 / 没有线层都不行）
+ * 每格两步（内容 → 贴回该格区域的网格线）与整盘重绘的顺序完全一致，所以像素结果相同
+ */
+export const paintDirtyCells = (
+    ctx: CanvasRenderingContext2D,
+    g: BoardGeometry,
+    params: BoardRenderInput,
+    dirty: readonly number[],
+    layer: HTMLCanvasElement | null,
+): void => {
+    const { board, selected, conflictMask } = params
+    const size = board.length
+    if (!size || !layer) return          // 没有线层就贴不出正确的线（调用方本应先判断，这里再兜一层）
+
+    const fonts = fontsOf(g.cellSize)
+    for (const i of dirty) {
+        const r = (i / size) | 0
+        const c = i % size
+        paintCell(ctx, board, conflictMask, selected, r, c, g.cellSize, fonts)
+        blitCellLines(ctx, layer, r, c, g.cellSize, g.dpr)
+    }
 }
 
 /** 点击位置 → 行列坐标；越界返回 null */
