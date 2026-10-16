@@ -1,5 +1,6 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { GAME_MODE } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { usePuzzleStage } from '@/composables/game/usePuzzleStage'
 import { errorTextOf } from '@/core/message'
@@ -41,7 +42,7 @@ export const useEditFlow = () => {
                 return
             }
             pid.value = id
-            gameStore.startCreate(parsed.boxSize, parsed.board)   // 未锁定 → 可增量改
+            gameStore.startInput(GAME_MODE.Create, parsed.boxSize, parsed.board)   // 未锁定 → 可增量改
         } catch (err) {
             errorMsg.value = errorTextOf(err, '题目加载失败')
             showFail.value = true

@@ -1,6 +1,6 @@
 # 06 · composables 逐文件详解
 
-> **这一册讲什么**：`src/composables/` **18 个文件、约 1,514 行**逐个讲透 —— 它们是**"编排层"**：把 `stores`（状态）与 `core`（算法）、`services`（取数）**串成用户流程**。
+> **这一册讲什么**：`src/composables/` **20 个 `use*` 组合式 + 1 个文本 helper（`metaText.ts`，E8 例外）**，逐个讲透 —— 它们是**"编排层"**：把 `stores`（状态）与 `core`（算法）、`services`（取数）**串成用户流程**。
 > **前置**：01 册（`ref`/`watch`/生命周期/router）、04 册（core 各函数）、05 册（三个 store）。
 > **本册要回答的核心问题**：**"这段逻辑为什么不放 store、也不放组件，而要单独写成一个 composable？"**
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 1. 全景：18 个文件的分工
+## 1. 全景：19 个文件的分工
 
 ### 1.1 清单
 
@@ -34,12 +34,13 @@
 | **game** | `game/useGameFlow.ts` | 105 | 游玩页：提示、答案遮罩、导出、按钮条、通关（01 册已细讲） |
 | | `game/useDifficultyFlow.ts` | 43 | 难度页：草稿配置 → Worker 生成 → 开局跳转 |
 | | `game/useCreateFlow.ts` | 94 | 出题页：标题 + 两阶段 + POST 入库 |
-| | `game/useEditFlow.ts` | 76 | 编辑页：载入自己的题面 → 两阶段 → PATCH |
+| | `game/useEditFlow.ts` | 77 | 编辑页：载入自己的题面 → 两阶段 → PATCH |
 | | `game/usePuzzleStage.ts` | 66 | **出题/编辑共用的"题面 → 答案"两阶段状态机** |
 | | `game/useCustomFlow.ts` | 129 | 自定义开局：两串校验 → 可选提交 → 开局 |
+| | `game/useStartFromTexts.ts` | 32 | **「挑战」开局**（题面/答案串 → 真源：解析 + 比例 + 来源=Challenge）—— 从 store 归位出来的业务 |
 | **puzzle** | `puzzle/useSearchPuzzle.ts` | 79 | 搜索页：搜索框分流（pid/uid/关键词）+ 预览 + 挑战 |
-| | `puzzle/useMyPuzzles.ts` | 164 | 我的题目页：行内改动（重命名/可见性/答案/删除）+ 预览/挑战/编辑 |
-| | `puzzle/usePuzzleDetail.ts` | 80 | 题目详情取数 + 挑战（预览遮罩 / `/p/:pid` 落地页共用） |
+| | `puzzle/useMyPuzzles.ts` | 165 | 我的题目页：行内改动（重命名/可见性/答案/删除）+ 预览/挑战/编辑 |
+| | `puzzle/usePuzzleDetail.ts` | 81 | 题目详情取数 + 挑战（预览遮罩 / `/p/:pid` 落地页共用） |
 | | `puzzle/usePuzzlePreview.ts` | 64 | 预览遮罩（题目/答案共用，只读零副作用） |
 | | `puzzle/metaText.ts` | 32 | 元信息行文案（**不是 composable**，见 §2.3 的 E8） |
 | **solve** | `solve/useSolveFlow.ts` | 172 | 题目求解：输入（串/手填）→ 本地校验 → Worker 多解 → 逐解浏览 |
@@ -802,7 +803,7 @@ if (pos) onCellClick?.(pos)
 
 ---
 
-## 5. game 六件：从难度页到游玩页的全部流程
+## 5. game 七件：从难度页到游玩页的全部流程
 
 **① 这一组的分工（先看这张表，再看细节）**：
 
@@ -813,6 +814,7 @@ if (pos) onCellClick?.(pos)
 | `useCreateFlow` | 出题页 | 标题 + `usePuzzleStage` + POST 入库 | 两阶段细节 |
 | `useEditFlow` | 编辑页 | 载入自己的题面 + `usePuzzleStage` + PATCH | 同上 |
 | `useCustomFlow` | 自定义页 | 两串校验 → 可选提交 → 开局 | 手填盘（自定义走"粘串"路线） |
+| `useStartFromTexts` | **我的题目页 + 落地页共用** | 题面/答案串 → 开局（解析 + 算比例 + 来源 = Challenge） | 取详情、跳页（由调用方决定） |
 | `useGameFlow` | 游戏页 | 提示 / 答案遮罩 / 导出 / 按钮条 / 通关 | 盘面状态（都在 `gameStore`） |
 
 **② 一条重要的结构性事实**：**出题与编辑共用同一个状态机（`usePuzzleStage`），但各自持有自己的"页面级"逻辑**（标题、入库、跳转）。
@@ -1036,7 +1038,7 @@ export const useCreateFlow = () => {
     /** 重建一盘空题（切盘面用）：缩放由页面的 useBoardZoom 跟着盘面大小自动复位 */
     const restart = (boxSize: number): void => {
         reset()
-        gameStore.startCreate(boxSize)
+        gameStore.startInput(GAME_MODE.Create, boxSize)   // mode 由调用方给（05 册 §2.13 的归位）
     }
 
     /** 切换盘面大小：必须重建 board，否则键盘与盘面尺寸不一致 */
@@ -1109,14 +1111,15 @@ title.value = custom || defaultTitleOf(b)                         // ④ 保留�
 **⚠️ 顺序不能乱**：必须先算 `custom`（**用旧的 `config.boxSize` 比较**），再 `restart(b)`，最后写 `title`。
 若先 `restart` 再比较，`defaultTitleOf(gameStore.config.boxSize)` 已经是**新尺寸的默认名** → 判断永远错。
 
-**③ `restart` 为什么必须 `startCreate`**：
+**③ `restart` 为什么必须重建盘（走 `gameStore.startInput(GAME_MODE.Create, boxSize)`）**：
 注释写明："切换盘面大小：**必须重建 board，否则键盘与盘面尺寸不一致**"。
 想象：盘面从 9×9 换成 16×16，但 `board` 还是 9×9 → `NumberPad` 按 16 格渲染、盘面只有 9 列 → 点第 12 列时**越界**（`board[r][11]` 是 `undefined`）。
 > **"尺寸变了就要重建数据"** —— 凡"尺寸/形状是数据的一部分"的地方都要有这条意识（04 册 §12.1 的 `solveLimitOf`、这里的 `changeBoxSize`）。
+> **2026-10 归位**：这里原写 `gameStore.startCreate(boxSize)`；现在 store 只留 `startInput`，**mode 由调用方给**（05 册 §2.13 讲了为什么删掉那两个薄封装）。
 
 **④ `onMounted(() => restart(GAME_INIT_CONFIG.boxSize))`**：
 **进页面就重建一盘空题** → 不带上次出题的残留（旧盘面、阶段、成功遮罩全清）。
-顺序也有讲究：`restart` 里先 `reset()`（清阶段与遮罩）再 `startCreate`（重建盘）—— 与 05 册 §2.11 的 `startGame` 里"最后 `resetHistory()`"是同一种"先立数据、后立状态"。
+顺序也有讲究：`restart` 里先 `reset()`（清阶段与遮罩）再 `startInput(...)`（重建盘）—— 与 05 册 §2.11 的 `startGame` 里"最后 `resetHistory()`"是同一种"先立数据、后立状态"。
 
 **⑤ `submitSolution` 的三道关卡（顺序有意义）**
 
@@ -1143,7 +1146,7 @@ solutionText: boardToStr(gameStore.numBoard),      // ★ 答案 = 当前盘（�
 **⑦ 成功不是"立刻跳页"，而是 `showSuccess = true`**：
 给用户一个**"出题完成"遮罩**（上面有"去我的题目"按钮 `goMine`）→ 明确的完成感 + 告诉用户"接下来去哪"。
 
-### 5.4 `game/useEditFlow.ts`（76 行）—— 编辑页：载入 + 两阶段 + PATCH
+### 5.4 `game/useEditFlow.ts`（77 行）—— 编辑页：载入 + 两阶段 + PATCH
 
 ```ts
 /**
@@ -1180,7 +1183,7 @@ export const useEditFlow = () => {
                 return
             }
             pid.value = id
-            gameStore.startCreate(parsed.boxSize, parsed.board)   // ③ 未锁定 → 可增量改
+            gameStore.startInput(GAME_MODE.Create, parsed.boxSize, parsed.board)   // 未锁定 → 可增量改
         } catch (err) {
             errorMsg.value = errorTextOf(err, '题目加载失败')
             showFail.value = true
@@ -1223,9 +1226,9 @@ export const useEditFlow = () => {
 **③ `resetStage()` 放在请求之前**（顺序有讲究）：
 即使请求失败（网络错误 / 404），页面状态也是**干净的"填题面"阶段** —— 不会出现"上一轮阶段残留 + 本轮错误"混在一起。
 
-**④ 载入用的是 `startCreate`（不是 `startSolve`）**：
+**④ 载入走的是 `GAME_MODE.Create`（不是 `GAME_MODE.Solve`）**：
 编辑 = "手填盘面"的一种（05 册 §2.13：`startInput` 只有 `mode` 不同）。
-- `startCreate(boxSize, board)` → 内部 `fromPuzzle(puzzle, false)` → **未锁定、可增量改**（注释也写："不预填旧答案"）；
+- `startInput(GAME_MODE.Create, boxSize, board)` → 内部 `fromPuzzle(puzzle, false)` → **未锁定、可增量改**（注释也写："不预填旧答案"）；
 - **为什么"不预填旧答案"**：编辑流程与出题一致（阶段①改题面 → 阶段②重新填答案）；预填旧答案会让"阶段②"含义模糊（那是**旧答案**，可能与新题面不匹配）。
 
 **⑤ `submitSolution` 只 PATCH"题面 + 答案"**（注释："不含标题/可见性"）：
@@ -1524,7 +1527,7 @@ export const useGameFlow = () => {
             ? [{ key: 'answer', text: '📖 答案', onClick: () => { answerOpen.value = true } }]
             : []),
         ...(import.meta.env.DEV
-            ? [{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.cheat }]
+            ? [{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.fillSolution }]
             : []),
     ])
     /** 通关遮罩：只留重开（回主页走顶栏） */
@@ -1568,7 +1571,7 @@ const trailActions = computed<Actions>(() => [
 |---|---|---|
 | 📋 导出题目 | `origin === System` | 自定义的串**本来就在用户手上**；挑战题有 pid、落地页可分享 → 只有系统题需要"导出" |
 | 📖 答案 | `solution.length > 0` | 答案可能没下发（`show_solution = 0` 的公开题，02 册 §5.6）→ 没答案就不该有这个按钮 |
-| ⚡ 作弊 | `import.meta.env.DEV` | 生产产物里**整段代码被压缩器删除**（01 册 §3.8） |
+| ⚡ 作弊 | `import.meta.env.DEV` | 生产产物里**整段代码被压缩器删除**（01 册 §3.8）；它调的是 `gameStore.fillSolution`（原 `cheat`，"作弊"只是**按钮文案**，见 05 册 §2.18） |
 
 **收益**：页面模板里只有一句 `v-for="a in items"`（`items = [...leadActions, ...trailActions]`，01 册 §1.4）——
 **"哪个按钮该不该出现"完全在 composable 里决定，模板不知道任何业务条件。**
@@ -1656,16 +1659,71 @@ const items = computed(() => [...leadActions.value, ...trailActions.value])   //
 **页面从头到尾没有一句业务判断** —— 这就是"编排层"存在的意义：
 **把"什么时候显示什么、点了做什么"全部收进 composable，页面只负责摆位置。**
 
-### 5.7 六个 game composable 的横向总结
+### 5.7 `game/useStartFromTexts.ts`（32 行）—— 「挑战」开局（**从 store 归位出来的业务**）
+
+```ts
+/**
+ * 「挑战」开局：题面 / 答案串 → 棋局真源（我的题目页与落地页 / 搜索页共用）
+ * · 解析与比例换算都在 core；答案串缺失也允许开局（胜负判定走规则，不依赖答案）
+ * · 来源固定 `Challenge`（→ 游戏页不给「导出题目」）；source 给了才有「标题 · 出题人」信息行
+ * · 题面串解析失败返回 false，调用方不跳页
+ *
+ * **为什么在 composable 而不在 store**：它要解析两串、算比例、并决定"来源 = 挑战" —— 属于业务编排；
+ * store 只留 `startGame` / `startInput` 两个"给定数据、写真源"的基本操作（§六 归位原则）。
+ */
+export const useStartFromTexts = () => {
+    const gameStore = useGameStore()
+
+    return (puzzleText: string, solutionText: string, blankCount: number, source?: GameMeta): boolean => {
+        const parsed = parsePuzzle(puzzleText)
+        if (!parsed) return false
+
+        gameStore.startGame(
+            parsed.board,
+            parsePuzzle(solutionText)?.board ?? [],
+            { boxSize: parsed.boxSize, blankRatio: blankCount / cellCountOf(parsed.boxSize) },
+            GAME_ORIGIN.Challenge,
+            source,
+        )
+        return true
+    }
+}
+```
+
+**① 它为什么在这一层（三条判据合起来指向 composable）**：
+
+| 方案 | 判断 |
+|---|---|
+| 留在 `gameStore` | ❌ 违反 05 册 §1.2 的判据（"写真源 + 守规则不变式"）—— 解析串 / 算比例 / 定来源**一件都不沾** |
+| 写进 `core/` | ❌ **有副作用**（它要调 `gameStore.startGame`）→ core 必须是纯函数（R3） |
+| 各自写在页面里 | ❌ 两个调用方要各抄一份（解析 + 算比例 + 来源判定），改一处漏一处 |
+| **组合式（本项目选它）** | ✅ 有副作用 → composable；**两个调用方各调一次、共用同一份实现**（§1.3 第 2 条判据） |
+
+**② `parsePuzzle` 为什么调两次**：题面串与答案串是**两个独立的串** —— 答案串非法 / 缺失**不该影响**"题面合法就能开局"（`?.board ?? []` → 空答案）。
+
+**③ 返回 `boolean` 而不是自己跳页**（与 §5.5 的 `save()` 同一纪律）：
+**"能不能开局"在这里判断，"跳不跳页"由调用方决定** —— 调用方写法：`if (!startFromTexts(...)) return` 再 `router.push`（§6.1 / §6.4）。
+
+**④ 谁在用它（`grep useStartFromTexts` 两个结果）**：
+
+| 调用方 | 传的 `source` | 效果 |
+|---|---|---|
+| `usePuzzleDetail.challenge`（搜索页 / 落地页） | **不传** | 无来源信息行（落地页本来就没有"谁的题"上下文） |
+| `useMyPuzzles.challenge`（挑战自己的题） | `{ pid, title, uname }` | 游戏页显示「标题 · 出题人」信息行 |
+
+> **同一个函数、两种用法**：`source` 是**可选参数** —— "要就传、不要就不传"，而不是写两个函数（与 §5.1 的 `draft`、§6.2 的 `closeText` 同一种"默认值服务多数情况"）。
+
+### 5.8 七个 game composable 的横向总结
 
 | | 输入 | 输出（给页面） | 调了哪些 core / store / services |
 |---|---|---|---|
 | `useDifficultyFlow` | 用户调 `draft` | `draft/loading/error/3 派生/apply` | core（`cellCountOf`/`blankCountOf`/`percentOf`）· services（`generateInWorker`）· store（`startGame`） |
 | `usePuzzleStage` | 用户操作（由上层调） | `phase/puzzleSnapshot/errorMsg/showFail/4 动作` | core（`puzzleSubmitErrorOf`）· store（`numBoard`/`sudoku`/`lockPuzzle`） |
-| `useCreateFlow` | 用户输入标题 + 操作 | `标题/3 状态/5 动作` | `usePuzzleStage` · core（`sideOf`/`boardToStr`）· services（`create`）· store（`startCreate`） |
-| `useEditFlow` | URL 的 `pid` | `pid/3 状态/4 动作` | `usePuzzleStage` · core（`parsePuzzle`/`boardToStr`）· services（`getOne`/`update`）· store（`startCreate`） |
+| `useCreateFlow` | 用户输入标题 + 操作 | `标题/3 状态/5 动作` | `usePuzzleStage` · core（`sideOf`/`boardToStr`）· services（`create`）· store（`startInput`） |
+| `useEditFlow` | URL 的 `pid` | `pid/3 状态/4 动作` | `usePuzzleStage` · core（`parsePuzzle`/`boardToStr`）· services（`getOne`/`update`）· store（`startInput`） |
 | `useCustomFlow` | 两串文本 | `5 输入/2 提示/按钮条/apply` | core（`parsePuzzle`/`isBlankBoard`/`hasEmptyGroup`/`validatePuzzle`/`blankRatioErrorOf`/`boardToStr`/`countBlanks`/`cellCountOf`/`sideOf`）· services（`create`）· **3 个 store** |
-| `useGameFlow` | 无（全靠 store） | `tip/两个遮罩/4 组按钮条/2 个渲染入参` | core（`hintTextOf`/`givenBoard`/`boardToStr`/`defaultZoomOf`）· store（`jump`/`getCandidates`/`cheat`/`takeSavedTip`）· `useZoom`/`usePuzzleExport` |
+| `useStartFromTexts` | 题面/答案串 + `source?` | `startFromTexts(...) → boolean` | core（`parsePuzzle`/`cellCountOf`）· store（`startGame`） |
+| `useGameFlow` | 无（全靠 store） | `tip/两个遮罩/4 组按钮条/2 个渲染入参` | core（`hintTextOf`/`givenBoard`/`boardToStr`/`defaultZoomOf`）· store（`jump`/`getCandidates`/`fillSolution`/`takeSavedTip`）· `useZoom`/`usePuzzleExport` |
 
 **读这张表你能看出编排层的三条规律**：
 1. **输入都是"用户输入"或"URL"**（没有一个 composable 自己去网络/存储里"找参数"）；
@@ -1686,7 +1744,7 @@ const items = computed(() => [...leadActions.value, ...trailActions.value])   //
 | `useMyPuzzles` | 我的题目页 | 列表 + 行内改动（重命名/可见性/答案/删除）+ 预览/挑战/编辑 |
 | `metaText` | 列表项 / 详情 / 游戏页 | 元信息行文案（§2.3 已讲，**E8 例外**） |
 
-### 6.1 `puzzle/usePuzzleDetail.ts`（80 行）—— 详情取数（**三处共用同一份**）
+### 6.1 `puzzle/usePuzzleDetail.ts`（81 行）—— 详情取数（**三处共用同一份**）
 
 ```ts
 /**
@@ -1694,9 +1752,10 @@ const items = computed(() => [...leadActions.value, ...trailActions.value])   //
  * （列表接口不带题面串，预览与挑战都必须回到 GET /api/puzzles/:pid）
  */
 export const usePuzzleDetail = () => {
-    const gameStore = useGameStore()
     const userStore = useUserStore()
     const router = useRouter()
+    /** 「挑战」开局：题面 / 答案串 → 棋局真源（业务编排收在这个组合式里） */
+    const startFromTexts = useStartFromTexts()
 
     const pid = ref('')
     const data = ref<PuzzleDetail | null>(null)
@@ -1745,8 +1804,8 @@ export const usePuzzleDetail = () => {
         const info = data.value
         if (!info) return
 
-        // 题面 / 答案串 → 开局（解析与 blankRatio 都在 core / store；落地页不带来源信息）
-        if (!gameStore.startFromTexts(info.puzzleText, info.solutionText ?? '', info.blankCount)) return
+        // 题面 / 答案串 → 开局（解析与比例在 core，来源 = Challenge；落地页不带来源信息）
+        if (!startFromTexts(info.puzzleText, info.solutionText ?? '', info.blankCount)) return
 
         if (!userStore.isGuest) {
             try { await play(info.pid) } catch { /* 热度失败不影响开局 */ }
@@ -1775,19 +1834,21 @@ export const usePuzzleDetail = () => {
 **⑤ `challenge` 的三步（顺序是关键）**
 
 ```ts
-if (!gameStore.startFromTexts(...)) return      // ① 先开局（本地、同步、成功才继续）
+if (!startFromTexts(...)) return                // ① 先开局（本地、同步、成功才继续）
 if (!userStore.isGuest) {
     try { await play(info.pid) } catch { /* 热度失败不影响开局 */ }   // ② 再上报热度（网络、可失败）
 }
 await router.push({ name: PAGE.Game })          // ③ 最后跳页
 ```
 
-**② 那段 `try/catch` 是一个重要模式**：**"非关键副作用"绝不能拖垮主流程**。
+**⑥ 那段 `try/catch` 是一个重要模式**：**"非关键副作用"绝不能拖垮主流程**。
 - 热度上报失败（网络抖、后端 500）**不影响用户玩** → 吞掉错误、继续走；
 - 空 `catch {}` 是**有意的**（注释写明"热度失败不影响开局"）—— 不写注释的空 catch 会被当成隐患，**写了就是明确的设计决定**；
 - **为什么"先开局再上报"**：开局是本地操作（一定成功），上报是网络操作（可能失败）→ **把"可能失败的事"放在"已经成功的事"之后**，失败也不影响结果。
 
-**⑥ `pid` 与 `data` 一起写**：`load(nextPid)` 同时写入二者 —— **请求参数与结果一起保存**，避免"`data` 是上一次的、`pid` 是新的"这种不一致。
+**⑦ `pid` 与 `data` 一起写**：`load(nextPid)` 同时写入二者 —— **请求参数与结果一起保存**，避免"`data` 是上一次的、`pid` 是新的"这种不一致。
+
+> **顺带说清 `startFromTexts` 的来源（2026-10 归位）**：它**不是 store 的方法**，而是 `useStartFromTexts()`（`composables/game/useStartFromTexts.ts`）返回的函数 —— 本文件与 `useMyPuzzles` 各调一次拿到自己的那份。这正是"**两个调用方共用同一份业务实现**"的做法（05 册 §2.12 讲了它的判据）。
 
 ### 6.2 `puzzle/usePuzzlePreview.ts`（64 行）—— 预览遮罩（**取数注入 + 独立缩放**）
 
@@ -2017,10 +2078,10 @@ return { ...list, items, ..., ...preview, openPreview, challenge }
 await detail.load(pid)
 if (!detail.error.value) await detail.challenge()
 ```
-`detail.challenge()` 内部会 `startFromTexts` → 开局 → 上报热度 → 跳页（§6.1）。
+`detail.challenge()` 内部用 `useStartFromTexts` 拿到的函数 → 开局 → 上报热度 → 跳页（§6.1）。
 **这里用 `detail.error.value` 判断**（而不是让 `load` 返回 boolean）—— 因为 `usePuzzleDetail` 的接口就是这样设计的（错误状态公开、由调用方决定怎么处理）。
 
-### 6.4 `puzzle/useMyPuzzles.ts`（164 行）—— 我的题目页（**行内控件工厂**）
+### 6.4 `puzzle/useMyPuzzles.ts`（165 行）—— 我的题目页（**行内控件工厂**）
 
 **代码分两段看（上半：状态 + 组合 + 统一入口）**：
 
@@ -2030,7 +2091,8 @@ if (!detail.error.value) await detail.challenge()
 export const useMyPuzzles = () => {
     const router = useRouter()
     const puzzleStore = usePuzzleStore()
-    const gameStore = useGameStore()
+    /** 「挑战」开局：题面 / 答案串 → 棋局真源 */
+    const startFromTexts = useStartFromTexts()
     const preview = usePuzzlePreview((rowId) => puzzleStore.detailOf(rowId))
 
     const items = computed<MyPuzzle[]>(() => puzzleStore.mine)
@@ -2154,7 +2216,7 @@ if (!rowId || !name || name.length > TITLE_MAX) return   // commitRename
     const challenge = async (rowId: string): Promise<void> => {
         const detail = await detailOf(rowId)
         if (!detail) return
-        const ok = gameStore.startFromTexts(
+        const ok = startFromTexts(
             detail.puzzleText, detail.solutionText, detail.blankCount,
             { pid: detail.pid, title: detail.title, uname: detail.uname },   // ← 带来源信息
         )
@@ -2620,7 +2682,7 @@ if (bounded !== page.value) applyQuery(bounded)              // useListQuery.loa
 11. `useBoardCanvas.draw()` 里为什么"先把 `canvasEl` 和 `input()` 都读一遍"再判断？如果写成 `if (!canvas) return` 在前，会发生什么？
 12. `useBoardCanvas` 为什么要量"外层滚动框"而不是"canvas 的直接父级"？（说出"反馈循环"）
 
-### game 六件（§5）
+### game 七件（§5）
 
 13. `useDifficultyFlow` 的 `draft` 为什么不进 store？那句 `finally { loading.value = false }` 的注释记录的是一段什么历史 bug？
 14. `usePuzzleStage` 的 `puzzleSnapshot.value = gameStore.numBoard` 为什么不需要 `cloneBoard`？（说出它成立的前提；这个前提被破坏时会怎样）
@@ -2631,15 +2693,16 @@ if (bounded !== page.value) applyQuery(bounded)              // useListQuery.loa
 19. `useCustomFlow.apply` 里 `if (!(await save())) return` 这一句如果不写（即保存失败也继续开局），用户会遇到什么问题？
 20. `useGameFlow.trailActions` 里三个条件拼装各自代表什么业务事实？为什么"答案"按钮要看 `solution.length`？
 21. `useGameFlow.restart` 为什么用 `gameStore.jump(0)` 而不是"清空棋盘"？`goBack` 为什么要判断 `history.state.back`？
+22. `useStartFromTexts` 承担了哪三件事（解析两串 / 算比例 / 定"来源 = Challenge"）？为什么它**不该**留在 store、又**不能**写成 `core/` 纯函数（有副作用）？它被哪两个调用方复用？`parsePuzzle` 为什么在这个函数里要调**两次**？
 
 ### puzzle 与 solve（§6、§7）
 
-22. `usePuzzlePreview` 的 `load` 由调用方注入 —— 两个调用方分别注入什么？这样设计比"把取数写死在里面"好在哪？
-23. `useSearchPuzzle.load` 为什么"先当 pid 再当 uid"？（提示：两种 id 的格式）
-24. `useMyPuzzles.withDetail` 的 `run` 参数签名是 `(pid) => Promise<void>` —— 为什么把 `pid` 交给它提供？`controlsFor` 里 `const id = item.rowId` 这一行是防什么的？
-25. `useSolveFlow.validate` 的三道检查分别拦什么？为什么说它们"不值得进 Worker"？（用"微秒级 vs 几百毫秒"解释）`solutionInput` 为什么每次都要 `fromPuzzle(...)`？
+23. `usePuzzlePreview` 的 `load` 由调用方注入 —— 两个调用方分别注入什么？这样设计比"把取数写死在里面"好在哪？
+24. `useSearchPuzzle.load` 为什么"先当 pid 再当 uid"？（提示：两种 id 的格式）
+25. `useMyPuzzles.withDetail` 的 `run` 参数签名是 `(pid) => Promise<void>` —— 为什么把 `pid` 交给它提供？`controlsFor` 里 `const id = item.rowId` 这一行是防什么的？
+26. `useSolveFlow.validate` 的三道检查分别拦什么？为什么说它们"不值得进 Worker"？（用"微秒级 vs 几百毫秒"解释）`solutionInput` 为什么每次都要 `fromPuzzle(...)`？
 
-> **答不上来的题号 → 回看**：1-2 → §2.1/§2.3；3-5 → §2.4/§6.3；6-8 → §3.1~§3.3；9-12 → §4.1/§4.2；13-14 → §5.1/§5.2；15-17 → §5.3；18-19 → §5.5；20-21 → §5.6；22 → §6.2；23 → §6.3；24 → §6.4；25 → §7。
+> **答不上来的题号 → 回看**：1-2 → §2.1/§2.3；3-5 → §2.4/§6.3；6-8 → §3.1~§3.3；9-12 → §4.1/§4.2；13-14 → §5.1/§5.2；15-17 → §5.3；18-19 → §5.5；20-21 → §5.6；22 → §5.7；23 → §6.2；24 → §6.3；25 → §6.4；26 → §7。
 
 ---
 
@@ -2652,6 +2715,7 @@ if (bounded !== page.value) applyQuery(bounded)              // useListQuery.loa
 | 编辑自己的题 | `useEditFlow` | `load()` / `submitSolution()` |
 | 系统生成一局 | `useDifficultyFlow` | `draft` / `apply()` |
 | 玩游戏（提示 / 答案 / 导出 / 通关） | `useGameFlow` | `leadActions` / `trailActions` / `answerInput` |
+| 用「题面/答案串」直接开局（挑战） | `useStartFromTexts` | `startFromTexts(puzzleText, solutionText, blankCount, source?)` |
 | 求解一道题（多解） | `useSolveFlow` | `inputMode` / `solve()` / `solutions` |
 | 看某道题详情 / 挑战 | `usePuzzleDetail` | `load(pid)` / `challenge()` |
 | 预览题目 / 答案 | `usePuzzlePreview` | `showPreview(id, answer, title)` |

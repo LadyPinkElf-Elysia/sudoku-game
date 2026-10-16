@@ -25,7 +25,7 @@
 
 | 适配器 | 目录 | 唯一碰的东西 | 文件 |
 |---|---|---|---|
-| **渲染适配器** | `render/` | **canvas**（`ctx` / `devicePixelRatio`） | `board.ts`（130 行） |
+| **渲染适配器** | `render/` | **canvas**（`ctx` / `devicePixelRatio`） | `geometry.ts` · `board.ts` · `layer.ts` · `paint.ts` · `dirty.ts`（五文件） |
 | **服务适配器** | `services/` | **HTTP**（`fetch`）· **Worker**（`new Worker`）· **本地存储**（`localStorage`） | `prefs.ts` · `api/{client,session,userApi,puzzleApi}.ts` · `sudoku/{worker,workerClient}.ts` |
 | **后端适配器** | `functions/`（仓库顶层） | D1（`D1Database` / `PagesFunction`） | 见 **02 册** |
 
@@ -54,7 +54,9 @@ services/  允许：services/ · core/ · constants/ · types/      外部包：
 
 ## 2. `render/` 五个文件（geometry 34 · board 96 · layer 62 · paint 76 · dirty 89 行）—— canvas 渲染器
 
-**① 它是谁**：**唯一把棋盘画到 canvas 上的地方**（拆成 4 个小文件，一文件一职责）。
+> **旧名映射（2026-10 拆文件前）**：`render/board.ts` 的 `setupCanvas` → **`prepareCanvas`**；几何计算从 `board.ts` 移出 → **`render/geometry.ts` 的 `boardGeometryOf`**；`renderBoard` 拆成分离的 **`paintBoard`（整盘）/ `paintDirtyCells`（局量）**。本节若还有旧名，一律按此对应理解。
+
+**① 它是谁**：**唯一把棋盘画到 canvas 上的地方**（拆成 5 个小文件：`geometry` 几何 / `paint` 单格 / `layer` 线层 / `dirty` 脏格 / `board` 适配与绘制，一文件一职责）。
 **依赖**：`constants/board`（颜色/字体/线宽）+ `core/board/metrics`（尺寸换算）+ `types` —— **不碰 store、不碰业务**。
 
 **分工与导出**（**类型全部在 `types/render.ts`**：`BoardGeometry` / `CellFonts` / `FrameState` / `RedrawMode`）：
@@ -149,7 +151,7 @@ export const prepareCanvas = (canvas: HTMLCanvasElement, g: BoardGeometry): { ct
 | ⑥ | `canvas.style.width/height = …` | **CSS 尺寸**：与像素尺寸**必须分别设**（§3.3 的"两者不能只设一个"） |
 | ⑦ | `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` | **坐标系整体放大 dpr 倍** → 之后所有绘制坐标按 **CSS 像素**写 |
 | ⑧ | `textAlign: 'center'` + `textBaseline: 'middle'` | 让 `fillText` 的坐标 = **格子中心**（否则默认是从基线/左边开始，数字会偏） |
-| ⑨ | 返回 `{ ctx, side, cellSize }` | 三个值下游都要用（画格子、画线、算字号） |
+| ⑨ | 返回 `{ ctx, resized }` | `ctx` 交给下游绘制；**`resized = true` 表示位图刚被重建**（画面已清空 → 本次只能整盘重画，`dirty.ts` 的 `redrawModeOf` 会据此退回 `full`） |
 
 **⑩ `if (!parent) return null`**：极端情况（canvas 还没挂到 DOM）→ 返回 `null` 让调用方早退（**不抛错**，与 core 的"用返回值表达失败"一致）。
 
@@ -185,7 +187,7 @@ export const paintBoard = (ctx: CanvasRenderingContext2D, g: BoardGeometry, para
 | 检查 | 为什么 |
 |---|---|
 | `!board.length` | 空盘（还没开局）→ 什么都不画 |
-| `setupCanvas` 返回 `null` | 没有 parent / 拿不到 2d 上下文（比如 canvas 被浏览器禁用） |
+| `boardGeometryOf` 返回 `null`（没 parent / `size ≤ 0`）· 或 `prepareCanvas` 拿不到 2d 上下文 | 都是**不抛错**：几何算不出来就不画；画笔拿不到也不画（比如 canvas 被浏览器禁用） |
 | `zoom = 1` 默认值 | `BoardRenderInput.zoom` 是可选的 → 缺省按 1 倍 |
 | `board.length` 当 `size` | **盘面边长 = 棋盘行数**（`Board` 是方阵，所以不用另外传 S） |
 

@@ -78,7 +78,7 @@ export const useGameFlow = () => {
             ? [{ key: 'answer', text: '📖 答案', onClick: () => { answerOpen.value = true } }]
             : []),
         ...(import.meta.env.DEV
-            ? [{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.cheat }]
+            ? [{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.fillSolution }]
             : []),
     ])
     /** 通关遮罩：只留重开（回主页走顶栏） */

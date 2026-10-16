@@ -6,8 +6,8 @@ import { MINE_COPY } from '@/constants/puzzle'
 import { useListQuery } from '@/composables/useListQuery'
 import { errorTextOf } from '@/core/message'
 import { remove as removePuzzle, update as updatePuzzle } from '@/services/api/puzzleApi'
-import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
+import { useStartFromTexts } from '@/composables/game/useStartFromTexts'
 import { usePuzzlePreview } from './usePuzzlePreview'
 import type { Actions, MyPuzzleRowControls } from '@/types/item'
 import type { MyPuzzle, MyPuzzleDetail, PuzzlePatch, Visibility } from '@/types/puzzle'
@@ -17,7 +17,8 @@ import type { MyPuzzle, MyPuzzleDetail, PuzzlePatch, Visibility } from '@/types/
 export const useMyPuzzles = () => {
     const router = useRouter()
     const puzzleStore = usePuzzleStore()
-    const gameStore = useGameStore()
+    /** 「挑战」开局：题面 / 答案串 → 棋局真源 */
+    const startFromTexts = useStartFromTexts()
     const preview = usePuzzlePreview((rowId) => puzzleStore.detailOf(rowId))
 
     const items = computed<MyPuzzle[]>(() => puzzleStore.mine)
@@ -98,7 +99,7 @@ export const useMyPuzzles = () => {
     const challenge = async (rowId: string): Promise<void> => {
         const detail = await detailOf(rowId)
         if (!detail) return
-        const ok = gameStore.startFromTexts(
+        const ok = startFromTexts(
             detail.puzzleText, detail.solutionText, detail.blankCount,
             { pid: detail.pid, title: detail.title, uname: detail.uname },
         )

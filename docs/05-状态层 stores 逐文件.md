@@ -1,6 +1,6 @@
 # 05 · stores 逐文件详解
 
-> **这一册讲什么**：`src/stores/` 三个文件（`game.ts` 169 行 / `puzzle.ts` 104 行 / `user.ts` 39 行）**逐段**讲透：
+> **这一册讲什么**：`src/stores/` 三个文件（`game.ts` 146 行 / `puzzle.ts` 104 行 / `user.ts` 39 行）**逐段**讲透：
 > 每个 `ref` 为什么值得存、每个 `computed` 在算什么、每个 action 调了哪个 core/services 函数、以及**什么数据不该进 store**。
 > **前置**：01 册 §2（Pinia 基础）、03 册 §4 R4（数据层不写算法）、04 册（core 的每个函数长什么样）。
 
@@ -25,9 +25,18 @@
 
 | 文件 | 行 | store id | 管什么 | 数据性质 |
 |---|---|---|---|---|
-| `stores/game.ts` | 169 | `gameStore` | **一局游戏的全部状态**：盘面、选中、历史快照、答案、来源、配置 | **过程状态**（刷新即失） |
+| `stores/game.ts` | 146 | `gameStore` | **一局游戏的全部状态**：盘面、选中、历史快照、答案、来源、配置 | **过程状态**（刷新即失） |
 | `stores/puzzle.ts` | 104 | `puzzleStore` | **题目列表与详情**：搜索结果、我的题目、详情缓存、分页总数、加载/错误 | **取来的数据 + 缓存** |
 | `stores/user.ts` | 39 | `userStore` | **登录态**：`profile`（唯一真源）+ 派生 + 四个动作 | **跨页共享的会话状态** |
+
+> **⚠️ 归位更新**：本章 §2 里 gameStore 的**开局入口已从 5 个收成 2 个** ——
+> `startCreate` / `startSolve` / `startFromTexts` 都移出了 store（它们的"语义 / 解析 / 来源判定"属于业务）：
+> · `startCreate(boxSize)` → **`startInput(GAME_MODE.Create, boxSize)`**（mode 在 useCreateFlow / useEditFlow 的调用处给）
+> · `startSolve(boxSize, puzzle?)` → **`startInput(GAME_MODE.Solve, …)`**（useSolveFlow 调用处给 mode）
+> · `startFromTexts(...)` → 新的组合式 **`composables/game/useStartFromTexts.ts`**（解析两串 + 来源 = Challenge）
+> · `cheat()` → 更名 **`fillSolution()`**（store 只留"按答案填盘"这个基本操作，业务名留在按钮文案里）
+> 于是 store 的表面对齐成四组 —— **真源 / 规则派生 / 基本操作 / 规则查询**（见 `stores/game.ts` 顶部注释）。
+> **下文若出现旧名字（`startCreate` / `startSolve` / `startFromTexts` / `cheat`），一律以本注的映射为准。**
 
 ### 1.2 为什么只有三个 store（判据回顾）
 
@@ -66,11 +75,12 @@ stores/ 允许依赖：
 import { toNum, fromPuzzle } from '@/core/board/model'        // core ✅
 import { cloneBoard, lockGiven, applySolution, countBlanks } from '@/core/board/ops'
 import { statusOf } from '@/core/game/derive'
-import { parsePuzzle } from '@/core/sudoku/parse'
+import { cellCountOf } from '@/core/sudoku/shape'
 import { getSudoku } from '@/core/sudoku/rules'
 import { defineStore } from 'pinia'                            // pinia ✅
 import { computed, ref } from 'vue'                            // vue ✅
 // 没有任何 @/services、@/composables、vue-router —— game 是纯"本地状态机"，不取数据
+// （`parsePuzzle` 曾经在列 —— 2026-10 随 `startFromTexts` 一起归位到 composable 了）
 
 // puzzle.ts
 import { getMine, listMine, search as apiSearch } from '@/services/api/puzzleApi'   // services ✅
@@ -89,7 +99,7 @@ import { login as apiLogin, ... } from '@/services/api/userApi'
 
 ---
 
-## 2. `stores/game.ts`（169 行）—— 一局游戏的状态机
+## 2. `stores/game.ts`（146 行）—— 一局游戏的状态机
 
 **① 这个文件是干嘛的**：它把"**一局游戏**"这件事的全部状态收在一处，并提供**唯一的改写入口**。
 **它是三个 store 里最重要的一个**：游戏页、答案遮罩、导出、判胜、历史记录全依赖它。
@@ -116,7 +126,7 @@ export const useGameStore = defineStore('gameStore', () => {
 | ③ | `board` | **用户输入的产物**（唯一真源） | 页面渲染、`toNum`、导出、判胜 |
 | ④ | `selected` | 用户点选的位置，鼠标不会告诉我们 | `BoardView` 的 `selected`、`inputNum`、`getCandidates` |
 | ⑤⑥ | `snapshots`/`currentStep` | 历史记录的**全部内容**（用来"跳回第 3 步"） | `PagerBar mode="steps"`、`jump` |
-| ⑦ | `solution` | 开局时由外部给的（**不是算出来的**） | 参考答案遮罩、`cheat` |
+| ⑦ | `solution` | 开局时由外部给的（**不是算出来的**） | 参考答案遮罩、`fillSolution` |
 | ⑧ | `meta` | 从接口/路由带来的（标题、出题人、pid） | 信息行 `infoText`、导出 |
 | ⑨ | `origin` | 开局**怎么来的**是历史事实 | `useGameFlow` 决定给不给"导出题目"按钮 |
 
@@ -164,7 +174,7 @@ const numBoard = computed<NumBoard>(() => toNum(board.value))
 **这是"派生不存"最典型的一处**：**store 里只有 `board` 一个真源**，`numBoard` 永远现算。
 
 **为什么不存一个 `numBoard` ref 与 `board` 同步**：
-- 那就有**两份盘**，任何一处改动（`inputNum`/`jump`/`cheat`/`lockPuzzle`/`startGame`）都必须**同时改两处** → 漏一处就出现"渲染对了但判胜错了"这种极难查的 bug；
+- 那就有**两份盘**，任何一处改动（`inputNum`/`jump`/`fillSolution`/`lockPuzzle`/`startGame`）都必须**同时改两处** → 漏一处就出现"渲染对了但判胜错了"这种极难查的 bug；
 - 现在**不可能不一致**（因为只有一个来源）。
 
 **开销大吗**：`toNum` 是 `O(S²)`（9 阶 81 次、100 阶 10000 次赋值）。
@@ -201,7 +211,7 @@ const isWin = computed<boolean>(() => {
 | ③ | `sudoku.isSolved(numBoard)` | 真正的判定：**填满 + 无冲突**（04 册 §9.8）。注意**不验证唯一性**（那要跑回溯） |
 
 **为什么用 `computed` 而不是"落子后判断并写一个 `isWin` 字段"**：
-后者需要在**所有改动盘面的地方**（`inputNum`、`jump`、`cheat`、`lockPuzzle`、`startGame`、`startInput`）都记得更新 —— 漏一处就出现"赢了不弹窗"或"重开后还显示已通关"。
+后者需要在**所有改动盘面的地方**（`inputNum`、`jump`、`fillSolution`、`lockPuzzle`、`startGame`、`startInput`）都记得更新 —— 漏一处就出现"赢了不弹窗"或"重开后还显示已通关"。
 **`computed` 让它自动跟着 `board`/`mode` 变** → **不可能忘**。
 
 **性能取舍**：每次盘面变化都会跑一次 `isSolved`（`O(S²)` 最坏 + `hasConflict`）。
@@ -259,8 +269,9 @@ const conflictMask = computed<ConflictMask>(() =>
 
 **谁读它**：`GamePage.vue` 的 `boardParams`（→ `BoardView` 的 `conflictMask` prop）→ `renderBoard` 用它给冲突格填 `BOARD_COLOR.conflictBg`（01 册 §3.2）。
 
-**性能**：每次盘面变化就**全量重算**（`O(S²)` + 27 组扫描），**不做增量**。
-**为什么不做增量**：画布本来就要**整盘重绘**（01 册 §3.5 的重绘链）→ 增量算掩码省下的那点时间，在整盘重绘面前毫无意义。**优化要优化在瓶颈上**。
+**性能**：每次盘面变化就**全量重算**（`O(S²)` + 组单元表扫描），**不做增量**。
+**为什么不做增量**（2026-10 复核）：增量维护 `dupVal[(组, 值)]` 计数在技术上**可行且确实更快**（实测 B=10 一次扫描从 ~0.4ms 降到 ~0.008ms），但它的代价是**六条改盘路径都要同步**（`inputNum` / `jump` / `fillSolution` / `lockPuzzle` / 重开 / 回退），漏一条就是"冲突格不显示红"这种难查的静默 bug。**当前收益（占总帧 2~3%）小于维护代价** → 记录为待办，暂不实现（见 11 册 §8.3 的"实现待办"）。
+> 顺带说明渲染侧的结论：画布现在走**局量重绘**（08 册 §2.3），"全量重算掩码"依然是**更划算的一侧** —— 因为组扫描是**紧凑数组上的顺序遍历**（CPU 友好），而 6 处增量同步是**人的负担**。
 
 ### 2.8 `selectedCell`：选中格（**两层防御**）
 
@@ -335,7 +346,7 @@ const pushHistory = (): void => {
 | 动作 | 调用 |
 |---|---|
 | `startGame` / `startInput` / `lockPuzzle` | `resetHistory()`（开一条新历史） |
-| `inputNum` / `cheat` | `pushHistory()`（新增一步） |
+| `inputNum` / `fillSolution` | `pushHistory()`（新增一步） |
 | `jump` | 只改 `currentStep`（**不动 snapshots**） |
 
 ### 2.10 `getCandidates`：把"两个持有物"喂给 core
@@ -376,40 +387,37 @@ const startGame = (puzzle: NumBoard, sol: NumBoard, cfg: GameConfig, from: GameO
 | `origin.value = from` | 记录来源：`System`（系统生成）/ `Custom`（自定义）/ `Challenge`（挑战）→ 决定要不要显示"导出题目"（`useGameFlow` 的 `trailActions`，01 册 §3.8 那段 `...(gameStore.origin === GAME_ORIGIN.System ? [导出] : [])`） |
 | `config.value = { ...cfg }` | **拷贝**：不把外部对象直接塞进 store（否则外部改一下那个对象，store 里的配置也跟着变） |
 | **`board.value = fromPuzzle(puzzle, true)`** | **`lockGiven = true`** → 题面的非空格**全部锁死**（04 册 §4.2）：玩家改不了题目给定的数字 |
-| `solution.value = sol` | 答案直接存（**可能为空数组**，见 `startFromTexts`） |
+| `solution.value = sol` | 答案直接存（**可能为空数组**，见 `useStartFromTexts`） |
 | `meta.value = source ? { ...source } : { ...EMPTY_META }` | 有来源就拷来源，没有就给一个干净的副本（§2.2 的两个陷阱都在这行体现） |
 | `resetHistory()` | **最后**建立历史：第 0 步 = 刚开局的盘面 |
 
 **为什么要"唯一的开局入口"**：三种开局来源（系统生成 / 自定义 / 挑战）都走它 → **开局要做的 7 件事只有一份实现**，加一步（例如"清零计时"）只改这里。
 
-### 2.12 `startFromTexts`：从字符串开局（**我的题目「挑战」与落地页共用**）
+### 2.12 `startFromTexts` → **已搬到 `composables/game/useStartFromTexts.ts`**（2026-10 归位）
+
+它原来是 store 里的一个方法："题面 / 答案串 → 开局"（我的题目「挑战」与落地页「挑战」共用）。
+**归位时被移出 store**，因为它要做的三件事**没有一件是"写真源"**：解析两串（core）、算比例（core）、决定"来源 = Challenge"（业务语义）。
 
 ```ts
-/**
- * 从题面 / 答案串直接开局（我的题目「挑战」与落地页「挑战」共用）
- * · 解析与比例都在 core；答案串缺失也允许开局（胜负判定走规则，不依赖答案）
- * · 题面串解析失败返回 false，调用方不跳页
- */
-const startFromTexts = (
-    puzzleText: string,
-    solutionText: string,
-    blankCount: number,
-    source?: GameMeta,
-): boolean => {
-    const parsed = parsePuzzle(puzzleText)
-    if (!parsed) return false                                   // ① 解析失败 → 不跳页
-    startGame(parsed.board, parsePuzzle(solutionText)?.board ?? [], {   // ② 答案可缺
-        boxSize: parsed.boxSize,
-        blankRatio: blankCount / cellCountOf(parsed.boxSize),   // ③ 比例现算
-    }, GAME_ORIGIN.Challenge, source)                           // ④ 来源固定为 Challenge
-    return true
+// composables/game/useStartFromTexts.ts（两个调用方共用一份，避免复制粘贴）
+export const useStartFromTexts = () => {
+    const gameStore = useGameStore()
+    return (puzzleText: string, solutionText: string, blankCount: number, source?: GameMeta): boolean => {
+        const parsed = parsePuzzle(puzzleText)
+        if (!parsed) return false                                   // ① 解析失败 → 不跳页
+        gameStore.startGame(parsed.board, parsePuzzle(solutionText)?.board ?? [], {   // ② 答案可缺
+            boxSize: parsed.boxSize,
+            blankRatio: blankCount / cellCountOf(parsed.boxSize),   // ③ 比例现算（算式不进 store）
+        }, GAME_ORIGIN.Challenge, source)                           // ④ 来源固定为 Challenge
+        return true
+    }
 }
 ```
 
-**四点**：
+**四点（结论不变，只是执行位置从 store 挪到了 composable）**：
 
-1. **`if (!parsed) return false`**：**"能不能开局"由 store 判断，但"要不要跳页"由调用方决定**。
-   调用方的写法（示意）：`if (gameStore.startFromTexts(...)) router.push({ name: PAGE.Game })` —— 失败就留在原地（用户可以改一下再试）。
+1. **`if (!parsed) return false`**：**"能不能开局"由这个函数判断，但"要不要跳页"由调用方决定**。
+   调用方的写法（示意）：`if (startFromTexts(pidText, solText, blankCount, meta)) router.push({ name: PAGE.Game })` —— 失败就留在原地（用户可以改一下再试）。
 2. **答案可缺**（`parsePuzzle(solutionText)?.board ?? []`）：注释解释了原因 —— **"胜负判定走规则，不依赖答案"**（`isSolved` 只看盘面，不看答案）。
    所以"答案没下发"（例如 `show_solution = 0` 的公开题，02 册 §5.6）**不影响游玩**，只是没有 `solution` → 没有"参考答案"按钮。
 3. **`blankRatio` 现算**：接口只给 `blankCount` 与 `boxSize`，比例由 core 的 `cellCountOf` 算出（**store 里不许写算式**，R4）。
@@ -417,7 +425,17 @@ const startFromTexts = (
 
 **这里的 `parsed.board` 是 `NumBoard`，而且 `startGame` 里会 `fromPuzzle(..., true)`** → 挑战题的题面格同样锁死 ✅
 
-### 2.13 `startInput` / `startCreate` / `startSolve`：手填盘的三种模式
+**⑤ 为什么它不是 store 的方法，也不是一个纯函数模块**：
+
+| 方案 | 判断 |
+|---|---|
+| 留在 `gameStore` | ❌ 违反"**写真源 + 守规则不变式**"的判据 —— 解析串 / 算比例 / 定来源，一件都不沾 |
+| 写成 `core/` 纯函数 | ❌ 它要调 `gameStore.startGame`（**有副作用**，且依赖全局 store）→ 纯函数不许碰 |
+| **组合式（本项目选它）** | ✅ 有副作用 → 用 composable 包住；两个调用方共用一份实现（见 06 册 §5.7） |
+
+> **顺带看清一件事**：这个函数 **`parsePuzzle` 调了两次**（题面一次、答案一次）—— 因为两者是**两个独立的串**，答案串可能非法而题面合法，所以**不能共用一个解析结果**。
+
+### 2.13 `startInput`：手填盘的统一入口（模式由调用方给）
 
 ```ts
 /**
@@ -435,13 +453,8 @@ const startInput = (nextMode: GameMode, boxSize: number, puzzle?: NumBoard): voi
     meta.value = { ...EMPTY_META }
     resetHistory()
 }
-
-/** 进入出题 / 编辑：手填题面 */
-const startCreate = (boxSize: number, puzzle?: NumBoard): void => startInput(GAME_MODE.Create, boxSize, puzzle)
-
-/** 进入题目求解：手填 / 回填题面（求解结果不进 store，见 composables/solve/useSolveFlow） */
-const startSolve = (boxSize: number, puzzle?: NumBoard): void => startInput(GAME_MODE.Solve, boxSize, puzzle)
 ```
+> **2026-10 归位删掉的行**：原先紧跟其后的 `startCreate` / `startSolve` 两个"一行薄封装"（把 `GAME_MODE.Create` / `GAME_MODE.Solve` 写死在 store 里）已删除 —— 改由**调用方传 mode**（`startCreate(boxSize)` → `startInput(GAME_MODE.Create, boxSize)`），理由见本节 ④。
 
 **① 与 `startGame` 最关键的一处对照**：
 
@@ -460,15 +473,17 @@ const startSolve = (boxSize: number, puzzle?: NumBoard): void => startInput(GAME
 **③ 为什么空盘要走 `getSudoku(boxSize).makeEmptyBoard()`**（04 册 §9.5）：
 它保证**尺寸与 `boxSize` 严格一致**（而且用的就是"同一个规则实例"）—— 比在 store 里手写 `makeGrid(...)` 更安全（store 也不该出现这种算式）。
 
-**④ `startCreate` / `startSolve` 两个"一行薄封装"的价值**：
-调用方（`useCreateFlow` / `useSolveFlow` / `useEditFlow`）写的是：
+**④ 为什么不再要 `startCreate` / `startSolve` 两个"一行薄封装"（2026-10 归位）**
 
-```ts
-gameStore.startCreate(boxSize)          // 语义化：一眼看出"我要去出题"
-// 而不是
-gameStore.startInput(GAME_MODE.Create, boxSize)   // 需要知道 GAME_MODE 的取值
-```
-> **封装"意图"而不是"机制"**：调用点读起来是业务语言，**参数也不可能传错**（枚举值写死在薄封装里）。
+它们原本的价值是让调用方写 `gameStore.startCreate(boxSize)`（**语义化，且枚举值写死在封装里 → 不可能传错**）。归位时把它们删掉，是为了另一个更重要的原则：
+
+| | 留着薄封装的收益 | 删掉之后的收益 |
+|---|---|---|
+| 调用点 | `startCreate(boxSize)` 读起来是业务语言 | `startInput(GAME_MODE.Create, boxSize)` 多了一点"机制感" |
+| store 表面 | —— | 只剩"**给定数据、写真源**"的基本操作；"出题 / 求解"是**页面语义**，回到页面层（`useCreateFlow` / `useEditFlow` / `useSolveFlow` 各传自己的 mode） |
+
+> **取舍的理由**：`GAME_MODE.*` 是**类型安全的常量**（传错 TS 立刻报错），所以"枚举传错"的风险本来就很低；而"store 里堆业务别名"的代价是**数据层会持续吸收业务概念**（每加一种页面语义就多一个方法）。**两害相权，选择让 store 干净。**
+> 这与本节 ① 的取舍并不冲突：**"同一机制服务两处"值得参数化（`fromPuzzle` 的 `true/false`）；"语义别名"属于业务语言，就该待在业务层。**
 
 **⑤ 注释里那句"求解结果不进 store"**：
 `startSolve` 只负责"**手填题面**"这件事；**多解枚举的结果**（`NumBoard[]`）是"一次性的工作产物"，放在 `useSolveFlow` 的 `ref` 里就够了（进 store 反而会污染全局）。**这是 §1.2 判据的又一次应用。**
@@ -598,16 +613,18 @@ board.value = snapshots.value[step]
 
 **记住这条完整规则**：**存快照时要拷（push 方向）、取快照时也要拷（jump 方向）** —— 因为"活动盘"会被就地修改（§2.16 ⑤），任何与它共享引用的地方都会被污染。
 
-### 2.18 `cheat`：填入答案（**只存在于开发环境**）
+### 2.18 `fillSolution`：填入答案（**只存在于开发环境**）
 
 ```ts
-/** 作弊：直接填入答案（测试用）—— 填法在 core */
-const cheat = (): void => {
-    if (!solution.value.length) return                        // ① 没答案就别作弊
+/** 填入答案（开发环境的"作弊"按钮用）—— 填法在 core */
+const fillSolution = (): void => {
+    if (!solution.value.length) return                        // ① 没答案就别填
     board.value = applySolution(board.value, solution.value)  // ② 填法在 core
     pushHistory()                                             // ③ 也是一步，可回退
 }
 ```
+
+> **命名说明（2026-10）**：它原来叫 `cheat` —— 名字带业务色彩。现在 store 里只保留"**按答案填盘**"这个基本操作的描述（`fillSolution`），**"作弊"这个业务名留在 UI 层**：游戏页那颗 DEV 按钮仍是 `{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.fillSolution }`（`key` 是稳定的列表键，不必跟着改）。
 
 **三点**：
 1. **守卫"没有答案就返回"**：`solution` 可能为空（挑战题没下发答案、手填模式清空了答案）→ 此时"作弊"没有意义；
@@ -616,7 +633,7 @@ const cheat = (): void => {
 
 **它怎么做到"生产环境没有"**：按钮在 `useGameFlow` 里是条件性加的（01 册 §3.8）：
 ```ts
-...(import.meta.env.DEV ? [{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.cheat }] : [])
+...(import.meta.env.DEV ? [{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.fillSolution }] : [])
 ```
 → 打包时 `DEV` 变 `false`，**整段死代码被压缩器删除**（生产产物里既没有按钮、也没有调用点）。**但 store 里这个动作本身还在**（无害：没有任何入口能触发它）。
 
@@ -634,10 +651,10 @@ return {
     isWin, snapshots,
     conflictMask, selectedCell,
 
-    // Actions
-    startGame, startCreate, startSolve, startFromTexts, lockPuzzle,
+    // Actions（开局 / 改盘 / 回退）
+    startGame, startInput, lockPuzzle,
     select, inputNum,
-    jump, cheat,
+    jump, fillSolution,
 
     // 提示
     getCandidates,
@@ -984,7 +1001,7 @@ items.value = res.items
 
 | 入口 | 失败怎么表达 |
 |---|---|
-| `startFromTexts` | 返回 `false`（**调用方据此决定要不要跳页**） |
+| `useStartFromTexts`（原 `startFromTexts`，已在 composable 里） | 返回 `false`（**调用方据此决定要不要跳页**） |
 | `detailOf` | 返回 `null`（**调用方 `if (!detail) return`**） |
 | `search` / `loadMine` | 无返回值，但把文案写进 `error`（**页面读 `error` 显示**） |
 
@@ -1061,7 +1078,7 @@ HTTP 401     →  （事件）              →  profile = null               �
 9. `inputNum` 的四个守卫按什么顺序排？把"同值不重复写"提到第一位会有什么问题？
 10. `cell.v = n` 直接改嵌套对象属性，为什么在 Vue 3 里能触发重绘？如果 `board` 用的是 `shallowRef` 会怎样？
 11. `startGame`（`fromPuzzle(puzzle, true)`）与 `startInput`（`fromPuzzle(puzzle, false)`）的 `true/false` 分别对应什么用户场景？为什么不能统一？
-12. `startFromTexts` 为什么允许 `solutionText` 解析失败（`?? []`）？为什么它返回 `boolean` 而不是直接跳页？
+12. `useStartFromTexts`（原 `gameStore.startFromTexts`）为什么允许 `solutionText` 解析失败（`?? []`）？为什么它返回 `boolean` 而不是直接跳页？它为什么**不该**留在 store 里？
 13. `lockPuzzle` 只改 `lock` 标记，为什么还要 `resetHistory()`？
 
 ### `puzzleStore` 与 `userStore`
@@ -1084,7 +1101,7 @@ HTTP 401     →  （事件）              →  profile = null               �
 |---|---|---|
 | 看"一局游戏有哪些状态" | `gameStore` 的 `ref` 清单 | §2.1 的表 |
 | 落子 / 选中 / 跳步 / 重开 | `gameStore.select` / `inputNum` / `jump` | §2.15~§2.17 |
-| 开一局（三种来源） | `startGame` / `startFromTexts` / `startCreate` / `startSolve` | §2.11~§2.13 |
+| 开一局（三种来源） | `startGame`（系统/自定义）· `startInput`（手填）· `composables/game/useStartFromTexts.ts`（挑战） | §2.11~§2.13 |
 | 出题流程"提交题面" | `gameStore.lockPuzzle()` | §2.14 |
 | 判胜 / 冲突 / 候选 | `computed isWin` / `conflictMask` / `getCandidates` | §2.5 / §2.7 / §2.10 |
 | 列表数据从哪来 | `puzzleStore.search` / `loadMine` | §3.4~§3.5 |

@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { BOX_SIZE_SELECT_OPTIONS, GAME_INIT_CONFIG } from '@/constants/game'
+import { BOX_SIZE_SELECT_OPTIONS, GAME_INIT_CONFIG, GAME_MODE } from '@/constants/game'
 import { SOLVE_COPY, SOLVE_INPUT_MODE, SOLVE_LIMIT_DEFAULT, SOLVE_MAX_BOX_SIZE } from '@/constants/solve'
 import { fromPuzzle } from '@/core/board/model'
 import { isBlankBoard } from '@/core/board/ops'
@@ -37,7 +37,7 @@ export const useSolveFlow = () => {
     const resultZoom = useZoom()
 
     // 进页先起一张空盘：不把上一页留下的盘面带过来
-    gameStore.startSolve(GAME_INIT_CONFIG.boxSize)
+    gameStore.startInput(GAME_MODE.Solve, GAME_INIT_CONFIG.boxSize)
 
     const boxSize = computed<number>(() => gameStore.config.boxSize)
     const padMax = computed<number>(() => gameStore.sudoku.S)
@@ -68,7 +68,7 @@ export const useSolveFlow = () => {
 
     /** 换盘面大小：重建空盘 + 复位输入盘缩放 + 清结果 */
     const setBoxSize = (next: number): void => {
-        gameStore.startSolve(next)
+        gameStore.startInput(GAME_MODE.Solve, next)
         inputZoom.resetZoom(defaultZoomOf(next))
         error.value = ''
         resetResult()
@@ -82,7 +82,7 @@ export const useSolveFlow = () => {
 
     /** 清空棋盘（尺寸不变） */
     const clearBoard = (): void => {
-        gameStore.startSolve(gameStore.sudoku.B)
+        gameStore.startInput(GAME_MODE.Solve, gameStore.sudoku.B)
         error.value = ''
         resetResult()
     }
@@ -102,7 +102,7 @@ export const useSolveFlow = () => {
             error.value = SOLVE_COPY.badPuzzle
             return false
         }
-        gameStore.startSolve(parsed.boxSize, parsed.board)
+        gameStore.startInput(GAME_MODE.Solve, parsed.boxSize, parsed.board)
         inputZoom.resetZoom(defaultZoomOf(parsed.boxSize))
         inputMode.value = SOLVE_INPUT_MODE.Board
         resetResult()

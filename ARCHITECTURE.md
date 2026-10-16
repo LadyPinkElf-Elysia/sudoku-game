@@ -1,4 +1,4 @@
-# 架构约束 v1.9.6（数据 · 纯函数 · 组合式）
+# 架构约束 v1.9.16（数据 · 纯函数 · 组合式）
 
 > **硬约束**：`scripts/check-arch.mjs` 是本文 R1~R15 的可执行版本（R15 与 R8 的命名语义为评审规则；
 > R11 = core 必须可测但**不强制测试**，见 §三 R11）；`pnpm guard` 违规 exit 1，`pnpm build` 不含它（= vue-tsc -b + typecheck:functions + vite build），guard 单独跑。
@@ -151,7 +151,8 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
 ## 五、例外登记
 
     E1 core/sudoku/rules.ts 的 getSudoku：模块级 Map 记忆化（对入参可观察等价于纯函数）—— 同时是 R11 的例外
-    E2 render/board.ts 的 setupCanvas：读 devicePixelRatio / 写 canvas 尺寸（canvas 适配器）
+    E2 render/geometry.ts 的 boardGeometryOf（读 devicePixelRatio）+ render/board.ts 的 prepareCanvas（写 canvas 尺寸）：canvas 适配器；
+       几何由调用方算一次保管 → render/ 里不留状态（2026-10「渲染五文件 · 无状态」）
     E3 GameStore 类型放 stores/game.ts 而不是 types/（见 R13）
     E4 预留类型登记在守卫 RESERVED_TYPES：Page / User / SearchResult / Puzzle
        现状：User / SearchResult / Puzzle 已被真实引用；Page 仍只靠登记存活
@@ -177,7 +178,8 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
     页面要显示的"算好的值"  → 由 composable 暴露（composable 才能 import core；页面禁 Math.）
     跨页共用的视觉规格      → 全局样式（styles/*.css）：card / form / overlay（`.text-btn` 就是「可点击文本」的唯一样式）
     跨页共用的流程          → 公共组合式（useListQuery 列表查询 · usePuzzlePreview 预览 · useClipboard 复制 ·
-                              usePuzzleStage 出题/编辑的「题面→答案」两阶段 · useSolveFlow 题目求解）
+                              usePuzzleStage 出题/编辑的「题面→答案」两阶段 · useStartFromTexts 挑战开局 ·
+                              useSolveFlow 题目求解）
     悬浮提示 / 无障碍名      → **只在传入数据里有才用；没给就不加**（不自行发明文案）
 
 ## 八、后端约定（functions/）
@@ -197,8 +199,8 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
 | 文件 | 导出 | 使用方 |
 |---|---|---|
 | board.ts | `Cell` `Board` `NumBoard` `ConflictMask` `Snapshot` `Position` | core / stores / render / composables / components |
-| render.ts | `BoardRenderInput` | BoardView props、页面 boardParams、useBoardCanvas、renderBoard(canvas, input, contentWidth?) |
-| sudoku.ts | `Sudoku`（手写契约；`hasEmptyGroup` = 手选题面禁「整行/列/宫全空」） | core/sudoku/rules 实现；fill/generate、stores/game、useCustomFlow、functions 使用 |
+| render.ts | `BoardRenderInput` · `BoardGeometry`（几何）· `CellFonts`（两档字重）· `FrameState`（一帧的可比快照）· `RedrawMode`（`full`｜`dirty`） | BoardView props、页面 boardParams、useBoardCanvas、render/{geometry,board,paint,dirty} —— **2026-10 类型归位**：这些形状原先散在 `render/` 内部 |
+| sudoku.ts | `Sudoku`（手写契约；`hasEmptyGroup` = 手选题面禁「整行/列/宫全空」）· `GroupTable`（组单元表）· `GroupScanner`（三个查冲突扫描） | core/sudoku/rules（`createSudoku`）· core/sudoku/groups（`createGroupTable` / `createGroupScanner`）；stores/game、useCustomFlow、functions 使用 |
 | rng.ts | `Rng` | core/array.shuffle、core/sudoku/fill、services/sudoku/worker |
 | worker.ts | `WorkerRequest`（判别式：generate / solve 两种活）· `GenerateResponse` · `SolveResponse`（多解 = 解列表 `NumBoard[]`）| services/sudoku/worker 与 workerClient |
 | game.ts | `GameConfig` `GameMeta` `GameStatus` `GameMode`（`game` / `create` / `solve`）`GameOrigin`（`system` / `custom` / `challenge`）`CreatePhase` | stores/game、core/game/derive、useCreateFlow/useEditFlow/useDifficultyFlow、GamePage |
@@ -221,7 +223,7 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
       stores/               {game,user,puzzle}.ts
       composables/          useClipboard · useListQuery · usePuzzleExport（题目串导出）
                             auth/{useAuth,useAccountMenu,useAccountPanel} · board/{useBoardCanvas,useZoom,useBoardZoom}
-                            game/{useGameFlow,useCreateFlow,useEditFlow,usePuzzleStage,useCustomFlow,useDifficultyFlow}
+                            game/{useGameFlow,useCreateFlow,useEditFlow,usePuzzleStage,useCustomFlow,useDifficultyFlow,useStartFromTexts}
                             solve/useSolveFlow（题目求解：输入 → Worker 多解 → 逐解浏览）
                             puzzle/{useSearchPuzzle,usePuzzleDetail,usePuzzlePreview,useMyPuzzles,metaText}
       components/           ——— 两个通用件 ———
@@ -371,6 +373,16 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
   `NumBoard`/`Board` 两种盘面表示 · core 逐模块 · **10 条端到端数据流** · stores / composables / 三个适配器 ·
   守卫与命令 · 关键决策与踩过的坑 · 改需求的正确顺序与自检清单；三份文档互相引用
 
+- v1.9.16：**三处归位 + 一处性能重排（本轮：渲染无状态 / 类型归位 / store 只留真源）**
+  ① **`render/` 拆成五文件并去掉模块级状态**：`geometry.ts`（几何纯计算 `boardGeometryOf`）· `paint.ts`（`paintCell` / `fontsOf` / 线层贴图）·
+  `layer.ts`（线层纯工厂）· `dirty.ts`（脏格 + 重绘决策，全纯函数）· `board.ts`（只剩 `prepareCanvas` / `paintBoard` / `paintDirtyCells` / `getClickPos`）；
+  状态（快照 / 线层 / 上次边长）全部由 `useBoardCanvas` 持有 → 支持**整盘 / 局量双路径重绘**（E6 同步改写；E2 的 `prepareCanvas` → `prepareCanvas`）
+  ② **类型归位**：`BoardGeometry` / `CellFonts` / `FrameState` / `RedrawMode` → `types/render.ts`；`GroupTable` / `GroupScanner` → `types/sudoku.ts`（§九 同步）
+  ③ **core/sudoku ＋`groups.ts`**：组单元表（3S 组，扁平下标）+ 三个查冲突扫描共用计数缓冲 → `findConflicts` / `hasConflict` / `hasEmptyGroup`
+  从「Map 分组」改为「组表 + 计数缓冲」（B=10 实测 ≈5.8×）；`rules.ts` 只留契约装配（178 → 95 行）
+  ④ **store 归位（只留真源 + 规则派生 + 基本操作 + 规则查询）**：`startCreate` / `startSolve` 删除（改由调用方传 `GAME_MODE.*` 给 `startInput`）；
+  `startFromTexts` 移出为 `composables/game/useStartFromTexts.ts`（挑战开局：解析两串 + 算比例 + 定来源 = Challenge，两处调用方共用）；
+  `cheat` 更名 `fillSolution`（"作弊"只是按钮文案）；`stores/game.ts` 169 → 146 行，顶部注释写明四组职责（§六「跨页共用流程」同步 ＋useStartFromTexts）
 - v1.9.15：＋**`CODE-GUIDE.md`「代码导读」**（各层为什么这么写）：先整体（一次交互的五个阶段：pages → components → composables → stores → core，含依赖铁律与四个真实痛点）
   → 再逐层（`core` 纯函数与 rng 注入 · `store` 只记"要记住的"与 computed 单一事实源 · `composable` 为什么是
   store 与组件之间的缺环 · `pages` 为什么必须最薄 / `component` 为什么必须"笨"）→ 两条完整链条（游戏页落子 / 求解页）标注各层各自在做的事

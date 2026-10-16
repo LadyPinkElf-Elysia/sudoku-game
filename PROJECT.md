@@ -4,6 +4,8 @@
 > **与其它文档的关系**：`REQUIREMENTS.md` 是**要什么**（功能与验收）· `ARCHITECTURE.md` 是**硬约束**（R1~R15 / E1~E8，守卫可执行）· **本文是「怎么串起来的」**（导读，不重复细节）· `CODE-GUIDE.md` 是**各层为什么这么写**（pages / components / composables / stores / core 各自的意思、理由与反例）。
 > **怎么读**：§0~§2 建立框架 → **§3 两种盘面表示**是理解全项目的钥匙 → 之后按需查 §4（core 怎么算）· §5（数据怎么流）· §6~§8（状态/流程/适配器）· §9~§11（约定、踩坑、改需求的顺序）。
 > **维护约定**：改完代码动到"结构/流程/决策"时，本文与另外两份一起更新（三处同步，见 §11）。
+> **2026-10 归位映射（旧名 → 现名）**：`startCreate(k)` → `startInput(GAME_MODE.Create, k)` · `startSolve(k, b?)` → `startInput(GAME_MODE.Solve, k, b?)` · `gameStore.startFromTexts(...)` → `composables/game/useStartFromTexts.ts` 返回的 `startFromTexts(...)` · `store.cheat()` → `store.fillSolution()` · `render/board.ts` 的 `setupCanvas` → `prepareCanvas`（几何移到 `render/geometry.ts` 的 `boardGeometryOf`；渲染拆成五文件、无状态）。
+> **下文（含 §11 决策存档）若出现旧名，一律按本注理解** —— 决策条目保留当时的写法，不改写历史。
 
 ---
 
@@ -205,8 +207,8 @@ pages/difficulty/CustomPage.vue（两个 textarea）
 ```
 [搜索页] 列表项「挑战」→ useSearchPuzzle.challenge(pid)
    → usePuzzleDetail.load(pid) → services/api/puzzleApi.getOne(pid) → GET /api/puzzles/:pid
-   → detail.challenge() → stores/game.startFromTexts(puzzleText, solutionText, blankCount, meta?)
-        parsePuzzle(题面) → startGame(board, 答案, cfg, GAME_ORIGIN.Challenge, meta{pid,title,uname})
+   → detail.challenge() → composables/game/useStartFromTexts（**业务编排在 composable**）
+        parsePuzzle(题面) → stores/game.startGame(board, 答案, cfg, GAME_ORIGIN.Challenge, meta{pid,title,uname})
    → router → /game（信息行显示「标题 · 出题人」）
 [热度] 已登录时另有 POST /api/puzzles/:pid/play（1 人 1 小时 1 次；作者本人不计）
 [落地页] /p/:pid → pages/PuzzleViewPage.vue → 同一个 usePuzzleDetail → 只读棋盘 + 「挑战」
@@ -235,7 +237,7 @@ pages/CreatePage.vue（标题 + 盘面大小 + 可玩棋盘 + NumberPad）
       通过 → puzzleSnapshot = numBoard；stores/game.lockPuzzle()（lockGiven 锁题）→ phase = Solution
 ② 阶段②（填答案）：checkSolution() → sudoku.validatePuzzle(puzzleSnapshot, numBoard)（不成立亮失败遮罩）
 ③ 提交：POST /api/puzzles（后端 checkPuzzle 用**同一套 core** 复校）→ 完成遮罩「去我的题目」
-   编辑页 pages/EditPuzzlePage.vue：useEditFlow.load(pid) → parsePuzzle → stores/game.startCreate(B, board)（未锁）
+   编辑页 pages/EditPuzzlePage.vue：useEditFlow.load(pid) → parsePuzzle → stores/game.startInput(Create, B, board)（未锁）
      两阶段同上 → PATCH /api/puzzles/:pid（题面/答案成对提交，后端重算 blank_count，**不改 created_at**）
 ```
 
@@ -245,8 +247,8 @@ pages/CreatePage.vue（标题 + 盘面大小 + 可玩棋盘 + NumberPad）
 
 ```
 pages/SolvePage.vue（两种输入方式，界面各自独立）
-① 字符串模式：applyText() → parsePuzzle(串) → stores/game.startSolve(B, board)（GAME_MODE.Solve，未锁）
-   棋盘模式：盘面大小下拉 → startSolve(B)；点棋盘 select()；数字键 inputNum()（X = 0 清格）
+① 字符串模式：applyText() → parsePuzzle(串) → stores/game.startInput(Solve, B, board)（GAME_MODE.Solve，未锁）
+   棋盘模式：盘面大小下拉 → startInput(Solve, B)；点棋盘 select()；数字键 inputNum()（X = 0 清格）
 ② 「🧮 求解」→ useSolveFlow.solve()
      （字符串模式先 applyText()：解析成功后自动切到棋盘模式，方便你看/改）
      本地校验（不调 Worker）：isBlankBoard → sudoku.B > SOLVE_MAX_BOX_SIZE(6) → sudoku.hasConflict
@@ -339,10 +341,10 @@ pages/SearchPage.vue / MyPuzzlesPage.vue
 | 配置 | `config{boxSize, blankRatio}` · `mode`（`game`/`create`/`solve`）· `origin`（`system`/`custom`/`challenge`） | `mode` 决定"这块盘是玩 / 是出题 / 是求解"；`origin` 只用来决定游戏页给不给「导出题目」 |
 | 盘面 | `board`（`Board`）· `selected` · `snapshots` + `currentStep` · `solution` · `meta{pid,title,uname}` | 全部是 `ref`；`meta` 为空 = 系统生成 / 自定义 |
 | 派生（`computed`） | `sudoku`（`getSudoku(B)`）· `numBoard`（`toNum(board)`）· `isWin` · `status` · `conflictMask` · `selectedCell` | 派生全部**调 core 的纯函数**，store 里没有任何算法 |
-| 动作 | `startInput`(内部) / `startCreate` / `startSolve` / `startGame` / `startFromTexts` / `lockPuzzle` / `select` / `inputNum` / `jump` / `cheat` / `getCandidates` | 见 §5 的调用链 |
+| 动作 | `startGame` / `startInput`（**唯一两个开局入口**）· `lockPuzzle` · `select` / `inputNum` · `jump` / `fillSolution`（DEV 版「作弊」按钮调它）· `getCandidates` | 见 §5 的调用链；**业务编排**（挑战开局的解析 / 算比例 / 定来源）在 `composables/game/useStartFromTexts.ts` —— 见 §11 决策 14 |
 
 - **`startGame(puzzle, sol, cfg, from, source?)`**：唯一的"开局"入口；`from` 是**必填**的 `GameOrigin`（TS 保证 3 个调用点不漏传，见 §5.1/5.2/5.3）。
-- **`startInput(mode, B, puzzle?)`**：出题/求解**共用**的"手填盘面"实现（只有 `mode` 不同）；`startCreate` / `startSolve` 是它的两个薄入口 —— 这是"一份实现两个入口"的去重。
+- **`startInput(mode, B, puzzle?)`**：出题 / 编辑 / 求解**共用**的"手填盘面"实现（只有 `mode` 不同），**mode 由调用方给**（`GAME_MODE.Create` / `GAME_MODE.Solve`）。**2026-10 归位**已删掉 `startCreate` / `startSolve` 两个薄入口（理由见 §11 决策 14）。
 - **历史**：`resetHistory()`（开局/锁题/重建）与 `pushHistory()`（每次落子）都在这里，页面永远不会自己操作 `snapshots`。
 
 ### 6.2 `stores/puzzle.ts` —— 列表与详情缓存
@@ -384,6 +386,7 @@ pages/SearchPage.vue / MyPuzzlesPage.vue
 | `useClipboard.ts` | 复制到剪贴板（只关心成没成） | 账号区 / 导出 | 失败文案由调用方决定 |
 | `auth/useAuth.ts` · `useAccountMenu.ts` · `useAccountPanel.ts` | 登录/注册表单、`safeRedirect`、顶栏账号位与账号卡 | 登录页 / 顶栏 / 我的页 | 登录相关的校验与跳转只写一遍 |
 | `game/useGameFlow.ts` | 游戏页操作条（返回/重开/提示/导出/答案 + DEV 作弊）、答案遮罩、通关遮罩 | 游戏页 | 页面只 `v-for` 渲染 `actions` |
+| `game/useStartFromTexts.ts` | 「挑战」开局：题面/答案串 → 解析 + 算比例 + 来源 = Challenge → `startGame` | 我的题目页 / 搜索页·落地页（经 `usePuzzleDetail`） | 两个调用方共用同一份业务（**2026-10 从 store 归位**） |
 | `game/useDifficultyFlow.ts` | 系统生成（草稿 → Worker → 开局） | 难度页·系统生成 | 生成 + 开局 + 跳转是一条流程 |
 | `game/useCustomFlow.ts` | 自定义（两串 → 校验 → 可选入库 → 开局） | 难度页·自定义 | 同上 |
 | `game/useCreateFlow.ts` / `useEditFlow.ts` | 出题 / 编辑（标题、POST / PATCH、跳转） | 出题页 / 编辑页 | 只留各自不同点，其余交给 `usePuzzleStage` |
@@ -553,6 +556,7 @@ npx wrangler pages dev --port 8788                    # 后端 + 本地 D1
 11. **冲突扫描改成"组单元表 + 计数缓冲"**（core/sudoku/groups.ts，11 册 §4.1 / 04 册 §9.2）：早期实现是"每组现造 `Position[]` + `Map` 分组"，一次整盘扫描（`B=10`）要造约 3 万个小对象；而 `conflictMask` 是 computed、**每次落子都会重算**。换成"3S 个组各存一串扁平下标（`Int32Array`，随实例建一次）+ 复用计数数组"后：实测 `2.68ms → 0.46ms（5.8×）`、零小对象。**代价**：每个用到的 `boxSize` 多约 120KB 常驻内存。
 12. **棋盘重绘分"整盘 / 局量"**（render/ 五文件，08 册 §2.3）：网格线必须画在格子内容**之上**，所以不能"先贴底图再画格"；把它画进一张**透明底离屏层**后 —— 整盘重绘只需 1 次 `drawImage`（省 3S 次 `stroke`），而"填一个数"只重画 **1~5 个脏格** + 把线层那一小块贴回。脏格由 `dirty.ts` 用两张**帧快照**（值 / 归属 / 冲突标记 / 选中）比对得出：**快照只记"会被画出来的东西"，所以不可能漏画**（含"`lock` 变了但 `v` 没变"这种）；尺寸/缩放/DPR 变了或脏格超过总量 1/3 时由纯函数 `redrawModeOf` 判回整盘。**状态归属**：脏格快照 / 线层 / 上次边长都存在 `useBoardCanvas`，`render/` 只给纯函数（几何 / 脏格 / 决策 / 绘制），类型统一进 `types/render.ts`。
 13. **骨架保留比例：`S ≥ 64` 固定 0.85**（`generator.ts` 的 `keepRatioOf`）：曲线（`0.35 + (S-9)×0.014`，封顶 0.72）只服务中小盘；64 / 81 / 100 直接 0.85。**实测**（同 seed、预热后 10 次平均）：S=64 → `0.72` 4.2ms vs `0.85` 2.8ms；S=81 → 11.5ms vs 5.6ms。**反证更关键**：把骨架固定成 `0.35` 时，36×36 **每次都跑 16~19 秒后触发 `maxIter` 保险丝、抛「生成失败」** —— 所以这个比例不是"性能调优"，而是"**能不能生成出来**"的开关（大盘宁可骨架更规整）。
+14. **`gameStore` 归位：只留「真源 + 规则派生 + 基本操作 + 规则查询」**（`stores/game.ts`，2026-10）：开局入口从 5 个收成 **2 个**（`startGame` / `startInput`）—— `startCreate` / `startSolve` 是页面语义（改由调用处传 `GAME_MODE.*`）；`startFromTexts` 的"解析两串 + 算比例 + 定来源 = Challenge"搬进新组合式 **`composables/game/useStartFromTexts.ts`**（两个调用方共用，避免复制）；`cheat` 更名 **`fillSolution`**（store 只留"按答案填盘"这一基本操作，业务名留在按钮文案）。**判据**：写的是不是**真源** + 要不要守**规则不变式** —— 两者都是才留在 store。store 169 → 146 行，`parsePuzzle` 这个 import 也随业务离开 store。
 11. **文档会腐烂，数值最先烂**：B 范围 / 挖空比例 / 超时 / `build` 是否含 guard 这类"事实型数字"最容易和代码脱节。对策：改完代码按 §11 三处同步；必要时用机器审计（见下）。
 
 ## 11. 改需求的正确顺序 + 自检清单

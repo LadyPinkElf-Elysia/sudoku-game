@@ -274,10 +274,10 @@ board ──toNum──▶ numBoard ──isSolved──▶ isWin ─┐
 
 | 类别 | 动作 | 为什么这么设计 |
 |---|---|---|
-| 进入某种盘面 | `startCreate(B, puzzle?)` / `startSolve(B, puzzle?)`（共用内部 `startInput(mode, B, puzzle)`）、`startGame(puzzle, sol, cfg, from, source?)`、`startFromTexts(puzzleText, solutionText, blankCount, source?)` | 入口对应"来源"；`from: GameOrigin` **必填** → 新增开局入口时 TS 强制交代来源，不会"忘了传就默认能导出" |
+| 进入某种盘面 | `startGame(puzzle, sol, cfg, from, source?)`（系统 / 自定义 / 挑战都走它）· `startInput(mode, B, puzzle?)`（出题 / 编辑 / 求解共用） | 入口对应"来源"；`from: GameOrigin` **必填** → 新增开局入口时 TS 强制交代来源，不会"忘了传就默认能导出" |
 | 玩法输入 | `select(pos)` / `inputNum(n)` | 只有这两个能改 `board`（`inputNum` 内含 `lock` / `status` 守卫与 `pushHistory`） |
 | 历史 | `resetHistory()` / `pushHistory()` / `jump(step)` | 快照只在这里维护，页面永远不直接操作 `snapshots` |
-| 工具 | `lockPuzzle()` / `getCandidates(pos)` / `cheat()` | 锁题 / 提示 / DEV 作弊 |
+| 工具 | `lockPuzzle()` / `getCandidates(pos)` / `fillSolution()`（原名 `cheat`；DEV 版「作弊」按钮调它） | 锁题 / 提示 / 按答案填盘 |
 
 **为什么不让页面直接改 `board`**：状态一旦有"多条修改路径"，行为就无法推理（例如"改了但没进历史"）。**收窄入口 = 让状态变化可穷举。**
 
@@ -287,8 +287,8 @@ board ──toNum──▶ numBoard ──isSolved──▶ isWin ─┐
    - 看点：`mode`（game / create / solve = 这块盘是干嘛的）与 `origin`（system / custom / challenge = 从哪来的）是**两件不同的事**，别混。
 2. **computed 段**：`sudoku → numBoard → isWin → status` + `conflictMask` / `selectedCell`（见 §2.4 链）
    - 看点：每个派生都**只调 core 的纯函数**，没有一处自己写循环。
-3. **动作段**：进入（`startXxx`）→ 输入（`select` / `inputNum`）→ 历史（`resetHistory` / `pushHistory` / `jump`）→ 工具（`lockPuzzle` / `cheat` / `getCandidates`）
-   - 看点：`startInput` 是"一份实现两个薄入口"的去重；`startFromTexts` 把"挑战"的解析+开局收成一处。
+3. **动作段**：进入（`startGame` / `startInput`）→ 输入（`select` / `inputNum`）→ 历史（`resetHistory` / `pushHistory` / `jump`）→ 工具（`lockPuzzle` / `fillSolution` / `getCandidates`）
+   - 看点：`startInput` 把"手填盘面"收成一份实现（mode 由调用方给）；"挑战开局"的解析 + 算比例 + 定来源已归位到 `composables/game/useStartFromTexts.ts`（store 只剩"给定数据、写真源"）。
 
 ### 2.7 什么时候**不**该放 store（本项目的真实分配）
 
@@ -404,6 +404,7 @@ const boardParams = computed<BoardRenderInput>(() => ({ … }))
 | **跨页共用流程** | `usePuzzleStage` ← `useCreateFlow` / `useEditFlow` | 两页"题面 → 答案"流程逐字相同，抽出来各省 ≈20 行；各自只留标题 / 缩放 / POST / PATCH / 跳转 |
 | **通用能力 + 参数注入** | `useListQuery({ routeName, load, pageCount })` ← 搜索页 / 我的题目 | 通用件不 import 具体 store；页面把"取数"和"页数"注入进来 |
 | **薄包装** | `useZoom` → `useBoardZoom(boxSize)` | 底层只管"记住 zoom"，上层补"默认值跟着盘面大小 + 尺寸变了自动复位" |
+| **从 store 归位出来的业务** | `useStartFromTexts` ← `usePuzzleDetail` / `useMyPuzzles` | 题面/答案串 → 开局（解析两串 + 算比例 + 定"来源 = Challenge"）：**有副作用**（要调 `startGame`）所以不能进 core，**是业务编排**所以不留在 store；两个调用方共用同一份（2026-10 归位） |
 
 ### 3.8 边界与常见错误（R7 会查）
 
@@ -559,7 +560,7 @@ emits:  cell-click: [pos]
 | 步 | component | composable | store | core / services |
 |---|---|---|---|---|
 | 1 | `SolvePage` 的「🧮 求解」`TextAction` | `useSolveFlow.solve()` | | |
-| 2 | | 字符串模式先 `applyText()` → `parsePuzzle` → `store.startSolve(B, board)` | 切到 `mode=Solve`，写入 `board`（未锁） | `parsePuzzle`（core） |
+| 2 | | 字符串模式先 `applyText()` → `parsePuzzle` → `store.startInput(GAME_MODE.Solve, B, board)` | 切到 `mode=Solve`，写入 `board`（未锁） | `parsePuzzle`（core） |
 | 3 | | `validate()`：全空 / `B > 6` / 有冲突 | 读 `numBoard` / `sudoku` | `isBlankBoard`、`sudoku.hasConflict`（core） |
 | 4 | 转圈遮罩 | `loading = true` | | `solveMultiInWorker`（services → Worker → `solvePuzzleMulti`） |
 | 5 | 只读棋盘 + 步骤条 | 写 `solutions` / `solutionIndex`，复位 `resultZoom` | （不写 store） | `PuzzleData`/`NumBoard[]` 从 Worker 回来 |

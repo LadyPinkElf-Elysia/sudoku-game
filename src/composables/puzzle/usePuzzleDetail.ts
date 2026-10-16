@@ -4,8 +4,8 @@ import { PAGE } from '@/constants/pages'
 import { fromPuzzle } from '@/core/board/model'
 import { errorTextOf } from '@/core/message'
 import { parsePuzzle } from '@/core/sudoku/parse'
+import { useStartFromTexts } from '@/composables/game/useStartFromTexts'
 import { getOne, play } from '@/services/api/puzzleApi'
-import { useGameStore } from '@/stores/game'
 import { useUserStore } from '@/stores/user'
 import { metaTextOf } from './metaText'
 import type { PuzzleDetail } from '@/types/puzzle'
@@ -16,9 +16,10 @@ import type { BoardRenderInput } from '@/types/render'
  * （列表接口不带题面串，预览与挑战都必须回到 GET /api/puzzles/:pid）
  */
 export const usePuzzleDetail = () => {
-    const gameStore = useGameStore()
     const userStore = useUserStore()
     const router = useRouter()
+    /** 「挑战」开局：题面 / 答案串 → 棋局真源（业务编排收在这个组合式里） */
+    const startFromTexts = useStartFromTexts()
 
     const pid = ref('')
     const data = ref<PuzzleDetail | null>(null)
@@ -67,8 +68,8 @@ export const usePuzzleDetail = () => {
         const info = data.value
         if (!info) return
 
-        // 题面 / 答案串 → 开局（解析与 blankRatio 都在 core / store；落地页不带来源信息）
-        if (!gameStore.startFromTexts(info.puzzleText, info.solutionText ?? '', info.blankCount)) return
+        // 题面 / 答案串 → 开局（解析与比例在 core，来源 = Challenge；落地页不带来源信息）
+        if (!startFromTexts(info.puzzleText, info.solutionText ?? '', info.blankCount)) return
 
         if (!userStore.isGuest) {
             try { await play(info.pid) } catch { /* 热度失败不影响开局 */ }

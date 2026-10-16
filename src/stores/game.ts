@@ -2,7 +2,6 @@ import { GAME_INIT_CONFIG, GAME_MODE, GAME_ORIGIN, GAME_STATUS } from '@/constan
 import { toNum, fromPuzzle } from '@/core/board/model'
 import { cloneBoard, lockGiven, applySolution, countBlanks } from '@/core/board/ops'
 import { statusOf } from '@/core/game/derive'
-import { parsePuzzle } from '@/core/sudoku/parse'
 import { cellCountOf } from '@/core/sudoku/shape'
 import { getSudoku } from '@/core/sudoku/rules'
 import type { Board, Cell, ConflictMask, NumBoard, Position, Snapshot } from '@/types/board'
@@ -14,6 +13,13 @@ import { computed, ref } from 'vue'
 /** 系统生成 / 自定义开局没有来源信息 */
 const EMPTY_META: GameMeta = { pid: '', title: '', uname: '' }
 
+/**
+ * 棋局 store —— **只放「真源 + 规则相关」**（§六 归位原则 / R15）
+ * · **真源**：`config` · `mode` · `board` · `selected` · `solution` · `meta` · `origin` · 历史（`snapshots` + `currentStep`）
+ * · **规则派生**：`sudoku`（按 B 取规则实例）· `numBoard` · `status` · `isWin` · `conflictMask` · `selectedCell`
+ * · **基本操作**：只写上面这些真源，并守住规则不变式（锁题不能改 / 同值不重写 / 赢了不能填）
+ * ❌ **不放业务**：解析串、算比例、决定开局来源、跳页、发请求、开关遮罩 —— 那些在 `composables/game/*`
+ */
 export const useGameStore = defineStore('gameStore', () => {
     const config = ref<GameConfig>({ ...GAME_INIT_CONFIG })
     const mode = ref<GameMode>(GAME_MODE.Game)
@@ -44,7 +50,7 @@ export const useGameStore = defineStore('gameStore', () => {
     const selectedCell = computed<Cell | null>(() => {
         if (!selected.value) return null
         const [r, c] = selected.value
-        return board.value[r]?.[c] ?? null
+        return board.value[r][c] ?? null
     })
     /** 重置历史：清选中 + 以当前盘面为第 0 步（开局/重建/锁题共用） */
     const resetHistory = (): void => {
@@ -73,27 +79,9 @@ export const useGameStore = defineStore('gameStore', () => {
         resetHistory()
     }
     /**
-     * 从题面 / 答案串直接开局（我的题目「挑战」与落地页「挑战」共用）
-     * · 解析与比例都在 core；答案串缺失也允许开局（胜负判定走规则，不依赖答案）
-     * · 题面串解析失败返回 false，调用方不跳页
-     */
-    const startFromTexts = (
-        puzzleText: string,
-        solutionText: string,
-        blankCount: number,
-        source?: GameMeta,
-    ): boolean => {
-        const parsed = parsePuzzle(puzzleText)
-        if (!parsed) return false
-        startGame(parsed.board, parsePuzzle(solutionText)?.board ?? [], {
-            boxSize: parsed.boxSize,
-            blankRatio: blankCount / cellCountOf(parsed.boxSize),
-        }, GAME_ORIGIN.Challenge, source)
-        return true
-    }
-    /**
      * 进入「手填盘面」的模式（出题/编辑 与 题目求解）：只有 mode 不同，其余完全一致
      * puzzle 给了就预填（不锁定 → 可增量改）；没给就按 boxSize 起一张空盘
+     * （"出题 / 求解"这类语义与来源判定在上层 composable —— 这里只认 `mode` 这个数据）
      */
     const startInput = (nextMode: GameMode, boxSize: number, puzzle?: NumBoard): void => {
         mode.value = nextMode
@@ -107,11 +95,6 @@ export const useGameStore = defineStore('gameStore', () => {
         resetHistory()
     }
 
-    /** 进入出题 / 编辑：手填题面 */
-    const startCreate = (boxSize: number, puzzle?: NumBoard): void => startInput(GAME_MODE.Create, boxSize, puzzle)
-
-    /** 进入题目求解：手填 / 回填题面（求解结果不进 store，见 composables/solve/useSolveFlow） */
-    const startSolve = (boxSize: number, puzzle?: NumBoard): void => startInput(GAME_MODE.Solve, boxSize, puzzle)
     /** 提交题面：锁定规则在 core，这里只写回 */
     const lockPuzzle = (): void => {
         board.value = lockGiven(board.value)
@@ -140,30 +123,24 @@ export const useGameStore = defineStore('gameStore', () => {
         board.value = cloneBoard(snapshots.value[step])
         currentStep.value = step
     }
-    /** 作弊：直接填入答案（测试用）—— 填法在 core */
-    const cheat = (): void => {
+    /** 按答案一次性填盘（DEV 的「⚡ 作弊」按钮用它）—— 填法在 core，这里只写回 + 记一步 */
+    const fillSolution = (): void => {
         if (!solution.value.length) return
         board.value = applySolution(board.value, solution.value)
         pushHistory()
     }
 
     return {
-        // 配置
-        config, mode,
+        // 真源（配置 · 盘面 · 历史）
+        config, mode, board, selected, solution, meta, origin, snapshots, currentStep,
 
-        // 状态
-        sudoku, board, numBoard, selected, status, solution, currentStep, meta, origin,
+        // 规则派生
+        sudoku, numBoard, status, isWin, conflictMask, selectedCell,
 
-        // 派生
-        isWin, snapshots,
-        conflictMask, selectedCell,
+        // 基本操作（只写上面的真源；开局只有"给定数据"的两个入口）
+        startGame, startInput, select, inputNum, jump, lockPuzzle, fillSolution,
 
-        // Actions
-        startGame, startCreate, startSolve, startFromTexts, lockPuzzle,
-        select, inputNum,
-        jump, cheat,
-
-        // 提示
+        // 规则查询
         getCandidates,
     }
 })

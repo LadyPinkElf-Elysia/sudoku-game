@@ -49,14 +49,36 @@
 | 02 | `02-后端与数据基础.md` | ✅ 完成（Pages Functions 约定路由 · 全部 12 个接口表 · wrangler 逐行 · HTTP/状态码 · SQL·D1 五表逐字段 · 注入与白名单 · upsert · 分页 · **PBKDF2/盐/恒定时间比较/限流/拒绝采样** · 八个接口逐段精读 · 权限矩阵） |
 | 03 | `03-架构分层与守卫.md` | ✅ 完成（为什么要分层 · 五层+三适配器判据 · **依赖矩阵逐格解释** · **R1~R15 逐条**（为什么/机器怎么查/违规长什么样/怎么改）· 例外 E1~E8 · **守卫脚本逐段解剖**（含动态 import 盲点）· 归位原则 · 三个实战演练） |
 | 04 | `04-core 逐文件详解.md` | ✅ 完成（**17 个文件全解**：读法 · 依赖图 · array · metrics · model · ops · zoom · shape · parse · rules + **groups（组单元表 + 三扫描）** · tracker · solver · multiSolver · generator · digger · derive · message · page · 26 题自测 · 速查表） |
-| 05 | `05-状态层 stores 逐文件.md` | ✅ 完成（**三个 store 全解**：判据与全景 · game.ts 19 小节（状态清单/派生/历史机制/四个开局入口/落子四守卫/就地改对象/resetHistory 截断未来/return 分组）· puzzle.ts（loadPage 收口/缓存与失效/一次性提示）· user.ts 补完 · **五条共性模式 + 六类不该进 store 的数据 + 数据流总图** · 20 题自测） |
-| 06 | `06-组合式 composables 逐文件.md` | ✅ 完成（**18 个文件全解**：全景/依赖图/三条判据 · useClipboard · usePuzzleExport · metaText（E8）· **useListQuery** · **useAuth** · useAccountMenu · useAccountPanel · **useZoom/useBoardCanvas** · **game 六件** · **puzzle 四件** · **useSolveFlow** · **编排层五条共性** · 25 题自测 · 速查表） |
+| 05 | `05-状态层 stores 逐文件.md` | ✅ 完成（**三个 store 全解**：判据与全景 · game.ts 19 小节（状态清单/派生/历史机制/**两个开局入口（`startGame`/`startInput`）**/落子四守卫/就地改对象/resetHistory 截断未来/return 分组）· puzzle.ts（loadPage 收口/缓存与失效/一次性提示）· user.ts 补完 · **五条共性模式 + 六类不该进 store 的数据 + 数据流总图** · 20 题自测）（**2026-10 归位**：`startCreate`/`startSolve`/`startFromTexts` 移出 store → composable；`cheat` 更名 `fillSolution`） |
+| 06 | `06-组合式 composables 逐文件.md` | ✅ 完成（**20 个 `use*` 组合式 + 1 个例外模块 `metaText.ts` 全解**：全景/依赖图/三条判据 · useClipboard · usePuzzleExport · metaText（E8）· **useListQuery** · **useAuth** · useAccountMenu · useAccountPanel · **useZoom/useBoardCanvas** · **game 七件（含 useStartFromTexts：挑战开局从 store 归位，§5.7）** · **puzzle 五件** · **useSolveFlow** · **编排层五条共性** · 26 题自测 · 速查表） |
 | 07 | `07-组件与页面逐文件.md` | ✅ 完成（**15 组件 + 13 页面全解**：TextAction（`:is` 切换/禁用契约）· Flex · EyeGlyph · FormField（五形态 + DOM 值类型还原）· Overlay（Teleport/插槽/五块可缺省）· SecretValue · RenameText（nextTick focus/Esc 与 blur）· NumberPad · PagerBar 三形态（索引语义归一化）· ListSection（泛型 + 三插槽）· MyPuzzleRow（可写 computed）· PuzzleCard · **BoardView** · 13 个页面逐个接线核对 · 横向模式与两份检查清单 · 25 题自测） |
 | 08 | `08-适配器 render 与 services.md` | ✅ 完成（**render/ 五文件**（geometry 几何 / board 适配与绘制 / paint 单格 / layer 线层纯工厂 / dirty 脏格 + 重绘决策）：DPR / **整盘与局量两种重绘** / 类型全进 `types/render.ts` / getClickPos · prefs · **client（四出口 + 401 广播 + 非 JSON 翻译）** · session · userApi · puzzleApi（`qs` / `offsetOf`）· worker（`reference lib` + 随机注入 + 错误回传）· workerClient（两端契约图）· **适配器四条纪律** + 两份检查清单 · 20 题自测）（D1 与后端适配器见 02 册） |
 | 09 | `09-数据流与端到端链路.md` | ✅ 完成（**12 条端到端链路**逐跳标注（生成/落子/提示/历史/导出/出题/编辑/自定义/登录五子链/搜索挑战/求解/行内改动）· **症状→链路排查法**（5 步顺序 + 10 种症状对照表 + 推理演示）· 12 题自测 · 链路速查） |
 | 11 | `11-从规则到实现：数独拆解全流程.md` | ✅ 完成（**方法论教程**：八步拆解法 · 规则判定化（R-1~R-9，含"**负需求**：不要求唯一解"）· 领域词汇表 · 数据结构四决策（`lock`/三种表示/`Position`/二维）· **规则→判定函数**（两两比较→Map 分组、`sameShape`、EPS、`validatePuzzle` 四步顺序）· **规则→算法**（模式盘公式手算验证、四类保性质变换、`keepRatioOf`、`digPuzzle` 三阶段、MRV + tracker、**"不要求唯一解"这笔减法三笔账**）· 状态机与四守卫 · 快照栈 · 校验阶梯 · UI 参数从规则算 · 表结构逐字段 · **反向验证 8 题** · 八步法检查表 · 四个"拆不动的症状"+ 一个常见混淆 · 12 题自测） |
 
 > 每册结尾都有「**本册自测**」；答不上来就说明那一册还没吃透，建议回看对应小节再往下走。
+
+## 1.6 2026-10 同步记录（本轮改动 → 落在哪几册）
+
+**代码侧（四处）**：`core/sudoku/groups.ts` 新建（组单元表 + 计数缓冲）· `core/sudoku/rules.ts` 收身（178 → 95 行）· `render/` 拆五文件并**去掉模块级状态**（整盘 / 局量双路径重绘）· `stores/game.ts` 归位（`startCreate` / `startSolve` 删除、`startFromTexts` → `composables/game/useStartFromTexts.ts`、`cheat` → `fillSolution`，169 → 146 行）· 类型归位（`types/render.ts` ＋`BoardGeometry`/`CellFonts`/`FrameState`/`RedrawMode`；`types/sudoku.ts` ＋`GroupTable`/`GroupScanner`）。
+
+**文档侧（同步点）**：
+
+| 册 / 文档 | 本轮同步了什么 |
+|---|---|
+| `04-core` | ＋`groups.ts` 一节（组表 + 三扫描共用计数缓冲）· `rules.ts` 行数与职责更新 · `keepRatioOf` 的"能否生成"结论 |
+| `05-stores` | §2.12 整节重写（`startFromTexts` → composable）· §2.13 删两个薄入口的取舍表 · §2.18 `fillSolution` 命名说明 · §2.7 冲突增量"暂不做"的技术账 · 行数 169 → 146 |
+| `06-composables` | ＋§5.7 `useStartFromTexts`（含判据表）· §5.8 横向总结 ＋1 行 · §5.6 DEV 按钮（`fillSolution`）· §6.1/§6.4 调用点改组合式 · 自测 ＋第 22 题（26 题） |
+| `08-render 与 services` | render 五文件逐一讲（geometry / paint / layer / dirty / board）· 整盘 vs 局量重绘 · 类型归位 |
+| `09-数据流` | 「挑战」链路的开局步骤改指 `useStartFromTexts` · 编辑链路改 `startInput(GAME_MODE.Create, …)` |
+| `11-拆解全流程` | 全文按"数独**不要求唯一解**"修正（R-5 为负需求）· `keepRatioOf` 反证实测 · 八步法 |
+| `01-Vue3` | DEV 按钮的 `onClick: gameStore.fillSolution` · 重绘链补"整盘 / 脏格由渲染器决定" · 修一处旧笔误 |
+| `PROJECT.md` | 决策 ＋14（store 归位）· §6.1 动作清单 · §7 ＋useStartFromTexts · 顶部 ＋2026-10 归位映射注 |
+| `ARCHITECTURE.md` | v1.9.16 变更记录 · E2 改 `boardGeometryOf` / `prepareCanvas` · §九 types 索引补新类型 · §六 归位原则 ＋useStartFromTexts |
+| `CODE-GUIDE.md` | §2.5/§2.6 动作清单 · §3.7 ＋"从 store 归位出来的业务"一形 · §5.2 求解链的 `startInput(Solve, …)` |
+| `REQUIREMENTS.md` | 决策 ＋80（三处归位 + 性能重排）· §0 术语表的挑战动作改指 `useStartFromTexts` · 决策 71 加归位旁注 |
+
+> **约定**：以后每次"归位 / 拆文件 / 改名"都照这一节登记 —— **一册一节，读者能按图找到**。
 
 ## 2. 每一册的写法（**按"数据类型"调整**）
 
@@ -75,7 +97,7 @@
 3. **边界与坑**：传错参数 / 空值 / 并发会怎样。
 4. **谁在用它**：调用方（前向引用到别的册）。
 
-> 04（core 17 个文件）· 05（3 个 store）· 06（18 个 composable）· 07（15 组件 + 13 页面）· 08（8 个适配器文件）都用这个骨架；每册再加一节**横向共性 + 自测**。
+> 04（core 17 个文件）· 05（3 个 store）· 06（20 个 composable + `metaText`）· 07（15 组件 + 13 页面）· 08（适配器文件）都用这个骨架；每册再加一节**横向共性 + 自测**。
 
 **链路型册（09）—— "每链四段"**：`【触发】→ 逐跳（层 + 文件 + 函数）→【落点】→【如果断了】`，最后给一节**症状→排查法**。
 

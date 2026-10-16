@@ -1,6 +1,6 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { GAME_INIT_CONFIG, TITLE_MAX, TITLE_PREFIX } from '@/constants/game'
+import { GAME_INIT_CONFIG, GAME_MODE, TITLE_MAX, TITLE_PREFIX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { usePuzzleStage } from '@/composables/game/usePuzzleStage'
 import { errorTextOf } from '@/core/message'
@@ -37,10 +37,10 @@ export const useCreateFlow = () => {
         showSuccess.value = false
     }
 
-    /** 重建一盘空题（切盘面用）：缩放由页面的 useBoardZoom 跟着盘面大小自动复位 */
+    /** 重建一盘空题（切盘面用）：语义（出题模式）在调用处，store 只认 mode 数据 */
     const restart = (boxSize: number): void => {
         reset()
-        gameStore.startCreate(boxSize)
+        gameStore.startInput(GAME_MODE.Create, boxSize)
     }
 
     /** 切换盘面大小：必须重建 board，否则键盘与盘面尺寸不一致 */
