@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { ACTION, actionOf } from '@/constants/actions'
 import { fromPuzzle } from '@/core/board/model'
 import { parsePuzzle } from '@/core/sudoku/parse'
 import { useZoom } from '@/composables/board/useZoom'
@@ -17,7 +18,7 @@ export interface PreviewSource {
  * · 取数由调用方注入（我的题目走 rowId 缓存，搜索页走 pid 详情）
  * · 只负责「加载 → 解析 → 开遮罩」，不碰任何游戏状态
  */
-export const usePuzzlePreview = (load: (id: string) => Promise<PreviewSource | null>, closeText = '返回') => {
+export const usePuzzlePreview = (load: (id: string) => Promise<PreviewSource | null>) => {
     /** 预览自己的缩放，与游玩盘互不影响 */
     const previewOpen = ref(false)
     const previewTitle = ref('')
@@ -35,7 +36,7 @@ export const usePuzzlePreview = (load: (id: string) => Promise<PreviewSource | n
 
     /** 遮罩里的按钮条：只留关闭（缩放贴棋盘，见 previewZoomActions） */
     const previewActions = computed<Actions>(() => [
-        { key: 'close', text: `↩ ${closeText}`, onClick: closePreview },
+        actionOf(ACTION.close, closePreview),
     ])
 
     /** 贴棋盘正上方的缩放圆圈（左缩小、右放大） */

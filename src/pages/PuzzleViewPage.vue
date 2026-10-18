@@ -5,7 +5,7 @@ import BoardView from '@/components/BoardView.vue'
 import Flex from '@/components/Flex.vue'
 import TextAction from '@/components/TextAction.vue'
 import { PAGE } from '@/constants/pages'
-import { SEARCH_COPY } from '@/constants/puzzle'
+import { ACTION, actionOf } from '@/constants/actions'
 import { useBoardZoom } from '@/composables/board/useZoom'
 import { usePuzzleDetail } from '@/composables/puzzle/usePuzzleDetail'
 import type { Actions } from '@/types/item'
@@ -25,8 +25,8 @@ const goBack = (): void => {
 }
 
 const actions = computed<Actions>(() => [
-    { key: 'back', text: '← 返回', onClick: goBack },
-    { key: 'challenge', text: `▶ ${SEARCH_COPY.challenge}`, onClick: () => { void challenge() } },
+    actionOf(ACTION.back, goBack),
+    actionOf(ACTION.challenge, () => { void challenge() }),
 ])
 
 onMounted(() => { void load(String(route.params.pid ?? '')) })

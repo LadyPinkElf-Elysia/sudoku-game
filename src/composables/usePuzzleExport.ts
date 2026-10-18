@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { ACTION, actionOf } from '@/constants/actions'
 import { EXPORT_COPY } from '@/constants/game'
 import { useClipboard } from '@/composables/useClipboard'
 import type { Actions } from '@/types/item'
@@ -29,10 +30,10 @@ export const usePuzzleExport = () => {
             : EXPORT_COPY.copyFail
     }
 
-    /** 按钮条：复制题面 + 返回 */
+    /** 按钮条：复制题面 + 返回（文案在 constants/actions 的 ACTION 表） */
     const actions = computed<Actions>(() => [
-        { key: 'puzzle', text: EXPORT_COPY.copyPuzzle, onClick: () => { void copyPuzzle() } },
-        { key: 'close', text: EXPORT_COPY.close, onClick: close },
+        actionOf(ACTION.copyPuzzle, () => { void copyPuzzle() }),
+        actionOf(ACTION.close, close),
     ])
 
     return { open, puzzleText, tip, actions, show, close }

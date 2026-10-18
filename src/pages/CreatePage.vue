@@ -6,6 +6,7 @@ import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
 import FormField from '@/components/FormField.vue'
 import TextAction from '@/components/TextAction.vue'
+import { ACTION, actionOf, submitSpecOf } from '@/constants/actions'
 import { BOX_SIZE_SELECT_OPTIONS, CREATE_PHASE, TITLE_MAX } from '@/constants/game'
 import { useGameStore } from '@/stores/game'
 import { useBoardZoom } from '@/composables/board/useZoom'
@@ -36,22 +37,21 @@ const boardParams = computed<BoardRenderInput>(() => ({
     zoom: zoom.value,
 }))
 
-/** 按钮条：按阶段提交（缩放贴棋盘；回主页只走顶栏那一个入口） */
+/** 按钮条：按阶段提交（文案见 constants/actions 的 submitSpecOf；缩放贴棋盘；回主页只走顶栏那一个入口） */
 const actions = computed<Actions>(() => [
-    {
-        key: 'submit',
-        text: phase.value === CREATE_PHASE.Puzzle ? '📤 提交题目' : '📤 提交答案',
-        onClick: phase.value === CREATE_PHASE.Puzzle ? submitPuzzle : submitSolution,
-    },
+    actionOf(
+        submitSpecOf(phase.value),
+        phase.value === CREATE_PHASE.Puzzle ? submitPuzzle : submitSolution,
+    ),
 ])
 
 /** 出题完成：只留「去我的题目」（🔸 刚保存的题就在那儿；回主页走顶栏那一个入口） */
 const successActions: Actions = [
-    { key: 'goMine', text: '📋 去我的题目', onClick: goMine },
+    actionOf(ACTION.goMine, goMine),
 ]
 
 const failActions: Actions = [
-    { key: 'back', text: '↩ 继续修改', onClick: backToEdit },
+    actionOf(ACTION.continueEdit, backToEdit),
 ]
 </script>
 

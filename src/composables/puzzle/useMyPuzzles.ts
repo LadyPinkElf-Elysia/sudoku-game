@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ACTION, actionOf } from '@/constants/actions'
 import { TITLE_MAX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { MINE_COPY } from '@/constants/puzzle'
@@ -151,8 +152,8 @@ export const useMyPuzzles = () => {
         }
     }
     const removeActions = computed<Actions>(() => [
-        { key: 'remove', text: `🗑 ${MINE_COPY.remove}`, onClick: () => { void confirmRemove() } },
-        { key: 'cancel', text: `↩ ${MINE_COPY.cancel}`, onClick: () => { removeOpen.value = false } },
+        actionOf(ACTION.remove, () => { void confirmRemove() }),
+        actionOf(ACTION.cancel, () => { removeOpen.value = false }),
     ])
 
     return {

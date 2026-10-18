@@ -8,6 +8,7 @@ import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import TextAction from '@/components/TextAction.vue'
 import { CUSTOM_TEXT_MAX } from '@/constants/game'
+import { ACTION, actionOf } from '@/constants/actions'
 import { SOLVE_COPY, SOLVE_INPUT_MODE, SOLVE_LIMIT_OPTIONS } from '@/constants/solve'
 import { useSolveFlow } from '@/composables/solve/useSolveFlow'
 import type { Actions } from '@/types/item'
@@ -35,9 +36,9 @@ const modeTabs = [
  */
 const actions = computed<Actions>(() => [
     ...(inputMode.value === SOLVE_INPUT_MODE.Text
-        ? [{ key: 'fill', text: SOLVE_COPY.fillBoard, onClick: puzzleText.value.trim() ? applyText : undefined }]
-        : [{ key: 'clear', text: SOLVE_COPY.clearBoard, onClick: clearBoard }]),
-    { key: 'solve', text: SOLVE_COPY.solveLabel, onClick: loading.value ? undefined : solve },
+        ? [actionOf(ACTION.fillBoard, puzzleText.value.trim() ? applyText : undefined)]
+        : [actionOf(ACTION.clearBoard, clearBoard)]),
+    actionOf(ACTION.solve, loading.value ? undefined : solve),
 ])
 </script>
 

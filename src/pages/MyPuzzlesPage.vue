@@ -8,6 +8,7 @@ import Overlay from '@/components/Overlay.vue'
 import RenameText from '@/components/RenameText.vue'
 import SecretValue from '@/components/SecretValue.vue'
 import TextAction from '@/components/TextAction.vue'
+import { ACTION, actionOf } from '@/constants/actions'
 import { MINE_COPY, PAGER_MODE_OPTIONS, SORT_OPTIONS } from '@/constants/puzzle'
 import { AUTH_COPY, UNAME_MAX } from '@/constants/user'
 import { useAccountPanel } from '@/composables/auth/useAccountPanel'
@@ -32,7 +33,7 @@ const {
 
 /** 账号区一行里的「退出」（放最右） */
 const logoutItems = computed<Actions>(() => [
-    { key: 'logout', text: AUTH_COPY.logout, onClick: () => { void logout() } },
+    actionOf(ACTION.logout, () => { void logout() }),
 ])
 
 /** 列表工具条 + 分页：组件只认数据，标签/选项由本页给 */

@@ -4,6 +4,7 @@ import Flex from '@/components/Flex.vue';
 import FormField from '@/components/FormField.vue';
 import Overlay from '@/components/Overlay.vue';
 import TextAction from '@/components/TextAction.vue';
+import { ACTION, actionOf } from '@/constants/actions';
 import { BLANK_RATIO, BOX_SIZE_SELECT_OPTIONS } from '@/constants/game';
 import { useDifficultyFlow } from '@/composables/game/useDifficultyFlow';
 import type { Actions } from '@/types/item';
@@ -12,7 +13,7 @@ const { draft, loading, error, totalCells, blankCount, blankPercent, apply } = u
 
 /** 回主页只走顶栏那一个入口，这里只留开局 */
 const actions = computed<Actions>(() => [
-    { key: 'start', text: '▶ 开始游戏', onClick: loading.value ? undefined : apply },
+    actionOf(ACTION.startGame, loading.value ? undefined : apply),
 ])
 </script>
 

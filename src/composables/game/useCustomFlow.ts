@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ACTION, actionOf } from '@/constants/actions'
 import { CUSTOM_COPY, GAME_ORIGIN, TITLE_MAX } from '@/constants/game'
 import { VISIBILITY } from '@/constants/puzzle'
 import { PAGE } from '@/constants/pages'
@@ -119,7 +120,7 @@ export const useCustomFlow = () => {
 
     /** 回主页只走顶栏那一个入口，这里只留开局（生成中不给点击函数 → 纯文本） */
     const actions = computed<Actions>(() => [
-        { key: 'start', text: '▶ 开始游戏', onClick: loading.value ? undefined : apply },
+        actionOf(ACTION.startGame, loading.value ? undefined : apply),
     ])
 
     return {

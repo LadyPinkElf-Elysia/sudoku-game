@@ -1,6 +1,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { EXPORT_COPY, GAME_COPY, GAME_MODE, GAME_ORIGIN, GAME_STATUS } from '@/constants/game'
+import { ACTION, actionOf } from '@/constants/actions'
+import { GAME_COPY, GAME_MODE, GAME_ORIGIN, GAME_STATUS } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
@@ -46,7 +47,7 @@ export const useGameFlow = () => {
     const answerTitle = '答案'
     /** 遮罩里的按钮条：只留关闭（缩放贴棋盘，见 answerZoomActions） */
     const answerActions = computed<Actions>(() => [
-        { key: 'close', text: '↩ 回到挑战', onClick: () => { answerOpen.value = false } },
+        actionOf(ACTION.closeAnswer, () => { answerOpen.value = false }),
     ])
     /** 贴棋盘正上方的缩放圆圈（左缩小、右放大） */
     const answerZoomActions = computed<Actions>(() => zoomActions.value)
@@ -65,25 +66,23 @@ export const useGameFlow = () => {
     }
 
     const leadActions = computed<Actions>(() => [
-        { key: 'back', text: '◀ 返回', onClick: goBack },
-        { key: 'restart', text: '↺ 重开', onClick: restart },
+        actionOf(ACTION.back, goBack),
+        actionOf(ACTION.restart, restart),
     ])
     const trailActions = computed<Actions>(() => [
-        { key: 'hint', text: '💡 提示', onClick: hint },
+        actionOf(ACTION.hint, hint),
         // 只有系统生成的盘才给导出（自定义的串本就在手上、挑战有 pid / 落地页可分享）
-        ...(gameStore.origin === GAME_ORIGIN.System
-            ? [{ key: 'export', text: EXPORT_COPY.button, onClick: exportPuzzle }]
+        ...(gameStore.origin === GAME_ORIGIN.System ? [actionOf(ACTION.exportPuzzle, exportPuzzle)] : []),
+        // 「📖 答案」只给挑战：系统生成的答案由程序算出、自定义的答案是你自己填的 —— 都等于把答案摊在眼前；
+        // 挑战是别人出的题，看答案才算「参考答案」（没有答案串的挑战不给按钮，免得点了是空盘）
+        ...(gameStore.origin === GAME_ORIGIN.Challenge && gameStore.solution.length
+            ? [actionOf(ACTION.answer, () => { answerOpen.value = true })]
             : []),
-        ...(gameStore.solution.length
-            ? [{ key: 'answer', text: '📖 答案', onClick: () => { answerOpen.value = true } }]
-            : []),
-        ...(import.meta.env.DEV
-            ? [{ key: 'cheat', text: '⚡ 作弊', onClick: gameStore.fillSolution }]
-            : []),
+        ...(import.meta.env.DEV ? [actionOf(ACTION.cheat, gameStore.fillSolution)] : []),
     ])
     /** 通关遮罩：只留重开（回主页走顶栏） */
     const resultActions: Actions = [
-        { key: 'restart', text: '↺ 重开', onClick: restart },
+        actionOf(ACTION.restart, restart),
     ]
     const winOverlay = computed(() => (gameStore.status === GAME_STATUS.Won ? GAME_COPY.win : null))
 

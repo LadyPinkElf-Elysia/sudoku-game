@@ -5,6 +5,7 @@ import Flex from '@/components/Flex.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
 import TextAction from '@/components/TextAction.vue'
+import { ACTION, actionOf, submitSpecOf } from '@/constants/actions'
 import { CREATE_PHASE } from '@/constants/game'
 import { useGameStore } from '@/stores/game'
 import { useBoardZoom } from '@/composables/board/useZoom'
@@ -27,18 +28,17 @@ const boardParams = computed<BoardRenderInput>(() => ({
     zoom: zoom.value,
 }))
 
-/** 按钮条：返回「我的题目」+ 按阶段切换的提交（缩放贴棋盘） */
+/** 按钮条：返回「我的题目」+ 按阶段切换的提交（文案见 constants/actions；缩放贴棋盘） */
 const actions = computed<Actions>(() => [
-    { key: 'back', text: '← 我的题目', onClick: goMyPuzzles },
-    {
-        key: 'submit',
-        text: phase.value === CREATE_PHASE.Puzzle ? '📤 提交题目' : '📤 提交答案',
-        onClick: phase.value === CREATE_PHASE.Puzzle ? submitPuzzle : submitSolution,
-    },
+    actionOf(ACTION.backToMine, goMyPuzzles),
+    actionOf(
+        submitSpecOf(phase.value),
+        phase.value === CREATE_PHASE.Puzzle ? submitPuzzle : submitSolution,
+    ),
 ])
 
 const failActions: Actions = [
-    { key: 'back', text: '↩ 继续修改', onClick: backToEdit },
+    actionOf(ACTION.continueEdit, backToEdit),
 ]
 </script>
 

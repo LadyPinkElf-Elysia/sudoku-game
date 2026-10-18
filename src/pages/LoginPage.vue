@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import FormField from '@/components/FormField.vue'
 import Overlay from '@/components/Overlay.vue'
+import { ACTION, actionOf } from '@/constants/actions'
 import { AUTH_COPY, UNAME_MAX } from '@/constants/user'
 import { useAuth } from '@/composables/auth/useAuth'
 import type { Actions } from '@/types/item'
@@ -13,10 +14,10 @@ const {
 
 const title = computed<string>(() => (isSignUp.value ? AUTH_COPY.register : AUTH_COPY.login))
 
-/** 注册成功卡片里的两个动作（都走遮罩的按钮条：可点击文本） */
+/** 注册成功卡片里的两个动作（都走遮罩的按钮条：可点击文本；文案在 constants/actions） */
 const doneActions = computed<Actions>(() => [
-    { key: 'copy', text: `📋 ${copied.value ? AUTH_COPY.copied : AUTH_COPY.copy}`, onClick: copyUid },
-    { key: 'done', text: `➡️ ${AUTH_COPY.saved}`, onClick: doneAfterSignUp },
+    actionOf(copied.value ? ACTION.copiedUid : ACTION.copyUid, copyUid),
+    actionOf(ACTION.savedUid, doneAfterSignUp),
 ])
 </script>
 
