@@ -55,3 +55,11 @@ export const ACTION = {
     copiedUid: { key: 'copy', text: '📋 已复制' },
     savedUid: { key: 'done', text: '➡️ 我已保存，开始使用' },
 } as const satisfies Record<string, Action>
+
+/**
+ * 把「静态按钮（key + 文案）+ 点击函数」拼成一个 Action —— **和按钮表放一起**（都是"按钮条"的事）
+ * · 不给 `onClick` → 组件渲染成纯文本（禁用态就这么表达，全站惯例、不另设 disabled）
+ * · 没有点击函数时**不带这个键**（不写 `onClick: undefined`）
+ */
+export const ACTION_OF = (spec: Action, onClick?: () => void): Action =>
+    onClick ? { ...spec, onClick } : { ...spec }

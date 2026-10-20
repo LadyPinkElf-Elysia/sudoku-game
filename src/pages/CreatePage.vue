@@ -11,16 +11,14 @@ import { ACTION } from '@/constants/actions'
 import { TITLE_PREFIX } from '@/constants/copy'
 import { BOX_SIZE_SELECT_OPTIONS, CREATE_PHASE, GAME_INIT_CONFIG, GAME_MODE, TITLE_MAX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
-import { actionOf, submitSpecOf } from '@/core/action'
+import { actionOf } from '@/core/action'
 import { errorTextOf } from '@/core/message'
 import { boardToStr } from '@/core/sudoku/parse'
 import { sideOf } from '@/core/sudoku/shape'
-import { useBoardZoom } from '@/composables/board/useZoom'
 import { usePuzzleStage } from '@/composables/game/usePuzzleStage'
 import { create } from '@/services/api/puzzleApi'
 import { useGameStore } from '@/stores/game'
 import type { Actions } from '@/types/item'
-import type { BoardRenderInput } from '@/types/render'
 
 /**
  * 出题页流程（**只有这一页用 → 就地写**）：标题 + POST 入库；
@@ -28,7 +26,6 @@ import type { BoardRenderInput } from '@/types/render'
  */
 const gameStore = useGameStore()
 const router = useRouter()
-const { zoom, zoomActions } = useBoardZoom(() => gameStore.config.boxSize)
 
 /** 两阶段状态机（阶段 / 题面快照 / 报错 / 失败遮罩）—— 与编辑页共用一份 */
 const { phase, puzzleSnapshot, errorMsg, showFail, resetStage, submitPuzzle, checkSolution, backToEdit } =
@@ -105,19 +102,10 @@ const boxSize = computed<number>({
     set: (b: number) => changeBoxSize(b),
 })
 
-/** 棋盘渲染入参：一个对象喂给 BoardView */
-const boardParams = computed<BoardRenderInput>(() => ({
-    board: gameStore.board,
-    boxSize: gameStore.sudoku.B,
-    selected: gameStore.selected,
-    conflictMask: gameStore.conflictMask,
-    zoom: zoom.value,
-}))
-
-/** 按钮条：按阶段提交（文案见 constants/actions 的 submitSpecOf；缩放贴棋盘；回主页只走顶栏那一个入口） */
+/** 按钮条：按阶段提交（文案在 constants/actions 的 ACTION 表；缩放归棋盘；回主页只走顶栏那一个入口） */
 const actions = computed<Actions>(() => [
     actionOf(
-        submitSpecOf(phase.value),
+        phase.value === CREATE_PHASE.Puzzle ? ACTION.submitPuzzle : ACTION.submitSolution,
         phase.value === CREATE_PHASE.Puzzle ? submitPuzzle : submitSolution,
     ),
 ])
@@ -147,7 +135,8 @@ const failActions: Actions = [
         </Flex>
         <p v-if="errorMsg && !showFail" class="tip">{{ errorMsg }}</p>
 
-        <BoardView v-bind="boardParams" :zoom-actions="zoomActions" @cell-click="gameStore.select" />
+        <BoardView :board="gameStore.board" :box-size="gameStore.sudoku.B" :selected="gameStore.selected"
+            :conflict-mask="gameStore.conflictMask" @cell-click="gameStore.select" />
         <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.config.boxSize" @pick="gameStore.inputNum" />
 
         <!-- 提交：转圈（校验 + 上传） -->

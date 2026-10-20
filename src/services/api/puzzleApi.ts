@@ -1,7 +1,9 @@
 import { LIST_PAGE_SIZE, SORT } from '@/constants/puzzle'
-import { offsetOf } from '@/core/page'
 import type { ListSort, MyPuzzle, MyPuzzleDetail, PuzzleDetail, PuzzlePatch, SearchResult, Visibility } from '@/types/puzzle'
 import { request } from './client'
+
+/** 页码 → 接口 offset（只有本文件用 → 内部函数） */
+const offsetOf = (page: number, size: number): number => (page - 1) * size
 
 /** 带总数的分页响应（total 用来算页数、收敛越界页码） */
 export interface Paged<T> { items: T[]; total: number }

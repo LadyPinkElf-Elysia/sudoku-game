@@ -14,19 +14,16 @@ import { SOLVE_INPUT_MODE, SOLVE_LIMIT_DEFAULT, SOLVE_LIMIT_OPTIONS, SOLVE_MAX_B
 import { actionOf } from '@/core/action'
 import { fromPuzzle } from '@/core/board/model'
 import { isBlankBoard } from '@/core/board/ops'
-import { defaultZoomOf } from '@/core/board/zoom'
-import { errorTextOf } from '@/core/message'
 import { parsePuzzle } from '@/core/sudoku/parse'
-import { useZoom } from '@/composables/board/useZoom'
-import { solveMultiInWorker } from '@/services/sudoku/workerClient'
+import { useSudokuEngine } from '@/composables/game/useSudokuEngine'
 import { useGameStore } from '@/stores/game'
-import type { NumBoard, Position } from '@/types/board'
+import type { Position } from '@/types/board'
 import type { BoardRenderInput } from '@/types/render'
 import type { Actions } from '@/types/item'
 
 /**
  * 题目求解流程（**只有这一页用 → 就地写**）：粘串/手填 → 本地校验 → Worker 多解 → 逐解浏览
- * · 输入盘复用 gameStore 的 Solve 模式；输入盘与结果盘各有自己的缩放；解列表只活在本地
+ * · 输入盘复用 gameStore 的 Solve 模式；缩放归棋盘（`BoardView` 自己管）；解列表只活在本地
  */
 type SolveInputMode = typeof SOLVE_INPUT_MODE[keyof typeof SOLVE_INPUT_MODE]
 
@@ -35,15 +32,9 @@ const gameStore = useGameStore()
 const inputMode = ref<SolveInputMode>(SOLVE_INPUT_MODE.Text)
 const puzzleText = ref('')
 const maxSolutions = ref<number>(SOLVE_LIMIT_DEFAULT)
-const solutions = ref<NumBoard[]>([])
+/** 求解（与"生成 + 挖空"同一个引擎组合式）：给盘面 + 上限，拿解列表 */
+const { loading, error, solutions, reset: resetSolutions, solve: runSolve } = useSudokuEngine()
 const solutionIndex = ref(0)
-const loading = ref(false)
-const error = ref('')
-
-/** 输入盘自己的缩放（换盘面大小时跟着复位） */
-const inputZoom = useZoom(defaultZoomOf(GAME_INIT_CONFIG.boxSize))
-/** 结果盘自己的缩放（每次求解后复位） */
-const resultZoom = useZoom()
 
 // 进页先起一张空盘：不把上一页留下的盘面带过来
 gameStore.startInput(GAME_MODE.Solve, GAME_INIT_CONFIG.boxSize)
@@ -52,36 +43,25 @@ const boxSize = computed<number>(() => gameStore.config.boxSize)
 const padMax = computed<number>(() => gameStore.sudoku.S)
 const padColumns = computed<number>(() => gameStore.sudoku.B)
 const boxSizeOptions = BOX_SIZE_SELECT_OPTIONS
-const inputZoomActions = inputZoom.zoomActions
-const resultZoomActions = resultZoom.zoomActions
 
-/** 输入盘渲染入参（可玩） */
-const boardInput = computed<BoardRenderInput>(() => ({
-    board: gameStore.board,
-    boxSize: gameStore.sudoku.B,
-    selected: gameStore.selected,
-    conflictMask: gameStore.conflictMask,
-    zoom: inputZoom.zoom.value,
-}))
+/** 输入盘渲染：**只在棋盘内部有意义 → 页面不打包**（只读/可玩由 interactive 决定） */
 
 /** 结果盘渲染入参（只读：解本身已填满） */
 const solutionInput = computed<BoardRenderInput>(() => ({
     board: fromPuzzle(solutions.value[solutionIndex.value] ?? [], true),
     boxSize: gameStore.sudoku.B,
-    zoom: resultZoom.zoom.value,
     interactive: false,
 }))
 
 /** 清掉上一轮的解 */
 const resetResult = (): void => {
-    solutions.value = []
+    resetSolutions()
     solutionIndex.value = 0
 }
 
 /** 换盘面大小：重建空盘 + 复位输入盘缩放 + 清结果 */
 const setBoxSize = (next: number): void => {
     gameStore.startInput(GAME_MODE.Solve, next)
-    inputZoom.resetZoom(defaultZoomOf(next))
     error.value = ''
     resetResult()
 }
@@ -115,7 +95,6 @@ const applyText = (): boolean => {
         return false
     }
     gameStore.startInput(GAME_MODE.Solve, parsed.boxSize, parsed.board)
-    inputZoom.resetZoom(defaultZoomOf(parsed.boxSize))
     inputMode.value = SOLVE_INPUT_MODE.Board
     resetResult()
     return true
@@ -129,23 +108,14 @@ const validate = (): boolean => {
     return true
 }
 
-/** 求解：字符串模式先解析回填棋盘，再本地校验 → Worker 多解；无解由 Worker 回「这盘无解」 */
+/** 求解：先本地校验，再交给 useSolvePuzzle 跑 Worker（转圈 / 错误 / 解列表都由它管） */
 const solve = async (): Promise<void> => {
-    if (loading.value) return
     error.value = ''
     resetResult()
     if (inputMode.value === SOLVE_INPUT_MODE.Text && !applyText()) return
     if (!validate()) return
 
-    loading.value = true
-    try {
-        solutions.value = await solveMultiInWorker(gameStore.numBoard, maxSolutions.value)
-        resultZoom.resetZoom(defaultZoomOf(gameStore.sudoku.B))
-    } catch (err) {
-        error.value = errorTextOf(err, SOLVE_COPY.fail)
-    } finally {
-        loading.value = false
-    }
+    if (!(await runSolve(gameStore.numBoard, maxSolutions.value))) return
 }
 
 /** 步骤条切到第 k 个解（越界直接忽略） */
@@ -221,7 +191,8 @@ const actions = computed<Actions>(() => [
 
         <!-- 棋盘只属于「棋盘填入」模式：两种输入方式互不干扰 -->
         <template v-if="inputMode === SOLVE_INPUT_MODE.Board">
-            <BoardView v-bind="boardInput" :zoom-actions="inputZoomActions" @cell-click="selectCell" />
+            <BoardView :board="gameStore.board" :box-size="gameStore.sudoku.B" :selected="gameStore.selected"
+                :conflict-mask="gameStore.conflictMask" @cell-click="selectCell" />
             <NumberPad :max="padMax" :columns="padColumns" @pick="inputNum" />
         </template>
 
@@ -236,7 +207,7 @@ const actions = computed<Actions>(() => [
 
         <template v-if="solutions.length">
             <p class="result-label">📖 {{ SOLVE_COPY.resultLabel }} · {{ resultInfo }}</p>
-            <BoardView v-bind="solutionInput" :zoom-actions="resultZoomActions" />
+            <BoardView v-bind="solutionInput" />
             <PagerBar :page="solutionIndex" :page-count="solutions.length" mode="steps"
                 :step-label="stepLabel" :info-text="pagerInfo" @change="changeSolution" />
         </template>

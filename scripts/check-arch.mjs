@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 架构守卫 —— 《ARCHITECTURE.md》R1~R15 的可执行版本
+ * 架构守卫 —— 《DOC.md》§3/§4（R1~R15）的可执行版本
  * （R11 = core 必须可测：只查「可测性」—— 纯函数 / rng 注入 / 无模块级可变状态；**不查有没有测试，也不跑测试**）
  * 原则：能机器查的一律查；查不了的明确标为「评审」。
  *
@@ -8,22 +8,24 @@
  *
  * 规则 → 检查方式：
  *   R1   红  顶层目录白名单
- *   R2   红  依赖矩阵（逐层校验 src/ 与 functions/；含外部包白名单、全局禁 axios）
+ *   R2   红  依赖矩阵（`MATRIX`，逐层校验 src/ 与 functions/；含外部包白名单、全局禁 axios）
+ *            **2026-10 放宽**：`pages/` 可用 `core` / `services`（就地写流程）；`components/` 可用 `core`（`ACTION_OF`、zoom 算式）。
+ *            仍然禁止：`components/` 碰 store / router（R5）· `services/` 碰 store / router · 任何层碰 axios
  *   R3   红  core 纯度（宿主 / Worker / 随机 / 时间 / console）
  *   R4   红  数据层不写算法（for / forEach / Math.）+ 不碰路由
  *   R5   红  展示层不碰 store / 路由
- *   R6   红  页面只接线（声明 ≤ 10；禁 Math.；依赖由 R2 保证）
+ *   R6   红  页面只接线（顶层声明 ≤ 50；行数 ≤ 400；禁 Math.）
  *   R7   红  组合式不写算式（Math.）
- *   R9   红  体量（行数 / core 导出数 / 单函数模块）
+ *   R9   红  体量（普通 200 / 页面 400 / 组合式 300 行；core 导出数；单函数模块）
  *   R10  红  类型归位（死类型 / Omit·Pick 派生 / constants 不许放类型）
  *   R11  红  core 可测性（模块级可变状态；纯度与 rng 注入由 R3 覆盖）
  *   R12  红  禁桶文件（export * from）
  *   R13  红  types 是叶子（由 R2 矩阵保证，单独报错）
- *   R14  红  有棋盘必须有缩放
+ *   R14  红  棋盘自带缩放（`components/BoardView.vue` 内必须有 `zoomInOf` / `zoomOutOf`）
  *   R8   红  命名（constants 导出名 UPPER_SNAKE；composables/** 文件名 use*）
  *   R8（其余命名语义）· R15（状态归位）→ 评审
  *
- * 改规矩：先改 ARCHITECTURE.md 的矩阵/规则，再改下面的 MATRIX 与预算常量。
+ * 改规矩：先改 DOC.md §3（规则）/§4.1（矩阵），再改下面的 MATRIX 与预算常量。
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -35,7 +37,7 @@ if (!existDir('src')) {
     process.exit(1)
 }
 
-/* ═════════════════ 规则参数（与 ARCHITECTURE.md §二/§三 一一对应） ═════════════════ */
+/* ═════════════════ 规则参数（与 DOC.md §3/§4.1 一一对应） ═════════════════ */
 
 /** R1 顶层白名单（src 内） */
 const TOP_ALLOW = new Set([
@@ -44,9 +46,10 @@ const TOP_ALLOW = new Set([
 ])
 
 /**
- * R2 依赖矩阵（就是文档 §二 那张表）
+ * R2 依赖矩阵（就是 DOC.md §4.1 那张表）
  *   src: 允许的 src 前缀（null = 组合根，允许一切）
  *   pkg: 允许的外部包（[] = 只能相对/@ 内部 + node:）
+ * 2026-10 放宽：pages 加 core/services（就地写流程）· components 加 core（拼装函数 / zoom 算式）
  */
 const MATRIX = {
     'src':             { src: null, pkg: null },                                    // main.ts / App.vue
@@ -57,8 +60,8 @@ const MATRIX = {
     'src/render':      { src: ['src/render/', 'src/core/', 'src/constants/', 'src/types/'], pkg: [] },
     'src/stores':      { src: ['src/stores/', 'src/core/', 'src/services/', 'src/constants/', 'src/types/'], pkg: ['vue', 'pinia'] },
     'src/composables': { src: ['src/composables/', 'src/stores/', 'src/render/', 'src/core/', 'src/services/', 'src/constants/', 'src/types/'], pkg: ['vue', 'vue-router'] },
-    'src/components':  { src: ['src/components/', 'src/composables/', 'src/constants/', 'src/types/'], pkg: ['vue'] },   // ← 禁 vue-router（RouterLink 是全局组件）
-    'src/pages':       { src: ['src/pages/', 'src/components/', 'src/composables/', 'src/stores/', 'src/constants/', 'src/types/'], pkg: ['vue', 'vue-router'] },
+    'src/components':  { src: ['src/components/', 'src/composables/', 'src/constants/', 'src/types/', 'src/core/'], pkg: ['vue'] },   // ← 禁 vue-router / store；允许 core 纯函数
+    'src/pages':       { src: ['src/pages/', 'src/components/', 'src/composables/', 'src/stores/', 'src/services/', 'src/core/', 'src/constants/', 'src/types/'], pkg: ['vue', 'vue-router'] },   // 页面可就地写流程：允许 core / services（Math. 仍禁 → R6）
     'src/router':      { src: ['src/router/', 'src/stores/', 'src/constants/', 'src/types/'], pkg: ['vue-router'] },
     'functions':       { src: ['functions/', 'src/core/', 'src/constants/', 'src/types/'], pkg: [] },                     // 后端：复用 core，禁 vue/pinia
 }
@@ -89,17 +92,19 @@ const CONST_NAME = /^[A-Z][A-Z0-9_]*$/
 const COMPOSABLE_NAME = /\/use[A-Z]/
 const COMPOSABLE_EXEMPT = new Set(['src/composables/puzzle/metaText.ts'])
 
-/** R14 有棋盘就必须有缩放（缩放数据来自 useZoom() 或预览 composable 的 …ZoomActions，经 :zoom-actions 传进棋盘） */
-const BOARD_VIEW = /BoardView\.vue/
-const ZOOM_ENTRY = /useZoom\(|useBoardZoom\(|zoom-actions=/
+/** R14 有棋盘就必须能缩放：**缩放归棋盘组件自己**（页面不再传 `zoom` / `zoom-actions`） */
+const BOARD_VIEW = 'src/components/BoardView.vue'
+const ZOOM_IMPL = /zoomInOf\(|zoomOutOf\(/
 
 /** R9 预算 */
 const MAX_LINES = 200
 /** 页面允许更长：**单页专用的流程就地写**（见 R6 的 2026-10 调整） */
 const MAX_PAGE_LINES = 400
+/** 组合式允许更长：**内部缓存 / 调度细节**就地写（把"只给它自己用"的小函数外提反而更难读） */
+const MAX_COMPOSABLE_LINES = 300
 const MAX_CORE_EXPORTS = 8
 const MIN_SOLO_MODULE_LINES = 50
-const MAX_PAGE_DECLS = 60
+const MAX_PAGE_DECLS = 50
 
 /** R10 / E4 预留类型白名单（当前无预留：types/ 的导出都有真实使用点） */
 /** R10 / E4 预留类型白名单（当前无预留：types/ 的导出都有真实使用点） */
@@ -164,7 +169,9 @@ for (const file of files) {
     const lines = code.replace(/\n$/, '').split('\n').length
 
     /* ───── R9 行数 ───── */
-    const lineLimit = isPages(file) ? MAX_PAGE_LINES : MAX_LINES
+    const lineLimit = isPages(file)
+        ? MAX_PAGE_LINES
+        : under(file, 'src/composables') ? MAX_COMPOSABLE_LINES : MAX_LINES
     if (lines > lineLimit) err('R9', file, `${lines} 行 > ${lineLimit}，请拆文件`)
 
     /* ───── R2 / R5 / R13 依赖矩阵 ───── */
@@ -249,9 +256,9 @@ for (const file of files) {
     /* ───── R12 禁桶文件 ───── */
     if (BARREL.test(bare)) err('R12', file, '禁止桶文件（export * from）')
 
-    /* ───── R14 有棋盘就必须有缩放 ───── */
-    if (isVue(file) && BOARD_VIEW.test(code) && !ZOOM_ENTRY.test(code))
-        err('R14', file, '显示棋盘的页面/组件必须给缩放数据（useZoom(…) 或 :zoom-actions="…"）')
+    /* ───── R14 有棋盘就必须能缩放（棋盘组件自己实现） ───── */
+    if (file === BOARD_VIEW && !ZOOM_IMPL.test(code))
+        err('R14', file, '棋盘必须自己实现缩放（zoomIn/zoomOut + 按钮条）')
 }
 
 /* ═════════════════ R10 types/ 只放「共享」类型 ═════════════════ */

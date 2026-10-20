@@ -24,3 +24,6 @@ export const isBlankRatioOk = (blankCount: number, boxSize: number): boolean => 
     const ratio = blankCount / cells
     return ratio >= BLANK_RATIO.min - 1e-9 && ratio <= BLANK_RATIO.max + 1e-9
 }
+
+/** 比例 → 显示用整数百分数（滑杆标签等；`Math.` 只能待在 core） */
+export const percentOf = (ratio: number): number => Math.round(ratio * 100)

@@ -7,17 +7,13 @@ import TextAction from '@/components/TextAction.vue'
 import { PAGE } from '@/constants/pages'
 import { ACTION } from '@/constants/actions'
 import { actionOf } from '@/core/action'
-import { useBoardZoom } from '@/composables/board/useZoom'
 import { usePuzzleDetail } from '@/composables/puzzle/usePuzzleDetail'
 import type { Actions } from '@/types/item'
-import type { BoardRenderInput } from '@/types/render'
 const route = useRoute()
 const router = useRouter()
 const { loading, error, title, metaText, boardInput, load, challenge } = usePuzzleDetail()
-const { zoom, zoomActions } = useBoardZoom(() => boardInput.value.boxSize)
 
-/** 只读盘：与可玩盘同一份入参，只差 interactive=false 与 zoom */
-const boardParams = computed<BoardRenderInput>(() => ({ ...boardInput.value, zoom: zoom.value, interactive: false }))
+/** 只读盘：数据从详情来，**只给两个字段**（渲染入参不外露成中间对象） */
 
 /** 返回来源靠历史；无历史兜底主页 */
 const goBack = (): void => {
@@ -42,7 +38,7 @@ onMounted(() => { void load(String(route.params.pid ?? '')) })
         <template v-else>
             <h2 class="section-title">{{ title }}</h2>
             <p class="meta-line">{{ metaText }}</p>
-            <BoardView v-bind="boardParams" :zoom-actions="zoomActions" />
+            <BoardView :board="boardInput.board" :box-size="boardInput.boxSize" :interactive="false" />
             <Flex class="op-bar" :gap="14" justify="center" wrap>
                 <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
             </Flex>

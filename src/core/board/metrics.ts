@@ -10,6 +10,9 @@ export const boardSideOf = (contentWidth: number, zoom: number): number => {
 /** 棋盘 CSS 边长 → 每格边长（可能带小数） */
 export const cellSizeOf = (side: number, gridSize: number): number => side / gridSize
 
+/** CSS 边长 × DPR → 位图边长（位图尺寸必须是整数像素）—— 算式归 core，组合式里不写 `Math.` */
+export const pixelOf = (side: number, dpr: number): number => Math.round(side * dpr)
+
 /** 每格边长 → 字号（像素），有下限 */
 export const fontPxOf = (cellSize: number): number =>
     Math.max(BOARD_SIZE.minFontSize, Math.floor(cellSize * BOARD_SIZE.fontSizeRatio))

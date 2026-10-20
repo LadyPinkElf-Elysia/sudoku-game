@@ -2,7 +2,6 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { LIST_PAGE_SIZE } from '@/constants/puzzle'
 import { errorTextOf } from '@/core/message'
-import { pageCountOf } from '@/core/page'
 import { getMine, listMine, search as apiSearch } from '@/services/api/puzzleApi'
 import type { ListSort, MyPuzzle, MyPuzzleDetail, SearchResult } from '@/types/puzzle'
 
@@ -23,7 +22,12 @@ export const usePuzzleStore = defineStore('puzzleStore', () => {
     /** 跨页一次性轻提示（如「已保存到我的题目」）：写入方给文案，读取方取走即清 */
     const savedTip = ref('')
 
-    const pageCount = computed<number>(() => pageCountOf(total.value, LIST_PAGE_SIZE))
+    /**
+     * 总条数 → 总页数（无数据也算 1 页，避免页码出现 0）
+     * 数据层禁 `Math.`（R4）→ 用整数写法等价 `Math.ceil(total / size)`：`(total + size - 1) / size` 再 `| 0` 取整
+     */
+    const pageCount = computed<number>(() =>
+        total.value <= 0 ? 1 : ((total.value + LIST_PAGE_SIZE - 1) / LIST_PAGE_SIZE) | 0)
     /** 搜索空结果：不在加载中、无错误、且没有数据 */
     const empty = computed<boolean>(() => !loading.value && !error.value && !items.value.length)
 

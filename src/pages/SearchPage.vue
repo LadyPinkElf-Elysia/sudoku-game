@@ -73,7 +73,7 @@ const challenge = async (pid: string): Promise<void> => {
 }
 
 const {
-    previewOpen, previewTitle, previewInput, previewActions, previewZoomActions, previewLoading,
+    previewOpen, previewTitle, previewInput, previewActions, previewLoading,
 } = preview
 
 /** 列表工具条 + 分页：组件只认数据，标签/选项由本页给 */
@@ -108,7 +108,7 @@ const listPager = computed<ListPager>(() => ({ page: page.value, pageCount: page
 
         <!-- 题目预览：同一个遮罩（只读棋盘 + 贴棋盘的缩放圆圈；按钮条由 Overlay 渲染） -->
         <Overlay :show="previewOpen && !previewLoading" :text="previewTitle" :actions="previewActions">
-            <BoardView v-bind="previewInput" :zoom-actions="previewZoomActions" />
+            <BoardView v-bind="previewInput" />
         </Overlay>
 
         <Overlay :show="previewLoading" spinning />

@@ -1,10 +1,22 @@
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { PREF_KEY_PAGER_MODE, SORT } from '@/constants/puzzle'
-import { clampPage, pagerModeOf, sortOf } from '@/core/page'
+import { PREF_KEY_PAGER_MODE, PAGER_MODE, SORT } from '@/constants/puzzle'
 import { readPref, writePref } from '@/services/prefs'
 import type { Page } from '@/types/page'
 import type { ListSort, PagerMode } from '@/types/puzzle'
+
+/** 原始值（URL query）→ 合法排序：只认 hot，其余一律 time（只有本文件用 → 内部函数） */
+const sortOf = (raw: unknown): ListSort => (String(raw ?? '') === SORT.Hot ? SORT.Hot : SORT.Time)
+
+/** 原始值（本地偏好）→ 合法分页形态：只认 slider，其余一律 bar */
+const pagerModeOf = (raw: unknown): PagerMode =>
+    String(raw ?? '') === PAGER_MODE.Slider ? PAGER_MODE.Slider : PAGER_MODE.Bar
+
+/** 页码收敛到 [1, pageCount] */
+const clampPage = (page: number, pageCount: number): number => {
+    if (page < 1) return 1
+    return page > pageCount ? pageCount : page
+}
 
 interface ListQueryOptions {
     /** 本页路由名（用于 router.replace 留在本页） */

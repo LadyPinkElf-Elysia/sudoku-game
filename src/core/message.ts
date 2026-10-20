@@ -1,7 +1,7 @@
 import { EMPTY_GROUP_COPY, RATIO_COPY } from '../constants/copy'
 import { countBlanks, isBlankBoard } from './board/ops'
-import { percentOf } from './game/derive'
-import { cellCountOf, isBlankRatioOk } from './sudoku/shape'
+
+import { cellCountOf, isBlankRatioOk, percentOf } from './sudoku/shape'
 import type { NumBoard } from '../types/board'
 import type { Sudoku } from '../types/sudoku'
 

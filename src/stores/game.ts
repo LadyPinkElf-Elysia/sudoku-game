@@ -1,7 +1,6 @@
 import { GAME_INIT_CONFIG, GAME_MODE, GAME_ORIGIN, GAME_STATUS } from '@/constants/game'
 import { toNum, fromPuzzle } from '@/core/board/model'
 import { cloneBoard, lockGiven, applySolution, countBlanks } from '@/core/board/ops'
-import { statusOf } from '@/core/game/derive'
 import { cellCountOf } from '@/core/sudoku/shape'
 import { getSudoku } from '@/core/sudoku/rules'
 import type { Board, Cell, ConflictMask, NumBoard, Position, Snapshot } from '@/types/board'
@@ -40,8 +39,9 @@ export const useGameStore = defineStore('gameStore', () => {
         if (!numBoard.value.length) return false
         return sudoku.value.isSolved(numBoard.value)
     })
-    /** 状态：两个纯函数入参 → 状态（原先手写的三分支已删） */
-    const status = computed<GameStatus>(() => statusOf(!!board.value.length, isWin.value))
+    /** 状态：已胜 > 无盘面 > 进行中（**只给本 store 用 → 内部推导**，不再单独开纯函数） */
+    const status = computed<GameStatus>(() =>
+        isWin.value ? GAME_STATUS.Won : board.value.length ? GAME_STATUS.Playing : GAME_STATUS.Idle)
     /** 冲突集合：空盘走 emptyMask，避免对空 grid 取下标 */
     const conflictMask = computed<ConflictMask>(() =>
         numBoard.value.length ? sudoku.value.findConflicts(numBoard.value) : sudoku.value.makeEmptyMask()

@@ -12,9 +12,7 @@ import type { BoardGeometry } from "@/types/render"
  * "要不要重建、层存在哪"由调用方（composables/board/useBoardCanvas）决定 —— 渲染层不留隐藏状态。
  */
 
-/** 线层的尺寸签名（纯函数）：任一项变化都要重建 */
-export const linesLayerKeyOf = (size: number, boxSize: number, g: BoardGeometry): string =>
-    `${size}|${boxSize}|${g.side}|${g.cellSize}|${g.dpr}`
+/** 线层签名（`linesLayerKeyOf`）是 1 行字符串拼接 → 已内联进 `useBoardRender` 的 `linesKeyOf` */
 
 
 /** 在给定画笔上画网格线（细线跳过宫的边界；粗线含宫边界与外框）——离屏层与兜底路径共用 */

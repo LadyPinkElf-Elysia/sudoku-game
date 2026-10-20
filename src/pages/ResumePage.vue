@@ -6,7 +6,6 @@ import { ACTION } from '@/constants/actions'
 import { SAVE_COPY } from '@/constants/copy'
 import { actionOf } from '@/core/action'
 import { useGameSave } from '@/composables/game/useGameSave'
-import { hasSaveData } from '@/services/saveGame'
 import type { GameSave } from '@/types/game'
 import type { Actions } from '@/types/item'
 
@@ -14,11 +13,11 @@ import type { Actions } from '@/types/item'
  * 继续游戏：**存档列表** —— 一条存档 = 一个条（标题 + 「存档于 … · 进度 n 步」+ 两颗文字按钮）
  * · 业务全在 useGameSave（列表 / 继续 / 删除）；本页只负责摆位置
  */
-const { saves, tip, resume, remove } = useGameSave()
+const { saves, hasData, tip, resume, remove } = useGameSave()
 
 /** 空态文案：分清"没存过"和"存了但读不出来"（后者多半是校验/版本不匹配） */
 const emptyText = computed<string>(() =>
-    (saves.value.length ? '' : hasSaveData() ? SAVE_COPY.broken : SAVE_COPY.empty))
+    (saves.value.length ? '' : hasData.value ? SAVE_COPY.broken : SAVE_COPY.empty))
 
 /** 存档条上的时间（本地时区、24 小时制、带分钟）—— 只有这个列表用，所以写在页面里 */
 const savedAtTextOf = (ms: number): string => new Date(ms).toLocaleString('zh-CN', {

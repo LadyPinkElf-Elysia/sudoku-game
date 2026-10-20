@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router'
 import { SAVE_COPY } from '@/constants/copy'
 import { SAVE } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
-import { addSave, readSaves, removeSaveById } from '@/services/saveGame'
+import { addSave, hasSaveData, readSaves, removeSaveById } from '@/services/saveGame'
 import { useGameStore } from '@/stores/game'
 import type { GameSave } from '@/types/game'
 
@@ -22,11 +22,16 @@ export const useGameSave = () => {
     const slotId = String(Date.now())
     /** 存档列表（继续游戏页渲染它就够；服务侧已按存档时间倒序） */
     const saves = ref<GameSave[]>(readSaves())
+    /** 本地有没有存档数据（区分"没存过"与"存了但读不出来"；随增删刷新） */
+    const hasData = ref<boolean>(hasSaveData())
     /** 一次性提示（空盘 / 存不下 / 已删除 / 没存档）—— 游戏页与继续游戏页共用 */
     const tip = ref('')
 
     /** 重新读表（增删之后同步列表） */
-    const refresh = (): void => { saves.value = readSaves() }
+    const refresh = (): void => {
+        saves.value = readSaves()
+        hasData.value = hasSaveData()
+    }
 
     /** 存档：返回给用户看的提示文案（同时写进 tip） */
     const save = (): string => {
@@ -72,5 +77,5 @@ export const useGameSave = () => {
         refresh()
     }
 
-    return { saves, tip, save, resume, remove }
+    return { saves, hasData, tip, save, resume, remove }
 }

@@ -9,15 +9,13 @@ import TextAction from '@/components/TextAction.vue'
 import { ACTION } from '@/constants/actions'
 import { CREATE_PHASE, GAME_MODE } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
-import { actionOf, submitSpecOf } from '@/core/action'
+import { actionOf } from '@/core/action'
 import { errorTextOf } from '@/core/message'
 import { boardToStr, parsePuzzle } from '@/core/sudoku/parse'
-import { useBoardZoom } from '@/composables/board/useZoom'
 import { usePuzzleStage } from '@/composables/game/usePuzzleStage'
 import { getOne, update } from '@/services/api/puzzleApi'
 import { useGameStore } from '@/stores/game'
 import type { Actions } from '@/types/item'
-import type { BoardRenderInput } from '@/types/render'
 
 /**
  * 编辑页流程（FR-10，**只有这一页用 → 就地写**）：载入自己的题面（未锁定）
@@ -26,7 +24,6 @@ import type { BoardRenderInput } from '@/types/render'
 const route = useRoute()
 const router = useRouter()
 const gameStore = useGameStore()
-const { zoom, zoomActions } = useBoardZoom(() => gameStore.config.boxSize)
 
 /** 两阶段状态机（阶段 / 题面快照 / 报错 / 失败遮罩）——与出题页共用一份 */
 const { phase, puzzleSnapshot, errorMsg, showFail, resetStage, submitPuzzle, checkSolution, backToEdit } =
@@ -84,20 +81,11 @@ const submitSolution = async (): Promise<void> => {
 
 onMounted(() => { void load() })
 
-/** 棋盘渲染入参：一个对象喂给 BoardView */
-const boardParams = computed<BoardRenderInput>(() => ({
-    board: gameStore.board,
-    boxSize: gameStore.sudoku.B,
-    selected: gameStore.selected,
-    conflictMask: gameStore.conflictMask,
-    zoom: zoom.value,
-}))
-
-/** 按钮条：返回「我的题目」+ 按阶段切换的提交（文案见 constants/actions；缩放贴棋盘） */
+/** 按钮条：返回「我的题目」+ 按阶段切换的提交（文案在 constants/actions；缩放归棋盘） */
 const actions = computed<Actions>(() => [
     actionOf(ACTION.backToMine, goMyPuzzles),
     actionOf(
-        submitSpecOf(phase.value),
+        phase.value === CREATE_PHASE.Puzzle ? ACTION.submitPuzzle : ACTION.submitSolution,
         phase.value === CREATE_PHASE.Puzzle ? submitPuzzle : submitSolution,
     ),
 ])
@@ -115,7 +103,8 @@ const failActions: Actions = [
         </Flex>
         <p v-if="errorMsg && !showFail" class="tip">{{ errorMsg }}</p>
 
-        <BoardView v-bind="boardParams" :zoom-actions="zoomActions" @cell-click="gameStore.select" />
+        <BoardView :board="gameStore.board" :box-size="gameStore.sudoku.B" :selected="gameStore.selected"
+            :conflict-mask="gameStore.conflictMask" @cell-click="gameStore.select" />
         <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.sudoku.B" @pick="gameStore.inputNum" />
 
         <Overlay :show="loading" spinning text="正在处理…" />

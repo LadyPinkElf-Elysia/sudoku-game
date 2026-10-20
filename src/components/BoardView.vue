@@ -2,24 +2,24 @@
 import { ref } from "vue";
 import Flex from "./Flex.vue";
 import TextAction from "./TextAction.vue";
-import { BOARD_ZOOM } from '@/constants/board'
-import { useBoardCanvas } from '@/composables/board/useBoardCanvas'
+import { useBoardRender } from '@/composables/board/useBoardRender'
 import type { Board, ConflictMask, Position } from '@/types/board'
-import type { Actions } from '@/types/item'
 
+/**
+ * 棋盘（**唯一同时拥有"画"和"缩放"的组件**）
+ * · 渲染 + 缩放全部由 `useBoardRender` 提供（组件只接线，不碰 core / store / router —— R2/R5）
+ * · 对外用 `defineExpose` 暴露缩放动作；缩放值本身不出组件
+ */
 const props = withDefaults(
     defineProps<{
         board: Board
         boxSize: number
         selected?: Position | null
         conflictMask?: ConflictMask
-        zoom?: number
         /** 可玩（接点击）还是只读（纯 canvas 画出来）；默认可玩 */
         interactive?: boolean
-        /** 缩放按钮的数据（`useZoom().zoomActions`）：给了就在棋盘正上方画一对，左缩小右放大 */
-        zoomActions?: Actions
     }>(),
-    { selected: null, zoom: BOARD_ZOOM.min, interactive: true },
+    { selected: null, interactive: true },
 )
 
 const emit = defineEmits<{ 'cell-click': [pos: Position] }>()
@@ -27,7 +27,12 @@ const emit = defineEmits<{ 'cell-click': [pos: Position] }>()
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 /** 外层滚动框：量它（canvas 的直接父级会随棋盘收缩，量它会把当前宽度当上限） */
 const boxEl = ref<HTMLElement | null>(null)
-const { onCanvasClick } = useBoardCanvas(canvasEl, boxEl, () => props, pos => emit('cell-click', pos))
+
+const { onCanvasClick, zoomActions, zoomIn, zoomOut, resetZoom } =
+    useBoardRender(canvasEl, boxEl, () => props, pos => emit('cell-click', pos))
+
+/** **对外只暴露缩放动作**（值不出组件；需要复位就调 resetZoom） */
+defineExpose({ zoomIn, zoomOut, resetZoom })
 </script>
 
 <template>
@@ -36,7 +41,7 @@ const { onCanvasClick } = useBoardCanvas(canvasEl, boxEl, () => props, pos => em
           缩放：**固定在棋盘上方、水平居中** —— 放在滚动框外面，
           所以棋盘放大到要横向 / 纵向滚动时，这一对也不会跟着滚走
         -->
-        <Flex v-if="zoomActions?.length" class="board-zoom" justify="center" :gap="8">
+        <Flex class="board-zoom" justify="center" :gap="8">
             <TextAction v-for="a in zoomActions" :key="a.key" class="zoom-btn" :text="a.text"
                 :on-click="a.onClick" />
         </Flex>

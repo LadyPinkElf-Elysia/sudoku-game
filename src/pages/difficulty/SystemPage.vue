@@ -9,10 +9,9 @@ import { ACTION } from '@/constants/actions';
 import { BLANK_RATIO, BOX_SIZE_SELECT_OPTIONS, GAME_INIT_CONFIG, GAME_ORIGIN } from '@/constants/game';
 import { PAGE } from '@/constants/pages';
 import { actionOf } from '@/core/action';
-import { percentOf } from '@/core/game/derive';
-import { errorTextOf } from '@/core/message';
+import { percentOf } from '@/core/sudoku/shape';
 import { blankCountOf, cellCountOf } from '@/core/sudoku/shape';
-import { generateInWorker } from '@/services/sudoku/workerClient';
+import { useSudokuEngine } from '@/composables/game/useSudokuEngine';
 import { useGameStore } from '@/stores/game';
 import type { GameConfig } from '@/types/game';
 import type { Actions } from '@/types/item';
@@ -23,31 +22,23 @@ import type { Actions } from '@/types/item';
  */
 const gameStore = useGameStore()
 const router = useRouter()
+/** 生成 + 挖空 + 求解：**数独引擎收在一个组合式里**（页面只给配置、拿结果） */
+const { loading, error, generate } = useSudokuEngine()
 
 /** 配置草稿（可变：盘面大小走下拉、挖空比例走滑杆）—— 用 GameConfig 放宽字面量类型 */
 const draft = ref<GameConfig>({ ...GAME_INIT_CONFIG })
-const loading = ref(false)
-const error = ref('')
 
 const totalCells = computed(() => cellCountOf(draft.value.boxSize))
 const blankCount = computed(() => blankCountOf(draft.value.boxSize, draft.value.blankRatio))
 const blankPercent = computed<number>(() => percentOf(draft.value.blankRatio))
 
-/** 生成并开局（双击保护 → 清旧错误 → 转圈 → Worker → 开局 → 跳页） */
+/** 生成并开局（转圈 / 错误 / 双击守卫由 useGeneratePuzzle 管；这里只负责开局与跳页） */
 const apply = async (): Promise<void> => {
-    if (loading.value) return
-    error.value = ''
-    loading.value = true
-    try {
-        const cfg: GameConfig = { boxSize: draft.value.boxSize, blankRatio: draft.value.blankRatio }
-        const { puzzle, solution } = await generateInWorker(cfg.boxSize, blankCount.value)
-        gameStore.startGame(puzzle, solution, cfg, GAME_ORIGIN.System)
-        router.replace({ name: PAGE.Game })
-    } catch (err) {
-        error.value = errorTextOf(err, '生成失败，请重试')
-    } finally {
-        loading.value = false        // 成功/失败都复位，否则转圈遮罩残留
-    }
+    const cfg: GameConfig = { boxSize: draft.value.boxSize, blankRatio: draft.value.blankRatio }
+    const data = await generate(cfg)
+    if (!data) return                       // 失败时 error 已由组合式写好
+    gameStore.startGame(data.puzzle, data.solution, cfg, GAME_ORIGIN.System)
+    router.replace({ name: PAGE.Game })
 }
 
 /** 回主页只走顶栏那一个入口，这里只留开局 */

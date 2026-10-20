@@ -2,26 +2,24 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BoardView from '@/components/BoardView.vue'
+import ExportOverlay from '@/components/ExportOverlay.vue'
 import Flex from '@/components/Flex.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import TextAction from '@/components/TextAction.vue'
 import { ACTION } from '@/constants/actions'
-import { EXPORT_COPY, GAME_COPY } from '@/constants/copy'
+import { GAME_COPY } from '@/constants/copy'
 import { GAME_MODE, GAME_ORIGIN, GAME_STATUS } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { actionOf } from '@/core/action'
 import { fromPuzzle } from '@/core/board/model'
 import { givenBoard } from '@/core/board/ops'
-import { defaultZoomOf } from '@/core/board/zoom'
-import { hintTextOf } from '@/core/game/derive'
 import { boardToStr } from '@/core/sudoku/parse'
-import { useBoardZoom, useZoom } from '@/composables/board/useZoom'
-import { useClipboard } from '@/composables/useClipboard'
 import { useGameSave } from '@/composables/game/useGameSave'
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
+import type { Cell } from '@/types/board'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
 
@@ -32,56 +30,40 @@ import type { BoardRenderInput } from '@/types/render'
 const gameStore = useGameStore()
 const puzzleStore = usePuzzleStore()
 const router = useRouter()
-const { zoom, zoomActions } = useBoardZoom(() => gameStore.config.boxSize)
-
-/** 参考答案遮罩自己的缩放，与游玩盘互不影响 */
-const answerZoom = useZoom(defaultZoomOf(gameStore.config.boxSize))
-const answerZoomActions = answerZoom.zoomActions
 
 const tip = ref('')
 const answerOpen = ref(false)
 /** 存档（写这一局；提示与「💡 提示」共用同一条 tip 行） */
 const { save: storeSave } = useGameSave()
-const { copy } = useClipboard()
 
-/** 题目导出（只给系统生成的盘）：只导题面、**不给答案** */
+/** 题目导出（只给系统生成的盘）：**只导题面、不给答案**；复制与提示都在 ExportOverlay 里 */
 const exportOpen = ref(false)
 const exportPuzzleText = ref('')
-const exportTip = ref('')
-const showExport = (text: string): void => {
-    exportPuzzleText.value = text
-    exportTip.value = ''
-    exportOpen.value = true
-}
-const closeExport = (): void => { exportOpen.value = false }
-const copyPuzzleText = async (): Promise<void> => {
-    exportTip.value = (await copy(exportPuzzleText.value))
-        ? `${EXPORT_COPY.puzzleShort}已复制`
-        : EXPORT_COPY.copyFail
-}
 const exportPuzzle = (): void => {
     if (!gameStore.board.length) return
-    showExport(boardToStr(givenBoard(gameStore.board)))
+    exportPuzzleText.value = boardToStr(givenBoard(gameStore.board))
+    exportOpen.value = true
 }
 
 /** 遮罩里的只读盘：由答案生成一块独立 Board（与游玩盘无关），整对象交给 Overlay 里的 BoardView */
 const answerInput = computed<BoardRenderInput>(() => ({
     board: gameStore.solution.length ? fromPuzzle(gameStore.solution, true) : [],
     boxSize: gameStore.sudoku.B,
-    zoom: answerZoom.zoom.value,
     interactive: false,
 }))
 const answerTitle = '答案'
 
-/** 导出遮罩的按钮条：复制题面 + 返回 */
-const exportActions = computed<Actions>(() => [
-    actionOf(ACTION.copyPuzzle, () => { void copyPuzzleText() }),
-    actionOf(ACTION.close, closeExport),
-])
 /** 答案遮罩的按钮条：只留关闭（缩放贴棋盘，见 answerZoomActions） */
 const answerActions = computed<Actions>(() => [
     actionOf(ACTION.closeAnswer, () => { answerOpen.value = false }),
 ])
+
+/** 提示文案（**只有游戏页用 → 内部函数**）：未选中 / 锁定 / 有候选三种分支 */
+const hintTextOf = (cell: Cell | null, candidates: number[]): string => {
+    if (!cell) return '请选中一个格子'
+    if (cell.lock) return '无法更改初始题目'
+    return `此格可以填：${candidates.join('、') || '无'}`
+}
 
 const goBack = (): void => {
     if (router.options.history.state.back) router.back()
@@ -138,15 +120,6 @@ const infoText = computed<string>(() => {
     const s = gameStore.sudoku.S
     return `系统生成 ${s}×${s}`
 })
-
-/** 游玩盘：可玩（接 cell-click），只传 board/boxSize/selected/conflictMask/zoom */
-const boardParams = computed<BoardRenderInput>(() => ({
-    board: gameStore.board,
-    boxSize: gameStore.sudoku.B,
-    selected: gameStore.selected,
-    conflictMask: gameStore.conflictMask,
-    zoom: zoom.value,
-}))
 </script>
 
 <template>
@@ -158,7 +131,9 @@ const boardParams = computed<BoardRenderInput>(() => ({
         </Flex>
         <p v-if="tip" class="tip">{{ tip }}</p>
 
-        <BoardView v-bind="boardParams" :zoom-actions="zoomActions" @cell-click="gameStore.select" />
+        <!-- 游玩盘：**只给四个字段**（渲染入参不外露成中间对象） -->
+        <BoardView :board="gameStore.board" :box-size="gameStore.sudoku.B" :selected="gameStore.selected"
+            :conflict-mask="gameStore.conflictMask" @cell-click="gameStore.select" />
 
         <!-- 历史记录：数据（当前步 / 快照数）+ 渲染方式（steps）交给同一个通用组件 -->
         <p class="history-label">📜 历史记录</p>
@@ -168,14 +143,11 @@ const boardParams = computed<BoardRenderInput>(() => ({
 
         <!-- 参考答案：同一个遮罩（只读棋盘走插槽，按钮条由 Overlay 渲染）；关掉后进度原样保留（不碰 store） -->
         <Overlay :show="answerOpen" :text="answerTitle" :actions="answerActions">
-            <BoardView v-bind="answerInput" :zoom-actions="answerZoomActions" />
+            <BoardView v-bind="answerInput" />
         </Overlay>
 
-        <!-- 题目导出：只给当前这一盘的题面串（= 锁定格；玩家填的不进串，也不给答案），别人拿去就能在「题目求解」/「自定义」里用 -->
-        <Overlay :show="exportOpen" wide :text="EXPORT_COPY.title" :desc="exportTip" :actions="exportActions">
-            <p class="export-label">{{ EXPORT_COPY.puzzleLabel }}</p>
-            <textarea class="input textarea export-text" readonly :value="exportPuzzleText"></textarea>
-        </Overlay>
+        <!-- 题目导出：只给当前这一盘的题面串（= 锁定格；玩家填的不进串，也不给答案）—— 复制与提示都在组件里 -->
+        <ExportOverlay :show="exportOpen" :puzzle-text="exportPuzzleText" @close="exportOpen = false" />
 
         <!-- 通关：文案 + 按钮条都由数据决定 -->
         <Overlay :show="!!winOverlay" :text="winOverlay?.title" :desc="winOverlay?.desc" :actions="resultActions" />
@@ -196,19 +168,5 @@ const boardParams = computed<BoardRenderInput>(() => ({
 .game-info {
     margin: 0 0 8px;
     text-align: center;
-}
-
-/* 导出遮罩里的题面串：小标题 + 等宽只读文本（.input / .textarea 来自全局样式） */
-.export-label {
-    margin: 12px 0 4px;
-    font-size: 0.78rem;
-    color: #6b7280;
-    text-align: left;
-}
-
-.export-text {
-    width: 100%;
-    box-sizing: border-box;
-    height: 110px;
 }
 </style>

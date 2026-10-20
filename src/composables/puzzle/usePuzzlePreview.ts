@@ -3,10 +3,8 @@ import { ACTION } from '@/constants/actions'
 import { actionOf } from '@/core/action'
 import { fromPuzzle } from '@/core/board/model'
 import { parsePuzzle } from '@/core/sudoku/parse'
-import { useZoom } from '@/composables/board/useZoom'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
-import { defaultZoomOf } from '@/core/board/zoom'
 
 /** 预览数据源：题面串必有，答案串可有（未开启 show_solution 时为空） */
 export interface PreviewSource {
@@ -26,22 +24,18 @@ export const usePuzzlePreview = (load: (id: string) => Promise<PreviewSource | n
     /** 盘面数据（zoom / interactive 由本 composable 决定，调用方不用管） */
     const previewBoard = ref<BoardRenderInput>({ board: [], boxSize: 0 })
     const previewLoading = ref(false)
-    const { zoom, resetZoom, zoomActions } = useZoom(defaultZoomOf(previewBoard.value.boxSize))
 
-    /** 只读盘：不给交互，只给缩放 */
+    /** 只读盘：不给交互（**缩放由 BoardView 自己管**） */
     const previewInput = computed<BoardRenderInput>(() => ({
-        ...previewBoard.value, zoom: zoom.value, interactive: false,
+        ...previewBoard.value, interactive: false,
     }))
 
     const closePreview = (): void => { previewOpen.value = false }
 
-    /** 遮罩里的按钮条：只留关闭（缩放贴棋盘，见 previewZoomActions） */
+    /** 遮罩里的按钮条：只留关闭（缩放贴在棋盘自己身上，见 BoardView） */
     const previewActions = computed<Actions>(() => [
         actionOf(ACTION.close, closePreview),
     ])
-
-    /** 贴棋盘正上方的缩放圆圈（左缩小、右放大） */
-    const previewZoomActions = computed<Actions>(() => zoomActions.value)
 
     /** answer=true 看答案预览（仅我的题目），false 看题目预览 */
     const showPreview = async (id: string, answer: boolean, title: string): Promise<void> => {
@@ -55,12 +49,11 @@ export const usePuzzlePreview = (load: (id: string) => Promise<PreviewSource | n
 
             previewTitle.value = title
             previewBoard.value = { board: fromPuzzle(parsed.board, true), boxSize: parsed.boxSize }
-            resetZoom(defaultZoomOf(parsed.boxSize))
             previewOpen.value = true
         } finally {
             previewLoading.value = false
         }
     }
 
-    return { previewOpen, previewTitle, previewInput, previewLoading, previewActions, previewZoomActions, showPreview, closePreview }
+    return { previewOpen, previewTitle, previewInput, previewLoading, previewActions, showPreview, closePreview }
 }
