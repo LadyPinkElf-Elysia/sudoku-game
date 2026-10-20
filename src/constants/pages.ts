@@ -4,6 +4,7 @@ export const PAGE = {
     DifficultySystem: 'difficulty-system',
     DifficultyCustom: 'difficulty-custom',
     Game: 'game',
+    Resume: 'resume',
     Create: 'create',
     EditPuzzle: 'edit-puzzle',
     PuzzleView: 'puzzle-view',

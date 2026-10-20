@@ -77,6 +77,10 @@
 | `ARCHITECTURE.md` | v1.9.16 变更记录 · E2 改 `boardGeometryOf` / `prepareCanvas` · §九 types 索引补新类型 · §六 归位原则 ＋useStartFromTexts |
 | `CODE-GUIDE.md` | §2.5/§2.6 动作清单 · §3.7 ＋"从 store 归位出来的业务"一形 · §5.2 求解链的 `startInput(Solve, …)` |
 | `REQUIREMENTS.md` | 决策 ＋80（三处归位 + 性能重排）· §0 术语表的挑战动作改指 `useStartFromTexts` · 决策 71 加归位旁注 |
+| `constants/actions.ts` ＋ `core/action.ts`（新） | **按钮条文案收成一张表**（`ACTION`：key + **字面量文案**，不指向别的 COPY）＋ 拼装函数 `actionOf` / `submitSpecOf`；13 个文件的 `{ key, text }` 字面量全部改为 `actionOf(ACTION.x, …)`（06 册 §5.6 ⑩ · 04 册 §1.1） |
+| `constants/copy.ts`（新） | **除按钮条外的全部文案**从 `constants/game|puzzle|solve|user` 搬进这一处（那四个文件只剩数据）；`PUZZLE_VISIBILITY_OPTIONS` 一并搬入（constants 之间不许互相 import） |
+| `services/saveGame.ts` ＋ `useGameSave.ts` ＋ `restoreGame`（新） | **游戏页「💾 存档」/ 主页「💾 继续游戏」（列表页，没存档也照进 → 空态）**：`GameSave` 只存真源（含 `snapshots` + `currentStep`，进度条原样回来）；`writePref` 改为返回 `boolean`（06 册 §5.8 · 08 册 §3.5 · 09 册 链路 13 · 05 册 §1 注 · 07 册 HomePage/ResumePage/GamePage） |
+| `useGameFlow` / `useQuery…` 等 | 「📖 答案」改为**挑战专属**（`origin === Challenge && solution.length`）：系统生成 / 自定义都不再显示（06 册 §5.6 判据表） |
 
 > **约定**：以后每次"归位 / 拆文件 / 改名"都照这一节登记 —— **一册一节，读者能按图找到**。
 

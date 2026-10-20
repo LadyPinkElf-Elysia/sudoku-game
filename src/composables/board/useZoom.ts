@@ -1,4 +1,5 @@
-import { ACTION, actionOf } from "@/constants/actions"
+import { ACTION } from "@/constants/actions"
+import { actionOf } from "@/core/action"
 import { BOARD_ZOOM } from "@/constants/board"
 import { canZoomInFrom, canZoomOutFrom, clampZoom, defaultZoomOf, zoomInOf, zoomOutOf } from "@/core/board/zoom"
 import type { Actions } from "@/types/item"

@@ -1,8 +1,18 @@
 # 06 · composables 逐文件详解
 
-> **这一册讲什么**：`src/composables/` **20 个 `use*` 组合式 + 1 个文本 helper（`metaText.ts`，E8 例外）**，逐个讲透 —— 它们是**"编排层"**：把 `stores`（状态）与 `core`（算法）、`services`（取数）**串成用户流程**。
+> **这一册讲什么**：`src/composables/` **21 个 `use*` 组合式 + 1 个文本 helper（`metaText.ts`，E8 例外）**，逐个讲透 —— 它们是**"编排层"**：把 `stores`（状态）与 `core`（算法）、`services`（取数）**串成用户流程**。
 > **前置**：01 册（`ref`/`watch`/生命周期/router）、04 册（core 各函数）、05 册（三个 store）。
 > **本册要回答的核心问题**：**"这段逻辑为什么不放 store、也不放组件，而要单独写成一个 composable？"**
+
+> **⚠️ 2026-10 结构变化（读本册前必看）**：按**"只抽可复用的"**原则，**单页专用**的组合式已经**就地写进各自页面**
+> （页面预算放宽到 ≤30 顶层声明 / ≤400 行）：
+> `auth/useAuth`→LoginPage · `auth/useAccountMenu`→AppLayout · `auth/useAccountPanel`→MyPuzzlesPage ·
+> `game/useDifficultyFlow`→SystemPage · `game/useCreateFlow`→CreatePage · `game/useEditFlow`→EditPuzzlePage ·
+> `game/useCustomFlow`→CustomPage · `game/useGameFlow`→GamePage · `puzzle/useSearchPuzzle`→SearchPage ·
+> `puzzle/useMyPuzzles`→MyPuzzlesPage · `solve/useSolveFlow`→SolvePage · `usePuzzleExport` 并入 `useGameFlow`。
+> **下面相应小节保留作"设计说明"**（讲的是同一份逻辑，只是搬到了页面里）；仍留在 `composables/` 的只有：
+> `useListQuery` · `useClipboard` · `useZoom`/`useBoardZoom` · `useBoardCanvas`（组件级基础设施）· `usePuzzleStage` ·
+> `usePuzzlePreview` · `usePuzzleDetail` · `useStartFromTexts` · `useGameSave` · `metaText`（E8）。
 
 ---
 
@@ -17,7 +27,7 @@
 
 ---
 
-## 1. 全景：19 个文件的分工
+## 1. 全景：21 个组合式 + 1 个 helper 的分工
 
 ### 1.1 清单
 
@@ -31,7 +41,8 @@
 | | `auth/useAccountPanel.ts` | 48 | 「我的」页账号区（就地重命名、退出、uid 取值） |
 | **board** | `board/useZoom.ts` | 34 | 缩放状态 + 按钮数据（01 册已细讲） |
 | | `board/useBoardCanvas.ts` | 61 | 棋盘画布：绑 canvas、随入参重绘、点击换算（01 册已细讲） |
-| **game** | `game/useGameFlow.ts` | 105 | 游玩页：提示、答案遮罩、导出、按钮条、通关（01 册已细讲） |
+| **game** | `game/useGameFlow.ts` | 110 | 游玩页：提示、存档、答案遮罩、导出、按钮条、通关（01 册已细讲） |
+| | `game/useGameSave.ts` | 69 | **一局存档**：游戏页写入 / 主页读回（真源 → localStorage → `restoreGame`，见 §5.8） |
 | | `game/useDifficultyFlow.ts` | 43 | 难度页：草稿配置 → Worker 生成 → 开局跳转 |
 | | `game/useCreateFlow.ts` | 94 | 出题页：标题 + 两阶段 + POST 入库 |
 | | `game/useEditFlow.ts` | 77 | 编辑页：载入自己的题面 → 两阶段 → PATCH |
@@ -635,8 +646,8 @@ export const useZoom = (initial: number = BOARD_ZOOM.min) => {
     const canZoomOut = computed(() => canZoomOutFrom(zoom.value))
     /** 缩放这一对按钮的数据：到界就不给点击函数（组件就渲染成纯文本） */
     const zoomActions: ComputedRef<Actions> = computed(() => [
-        { key: 'zoomOut', text: '➖', onClick: canZoomOut.value ? zoomOut : undefined },
-        { key: 'zoomIn', text: '➕', onClick: canZoomIn.value ? zoomIn : undefined },
+        actionOf(ACTION.zoomOut, canZoomOut.value ? zoomOut : undefined),
+        actionOf(ACTION.zoomIn, canZoomIn.value ? zoomIn : undefined),
     ])
     return { zoom, zoomIn, zoomOut, resetZoom, canZoomIn, canZoomOut, zoomActions }
 }
@@ -1558,19 +1569,23 @@ export const useGameFlow = () => {
 
 ```ts
 const trailActions = computed<Actions>(() => [
-    { key: 'hint', text: '💡 提示', onClick: hint },                 // 永远有
-    ...(gameStore.origin === GAME_ORIGIN.System ? [导出] : []),       // 只有系统题
-    ...(gameStore.solution.length ? [答案] : []),                     // 只有有答案
-    ...(import.meta.env.DEV ? [作弊] : []),                           // 只有开发环境
+    actionOf(ACTION.hint, hint),                                              // 永远有
+    actionOf(ACTION.saveGame, saveGame),                                      // 永远有（存档，§5.8）
+    ...(gameStore.origin === GAME_ORIGIN.System ? [actionOf(ACTION.exportPuzzle, exportPuzzle)] : []),
+    ...(gameStore.origin === GAME_ORIGIN.Challenge && gameStore.solution.length
+        ? [actionOf(ACTION.answer, () => { answerOpen.value = true })]
+        : []),
+    ...(import.meta.env.DEV ? [actionOf(ACTION.cheat, gameStore.fillSolution)] : []),
 ])
 ```
 
-三个条件分别对应三类"业务事实"：
+四个条件分别对应三类"业务事实" + 一个"永远有"：
 
 | 按钮 | 条件 | 为什么 |
 |---|---|---|
+| 💾 存档 | **永远有** | 存的是**玩家自己的动作**，与题目来源无关（整局真源 → localStorage，见 §5.8） |
 | 📋 导出题目 | `origin === System` | 自定义的串**本来就在用户手上**；挑战题有 pid、落地页可分享 → 只有系统题需要"导出" |
-| 📖 答案 | `solution.length > 0` | 答案可能没下发（`show_solution = 0` 的公开题，02 册 §5.6）→ 没答案就不该有这个按钮 |
+| 📖 答案 | **`origin === Challenge`** 且 `solution.length > 0` | **只给挑战**：系统生成的答案由程序算出、自定义的答案是你自己填的 —— 都等于把答案摊在眼前；挑战是**别人出的题**，看答案才算"参考答案"；没有答案串的挑战也不给（点了是空盘） |
 | ⚡ 作弊 | `import.meta.env.DEV` | 生产产物里**整段代码被压缩器删除**（01 册 §3.8）；它调的是 `gameStore.fillSolution`（原 `cheat`，"作弊"只是**按钮文案**，见 05 册 §2.18） |
 
 **收益**：页面模板里只有一句 `v-for="a in items"`（`items = [...leadActions, ...trailActions]`，01 册 §1.4）——
@@ -1659,6 +1674,27 @@ const items = computed(() => [...leadActions.value, ...trailActions.value])   //
 **页面从头到尾没有一句业务判断** —— 这就是"编排层"存在的意义：
 **把"什么时候显示什么、点了做什么"全部收进 composable，页面只负责摆位置。**
 
+**⑩ 按钮条只有一份文案表（`constants/actions.ts` + `core/action.ts`）**
+
+上面那段 `actionOf(ACTION.hint, hint)` 就是这套约定的样子 —— **`key` 与文案不再写在各页面里**：
+
+| 文件 | 放什么 | 为什么在这 |
+|---|---|---|
+| `constants/actions.ts` | **`ACTION` 表**：`back` / `saveGame` / `answer` / `submitPuzzle` … 每项 `{ key, text }` | 文案是**数据**（R10：constants 只放值）；**按钮上的字直接写在这张表里** —— 不指向别的 COPY、也不拼字符串（"改一处就是改这一行"） |
+| `core/action.ts` | `actionOf(spec, onClick?)` · `submitSpecOf(phase)` | 纯拼装（**不传 onClick = 纯文本/禁用态**），以及唯一一处"阶段 → 提交按钮"的映射；**函数不能放 `constants/`**（R8 只允许 UPPER_SNAKE 的值） |
+| 页面 / composable | 只写 `actionOf(ACTION.x, handler)` | 它们只回答"用哪颗 + 点了做什么" |
+
+**那"不是按钮"的文案呢**：全部在 **`constants/copy.ts`**（遮罩 / 表单 / 空态 / 徽标 / 元信息标签 / 校验提示…）。
+原先它们散在 `constants/game|puzzle|solve|user` 里，2026-10 起**只剩一处**；那四个文件只留**数据与取值**
+（`GAME_MODE` / `VISIBILITY` / `SOLVE_LIMIT_OPTIONS`…）。
+> **两条铁律**：① 按钮上的字 → `constants/actions.ts`；② 其余文案 → `constants/copy.ts`。
+> 不要再往 `constants/game.ts` 之类的地方加文案（`constants` 之间还不许互相 import —— R2 矩阵里它的 src 白名单是空的）。
+
+**为什么值得单独建表**：同一个按钮的文案过去散在十几个文件里（`'◀ 返回'` / `'↩ 返回'` / `'← 我的题目'` / `'📤 提交题目'` / `'➖'`…），
+改一次措辞要改多处、必漏一处；现在**一处改、全站一致**。
+**两个约定**：① `key` 只要求在**同一条按钮条内**唯一（`back` / `close` 在不同条里重复是正常的）；
+② **新增按钮先往 `ACTION` 表里加一项**，不要在页面里写 `{ key, text }` 字面量。
+
 ### 5.7 `game/useStartFromTexts.ts`（32 行）—— 「挑战」开局（**从 store 归位出来的业务**）
 
 ```ts
@@ -1713,7 +1749,93 @@ export const useStartFromTexts = () => {
 
 > **同一个函数、两种用法**：`source` 是**可选参数** —— "要就传、不要就不传"，而不是写两个函数（与 §5.1 的 `draft`、§6.2 的 `closeText` 同一种"默认值服务多数情况"）。
 
-### 5.8 七个 game composable 的横向总结
+### 5.8 `game/useGameSave.ts`（91 行）—— 存档（**游戏页写入、继续游戏页按条读回**）
+
+```ts
+export const useGameSave = () => {
+    const gameStore = useGameStore()
+    const router = useRouter()
+
+    /** 存档列表（继续游戏页渲染它；服务侧已按存档时间倒序） */
+    const saves = ref<GameSave[]>(readSaves())
+    /** （没有 hasSave：入口不拦截，列表页自己显示空态） */
+    /** 一次性提示（空盘 / 存不下 / 没存档）——游戏页复用同一条 tip 行 */
+    const tip = ref('')
+
+    /** 存档：返回给用户看的提示文案（同时写进 tip） */
+    const save = (): string => {
+        if (!gameStore.board.length) { tip.value = SAVE_COPY.empty; return tip.value }
+
+        const data: GameSave = {
+            version: SAVE.version,
+            id: slotId,                                   // ★ 本局一行：重复存档覆盖同一条
+            savedAt: Date.now(),
+            origin: gameStore.origin,
+            meta: { ...gameStore.meta },
+            config: { ...gameStore.config },
+            solution: gameStore.solution,
+            snapshots: gameStore.snapshots,
+            currentStep: gameStore.currentStep,
+            selected: gameStore.selected,
+        }
+
+        const ok = writeSave(data)
+        hasSave.value = ok || hasSave.value
+        tip.value = ok ? SAVE_COPY.saved : SAVE_COPY.tooBig
+        return tip.value
+    }
+
+    /** 继续某一条：恢复真源后跳游戏页；false = 这条已经不在了 */
+    const resume = async (id: string): Promise<boolean> => {
+        const data = saves.value.find((item) => item.id === id)
+        if (!data) { refresh(); tip.value = SAVE_COPY.empty; return false }
+        gameStore.restoreGame(data)                       // ★ 只写 store 的真源
+        await router.push({ name: PAGE.Game })
+        return true
+    }
+
+    /** 删某一条（继续游戏页每行的「删除」） */
+    const remove = (id: string): void => {
+        tip.value = removeSaveById(id) ? SAVE_COPY.removed : SAVE_COPY.empty
+        refresh()
+    }
+}
+```
+
+**三层分工（这一节最值得记的一张三行表）**：
+
+| 层 | 文件 | 只做 |
+|---|---|---|
+| 〔适配〕 | `services/saveGame.ts` | `JSON.parse/stringify` + **结构校验**（坏数据当场清掉）+ `localStorage` 读写 |
+| 〔状态〕 | `stores/game.ts` 的 `restoreGame(save)` | 把存档里的**真源**写回（不解析、不校验、不跳页） |
+| 〔编排〕 | 本文件 | 组数据、给提示、**跳页** |
+
+**① 为什么必须存"快照"而不只是盘面**：历史进度条是**产品承诺**的一部分 ——
+只存 `board` 的话，读档回来 `snapshots` 只有 1 步，进度条直接"归零"；存 `snapshots + currentStep` 才叫"原样回来"。
+（快照里的 `Cell.lock` 也一并存了 → 题面粗体 / 玩家蓝色的配色不会丢。）
+
+**② 为什么 `save()` 返回字符串**：游戏页把提示显示在**同一条 `tip` 行**（和「💡 提示」共用），
+所以 composable 不自己弹东西，只**把文案 return 出去**；`useGameFlow` 里就一行 `tip.value = storeSave()`。
+
+**③ 列表页自己消化"没有存档"**：`ResumePage` 只判断 `saves.length` → 空就显示 `SAVE_COPY.empty`；
+**主页入口不做任何拦截**（不灰显、不弹提示）—— "进去看一眼"比"点了没反应"清楚得多。
+
+**④ 大小上限是诚实的能力边界**：`SAVE.maxChars = 150 万字符`。为什么不是"随便存"：
+`snapshots` 是**每一步一整盘 `Cell`**，B=10（100×100）时一步就 ≈200KB；而 localStorage 配额是**按域算的** ——
+写爆的代价是"整个站点所有本地存储都写不进"（连分页偏好都失效）→ 宁可拒绝，并提示"换小一点的盘面"。
+
+**⑤ 读档用 `push` 而不是 `replace`**：读档后按「◀ 返回」应回到主页（= 你来的地方）——
+与 §5.6 ⑤ 的"返回来源靠历史"是同一条纪律。
+
+**⑥ 损坏存档的处理**：`readSaves()` 里 `JSON.parse` 失败 / 版本不对 / 形状不对 → **坏条单条丢弃**（整表坏才清空），
+`resume()` 给一句"还没有存档"。**为什么不保留**：坏存档会让页面每次进都崩，而用户不知道该删什么 ——
+"直接丢掉 + 一句人话提示"才是可维护的选择（版本号 `SAVE.version` 就是为这一条服务的）。
+
+**⑦ 列表页（`pages/ResumePage.vue`）是"一排笨条"**：它只做三件事 —— 遍历 `saves`、把 `titleOf/infoOf` 画成两行、
+给每行拼两颗文字按钮（`actionOf(ACTION.resumeSave, …)` / `actionOf(ACTION.removeSave, …)`）。
+**"一条 = 一行"** 由 `SAVE.maxCount`（10）与 `services/saveGame.ts` 的"超出丢最旧"共同保证。
+
+### 5.9 八个 game composable 的横向总结
 
 | | 输入 | 输出（给页面） | 调了哪些 core / store / services |
 |---|---|---|---|
@@ -1723,7 +1845,8 @@ export const useStartFromTexts = () => {
 | `useEditFlow` | URL 的 `pid` | `pid/3 状态/4 动作` | `usePuzzleStage` · core（`parsePuzzle`/`boardToStr`）· services（`getOne`/`update`）· store（`startInput`） |
 | `useCustomFlow` | 两串文本 | `5 输入/2 提示/按钮条/apply` | core（`parsePuzzle`/`isBlankBoard`/`hasEmptyGroup`/`validatePuzzle`/`blankRatioErrorOf`/`boardToStr`/`countBlanks`/`cellCountOf`/`sideOf`）· services（`create`）· **3 个 store** |
 | `useStartFromTexts` | 题面/答案串 + `source?` | `startFromTexts(...) → boolean` | core（`parsePuzzle`/`cellCountOf`）· store（`startGame`） |
-| `useGameFlow` | 无（全靠 store） | `tip/两个遮罩/4 组按钮条/2 个渲染入参` | core（`hintTextOf`/`givenBoard`/`boardToStr`/`defaultZoomOf`）· store（`jump`/`getCandidates`/`fillSolution`/`takeSavedTip`）· `useZoom`/`usePuzzleExport` |
+| `useGameFlow` | 无（全靠 store） | `tip/两个遮罩/4 组按钮条/2 个渲染入参` | core（`hintTextOf`/`givenBoard`/`boardToStr`/`defaultZoomOf`）· store（`jump`/`getCandidates`/`fillSolution`/`takeSavedTip`）· `useZoom`/`usePuzzleExport`/`useGameSave` |
+| `useGameSave` | 无（读 store 真源） | `hasSave/tip/save/resume/clear` | services（`writeSave`/`readSave`/`hasSavedGame`）· store（`restoreGame` + 真源） |
 
 **读这张表你能看出编排层的三条规律**：
 1. **输入都是"用户输入"或"URL"**（没有一个 composable 自己去网络/存储里"找参数"）；

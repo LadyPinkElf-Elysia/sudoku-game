@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
-import { ACTION, actionOf } from '@/constants/actions'
+import { ACTION } from '@/constants/actions'
+import { actionOf } from '@/core/action'
 import { fromPuzzle } from '@/core/board/model'
 import { parsePuzzle } from '@/core/sudoku/parse'
 import { useZoom } from '@/composables/board/useZoom'

@@ -1,4 +1,4 @@
-import { EMPTY_GROUP_COPY, RATIO_COPY } from '../constants/game'
+import { EMPTY_GROUP_COPY, RATIO_COPY } from '../constants/copy'
 import { countBlanks, isBlankBoard } from './board/ops'
 import { percentOf } from './game/derive'
 import { cellCountOf, isBlankRatioOk } from './sudoku/shape'

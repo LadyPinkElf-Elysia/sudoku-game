@@ -8,8 +8,8 @@ export const readPref = (key: string): string => {
     try { return localStorage.getItem(PREFIX + key) ?? '' } catch { return '' }
 }
 
-export const writePref = (key: string, value: string): void => {
-    try { localStorage.setItem(PREFIX + key, value) } catch { /* 忽略 */ }
+export const writePref = (key: string, value: string): boolean => {
+    try { localStorage.setItem(PREFIX + key, value); return true } catch { return false }
 }
 
 export const clearPref = (key: string): void => {

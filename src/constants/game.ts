@@ -1,3 +1,9 @@
+/**
+ * 游戏域的**纯数据常量**（配置 / 状态 / 模式 / 来源 / 规模 / 上限）
+ * · 文案统一在 `constants/copy.ts`
+ * · 按钮上的字在 `constants/actions.ts` 的 `ACTION` 表
+ */
+
 /** 游戏配置默认值 boxSize = 宫边长 B，盘面边长 S = B² */
 export const GAME_INIT_CONFIG = {
     boxSize: 3,
@@ -27,9 +33,16 @@ export const GAME_ORIGIN = {
     Challenge: 'challenge',
 } as const
 
-/** 逻辑驱动的静态文案（纯静态、无格式化 → 放数据层） */
-export const GAME_COPY = {
-    win: { title: '🎉 恭喜完成', desc: '全部填对，太厉害了' },
+/**
+ * 一局存档（本地）的落盘参数 —— 适配器在 `services/saveGame.ts`
+ * · `key` 下存的是**一个数组**（可以有多条存档；继续游戏页按条列出）
+ * · `maxCount` 条数上限（超出丢最旧的）；`maxChars` 是**字符数**上限（localStorage 一般 5MB，按 UTF-16 粗算留一半余量）
+ */
+export const SAVE = {
+    key: 'gameSaves',
+    version: 2,
+    maxCount: 10,
+    maxChars: 1500000,
 } as const
 
 /** 出题页阶段 */
@@ -57,50 +70,8 @@ export const DEFAULT_TIMEOUT = 15000
 /** 题目标题长度上限 */
 export const TITLE_MAX = 40
 
-/** 出题页标题默认值前缀（实际默认标题 = 「我的题目 9×9」，边长由 core 算） */
-export const TITLE_PREFIX = '我的题目'
-
-/** 入库前的挖空比例提示（出题 / 编辑 / 自定义共用；当前百分比现场拼） */
-export const RATIO_COPY = {
-    bad: '挖空比例需在 40%~65% 之间',
-} as const
-
-/** 题面不得出现「整行 / 整列 / 整宫全空」（自定义 / 出题 / 编辑提交题面时校验） */
-export const EMPTY_GROUP_COPY = {
-    bad: '题面不能有整行 / 整列 / 整宫全空',
-} as const
-
-/** 游戏页「📋 导出题目」：把这一盘的题面变成可解析的串（与 parsePuzzle 对称；**不含答案**） */
-export const EXPORT_COPY = {
-    button: '📋 导出题目',
-    title: '题目导出',
-    puzzleLabel: '题面串（粘贴到「题目求解」或「自定义」即可用）',
-    puzzleShort: '题面串',
-    copyPuzzle: '📋 复制题面',
-    copyFail: '复制失败，请手动选中文本复制',
-    close: '↩ 返回',
-} as const
-
 /**
  * 自定义 / 求解页 textarea 的输入上限：按最大盘面 B=10 算（100×100 = 10000 个数字
  * + 最多 9999 个分隔符 ≈ 2 万字符），再留余量 —— 原来只按 B=6（1296）算，大棋盘串会被截断
  */
 export const CUSTOM_TEXT_MAX = 20000
-
-/** 自定义开局页静态文案 */
-export const CUSTOM_COPY = {
-    puzzleLabel: '题面（0 表示空格；空格 / 逗号 / 换行分隔）',
-    solutionLabel: '答案（全非 0，尺寸必须与题面一致）',
-    saveLabel: '提交到我的题目',
-    titlePlaceholder: '给这道题起个名字（1~40 位）',
-    validating: '正在校验并提交…',
-    empty: '题面与答案都必须填写',
-    badPuzzle: '题面格式不对（数字个数需为 16 / 81 / 256 / 625 / 1296 / 2401 / 4096 / 6561 / 10000）',
-    badSolution: '答案格式不对（应为全非 0 的合法终盘）',
-    sizeMismatch: '盘面大小必须一致',
-    puzzleBlank: '题面不能全空',
-    emptyGroup: '题面不能有整行 / 整列 / 整宫全空',
-    notMatched: '题面与答案不一致，或答案不是合法终盘',
-    needTitle: '请填写标题（1~40 位）',
-    saved: '已保存到我的题目',
-} as const

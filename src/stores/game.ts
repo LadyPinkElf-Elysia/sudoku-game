@@ -5,7 +5,7 @@ import { statusOf } from '@/core/game/derive'
 import { cellCountOf } from '@/core/sudoku/shape'
 import { getSudoku } from '@/core/sudoku/rules'
 import type { Board, Cell, ConflictMask, NumBoard, Position, Snapshot } from '@/types/board'
-import type { GameConfig, GameMeta, GameMode, GameOrigin, GameStatus } from '@/types/game'
+import type { GameConfig, GameMeta, GameMode, GameOrigin, GameSave, GameStatus } from '@/types/game'
 import type { Sudoku } from '@/types/sudoku'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -95,6 +95,23 @@ export const useGameStore = defineStore('gameStore', () => {
         resetHistory()
     }
 
+    /**
+     * 读档：把存档里的真源写回来（派生值自动重算；历史与当前步一并恢复）
+     * · 只写 `startGame` 会写的那几个字段，外加历史/当前步/选中 —— 不做任何"校验/修正"
+     *   （结构校验在 services/saveGame.ts 的 isSave；这里只认已经合法的数据）
+     */
+    const restoreGame = (save: GameSave): void => {
+        mode.value = GAME_MODE.Game
+        origin.value = save.origin
+        config.value = { ...save.config }
+        meta.value = { ...save.meta }
+        solution.value = save.solution
+        snapshots.value = save.snapshots.map(cloneBoard)
+        currentStep.value = save.currentStep
+        board.value = cloneBoard(snapshots.value[save.currentStep])
+        selected.value = save.selected
+    }
+
     /** 提交题面：锁定规则在 core，这里只写回 */
     const lockPuzzle = (): void => {
         board.value = lockGiven(board.value)
@@ -137,8 +154,8 @@ export const useGameStore = defineStore('gameStore', () => {
         // 规则派生
         sudoku, numBoard, status, isWin, conflictMask, selectedCell,
 
-        // 基本操作（只写上面的真源；开局只有"给定数据"的两个入口）
-        startGame, startInput, select, inputNum, jump, lockPuzzle, fillSolution,
+        // 基本操作（只写上面的真源；开局只有"给定数据"的两个入口 + 读档）
+        startGame, startInput, restoreGame, select, inputNum, jump, lockPuzzle, fillSolution,
 
         // 规则查询
         getCandidates,

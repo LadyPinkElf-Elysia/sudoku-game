@@ -1,4 +1,4 @@
-import { AUTH_COPY } from '../../src/constants/user'
+import { AUTH_COPY } from '../../src/constants/copy'
 import type { Env } from '../types'
 import { fail } from './json'
 

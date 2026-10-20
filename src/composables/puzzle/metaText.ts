@@ -1,4 +1,4 @@
-import { PUZZLE_META_COPY } from '@/constants/puzzle'
+import { PUZZLE_META_COPY } from '@/constants/copy'
 
 /** 题目元信息一行的字段（列表项 / 题目详情共用） */
 export interface MetaParts {

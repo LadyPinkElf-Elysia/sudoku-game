@@ -1,6 +1,6 @@
 # 05 · stores 逐文件详解
 
-> **这一册讲什么**：`src/stores/` 三个文件（`game.ts` 146 行 / `puzzle.ts` 104 行 / `user.ts` 39 行）**逐段**讲透：
+> **这一册讲什么**：`src/stores/` 三个文件（`game.ts` 163 行 / `puzzle.ts` 104 行 / `user.ts` 39 行）**逐段**讲透：
 > 每个 `ref` 为什么值得存、每个 `computed` 在算什么、每个 action 调了哪个 core/services 函数、以及**什么数据不该进 store**。
 > **前置**：01 册 §2（Pinia 基础）、03 册 §4 R4（数据层不写算法）、04 册（core 的每个函数长什么样）。
 
@@ -37,6 +37,11 @@
 > · `cheat()` → 更名 **`fillSolution()`**（store 只留"按答案填盘"这个基本操作，业务名留在按钮文案里）
 > 于是 store 的表面对齐成四组 —— **真源 / 规则派生 / 基本操作 / 规则查询**（见 `stores/game.ts` 顶部注释）。
 > **下文若出现旧名字（`startCreate` / `startSolve` / `startFromTexts` / `cheat`），一律以本注的映射为准。**
+
+> **2026-10 新增（存档）**：store 多了一个"读档"基本操作 **`restoreGame(save)`** —— 它只把存档里的**真源**写回
+> （`mode` / `origin` / `config` / `meta` / `solution` / `snapshots` / `currentStep` / `board` / `selected`），
+> **不解析 JSON、不读 localStorage、不做校验**（结构校验在 `services/saveGame.ts`，落盘与提示在 `composables/game/useGameSave.ts`）。
+> 与 `startGame` 的唯一区别：`startGame` 从"题面 + 答案"造一盘**新**棋局，`restoreGame` 把**历史**也一起搬回来（进度条才对得上）。
 
 ### 1.2 为什么只有三个 store（判据回顾）
 

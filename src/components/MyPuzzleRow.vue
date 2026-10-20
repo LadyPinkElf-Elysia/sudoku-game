@@ -7,7 +7,8 @@ import SecretValue from './SecretValue.vue';
 import TextAction from './TextAction.vue';
 import { metaTextOf } from '@/composables/puzzle/metaText';
 import { TITLE_MAX } from '@/constants/game';
-import { MINE_COPY, PUZZLE_VISIBILITY_OPTIONS, SOLUTION_OPTIONS, SOLUTION_VALUE } from '@/constants/puzzle';
+import { MINE_COPY, PUZZLE_VISIBILITY_OPTIONS } from '@/constants/copy';
+import { SOLUTION_OPTIONS, SOLUTION_VALUE } from '@/constants/puzzle';
 import type { Actions, MyPuzzleRowControls } from '@/types/item';
 import type { MyPuzzle, Visibility } from '@/types/puzzle';
 

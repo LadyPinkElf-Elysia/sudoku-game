@@ -1,4 +1,5 @@
-import { AUTH_COPY, PASSWORD_MIN, UNAME_PATTERN } from '../../src/constants/user'
+import { AUTH_COPY } from '../../src/constants/copy'
+import { PASSWORD_MIN, UNAME_PATTERN } from '../../src/constants/user'
 import { hashPassword, makeSalt, makeToken, SESSION_TTL } from '../utils/auth'
 import { makeUid, makeUniqueId } from '../utils/id'
 import { fail, json } from '../utils/json'

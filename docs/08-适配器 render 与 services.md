@@ -442,13 +442,17 @@ const PREFIX = 'sudoku.'
 export const readPref = (key: string): string => {
     try { return localStorage.getItem(PREFIX + key) ?? '' } catch { return '' }
 }
-export const writePref = (key: string, value: string): void => {
-    try { localStorage.setItem(PREFIX + key, value) } catch { /* 忽略 */ }
+export const writePref = (key: string, value: string): boolean => {
+    try { localStorage.setItem(PREFIX + key, value); return true } catch { return false }
 }
 export const clearPref = (key: string): void => {
     try { localStorage.removeItem(PREFIX + key) } catch { /* 忽略 */ }
 }
 ```
+
+**`writePref` 为什么返回 `boolean`**：读的时候可以用缺省值把"读不到"变成"空串"（调用方无需处理 `null`）；
+但**"写不进"必须能被知道** —— 配额满 / 隐私模式下 `setItem` 会抛错，存档（§3.5）要如实告诉用户"存不下"，
+不能假装成功。**读用缺省值、写用返回值**，是这一层最省事的分工。
 
 **适配器的三条纪律在这里都体现了**：
 | 纪律 | 体现 |
@@ -460,6 +464,47 @@ export const clearPref = (key: string): void => {
 **谁在用它**（两个调用方，都是"纯偏好"）：
 - `useListQuery`：`pagerMode`（06 册 §2.4 ③）；
 - `services/api/session.ts`：token 与 lastUid（**借用了同一套前缀规则**，注释里写明了）。
+
+---
+
+## 3.5 `services/saveGame.ts`（90 行）—— 一局存档的落盘与结构校验
+
+**① 它是谁**：**localStorage 上的"带结构的适配器"** —— 把一局游戏（`GameSave`）序列化后存进 `sudoku.gameSave`，
+读回来时**先校验形状再交给 store**。键名 / 版本 / 大小上限在 `constants/game.ts` 的 `SAVE`，文案在 `SAVE_COPY`。
+
+```ts
+const isSquare = (v: unknown, size: number): v is unknown[][] => …      // 方阵形状
+const isNumBoard = (v: unknown, size: number): v is NumBoard => …      // 0..S 的整数方阵
+const isBoard = (v: unknown, size: number): v is Board => …            // 每个格子 { v, lock }
+const isSave = (v: unknown): v is GameSave => { …version / id / 尺寸 / 每一步快照 / 当前步… }
+
+export const hasSave = (): boolean => readPref(SAVE.key) !== ''
+export const readSaves = (): GameSave[] => { …逐条丢弃坏数据 + 按 savedAt 倒序… }
+export const writeSaves = (list: GameSave[]): boolean => {
+    let raw = ''
+    try { raw = JSON.stringify(list) } catch { return false }
+    return raw.length <= SAVE.maxChars && writePref(SAVE.key, raw)
+}
+export const addSave = (save: GameSave): boolean =>              // 同 id 覆盖；超条数丢最旧
+    writeSaves([save, ...readSaves().filter(s => s.id !== save.id)].slice(0, SAVE.maxCount))
+export const removeSaveById = (id: string): boolean => { …删一条… }
+export const clearSaves = (): void => clearPref(SAVE.key)
+```
+
+**② 为什么读的时候要"当不可信输入"**：localStorage 是**用户随手能改**的地方（DevTools 一行就能改），
+而且**旧版本代码写下的数据会留在新版本里**。所以 `readSave` 三步：
+`JSON.parse` 包 try/catch → `isSave` 逐层校验（方阵 / 单元格 `{v, lock}` / `currentStep` 在范围内）→ 不合格就 `clearPref` + 返回 `null`。
+> 一句话：**"校验一次、坏数据清除"** 比"到处 try/catch 兜底"便宜得多 —— 之后全站可以放心信任 `GameSave` 这个类型。
+
+**③ 为什么校验里用 `sideOf(boxSize)` 而不是 `boxSize * boxSize`**：**"盘面边长怎么算"只有一个答案**，必须复用 core（04 册 §3.1）。
+（services 虽不在 R7 的禁 `Math.` 名单里，但算式归 core 是本项目的硬约定。）
+
+**④ 为什么 `writeSave` 返回 `boolean`**：失败有两种（超上限 / 存储写不进），**对用户是同一句话、对代码是同一分支**
+→ 一个布尔值就够，不必造错误码。**也不抛异常**：调用方是"用户点了个按钮"，抛出去只会变成没人处理的红色报错；
+这一层的语言是**返回值 + 文案**（与 `parsePuzzle` 返回 `null` 同款）。
+
+**⑤ 适配器纪律**：它**不认识 store、不认识路由、不认识 vue**（R2：services 只能依赖 services / core / constants / types）——
+所以既能被 `useGameSave` 调用，将来也能被别的场景复用（比如"导入一个存档文件"）。
 
 ---
 

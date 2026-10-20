@@ -1,10 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Flex from '@/components/Flex.vue'
+import { AUTH_COPY } from '@/constants/copy'
 import { PAGE } from '@/constants/pages'
-import { AUTH_COPY } from '@/constants/user'
-import { useAccountMenu } from '@/composables/auth/useAccountMenu'
+import { useUserStore } from '@/stores/user'
 
-const { isGuest, uname, showNav } = useAccountMenu()
+/**
+ * 顶栏账号位（**只有这个布局在用 → 就地写**，不再单开组合式）
+ * · 游客「👤 登录」→ 登录页；登录后「👤 用户名」→「我的」页（退出在「我的」页账号区）
+ * · 登录页自己就是入口 → 隐藏右侧那组
+ */
+const userStore = useUserStore()
+const route = useRoute()
+
+const showNav = computed<boolean>(() => route.name !== PAGE.Login)
+const isGuest = computed<boolean>(() => userStore.isGuest)
+const uname = computed<string>(() => userStore.uname)
 </script>
 
 <template>

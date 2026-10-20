@@ -1,4 +1,5 @@
-import { AUTH_COPY, UNAME_PATTERN } from '../../src/constants/user'
+import { AUTH_COPY } from '../../src/constants/copy'
+import { UNAME_PATTERN } from '../../src/constants/user'
 import { requireUser } from '../utils/auth'
 import { fail, json } from '../utils/json'
 import { toPublicUser } from '../utils/user'

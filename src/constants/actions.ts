@@ -1,17 +1,10 @@
-import { CREATE_PHASE, EXPORT_COPY } from '@/constants/game'
-import { MINE_COPY, SEARCH_COPY } from '@/constants/puzzle'
-import { SOLVE_COPY } from '@/constants/solve'
-import { AUTH_COPY } from '@/constants/user'
 import type { Action } from '@/types/item'
-import type { CreatePhase } from '@/types/game'
-
-/** 按钮条上一颗按钮的「静态部分」：key（本条内稳定标识）+ text（显示文案） */
-export type ActionSpec = Pick<Action, 'key' | 'text'>
 
 /**
- * 全站按钮条文案表 —— **一处定义，页面只挑按钮**
- * · 页面 / composable 不再自己写 `key` 与文案，只决定「用哪一颗 + 点击做什么」
- * · 文案仍来自各域 COPY（EXPORT / MINE / SOLVE / AUTH / SEARCH），这里只做「按钮 → 文案」的映射
+ * 全站按钮条文案表 —— **按钮条的文案就写在按钮条这里**
+ * · 页面 / composable 只挑按钮 + 给点击函数（拼装在 core/action.ts），不再自己写 `key` / 文案
+ * · 文案是**字面量**：不指向别的 COPY、也不拼字符串 —— 改一处就是改这一行
+ *   （行内控件 / 列表项 / 遮罩标题那些"不是按钮条"的文案，仍各在各的 COPY 里）
  * · `key` 只要求在**同一条按钮条内**唯一（back / close 在不同条里重复是正常的）
  * · 图形也算文案（R5：图标当文本，不另设图标字段）
  */
@@ -28,7 +21,12 @@ export const ACTION = {
     hint: { key: 'hint', text: '💡 提示' },
     answer: { key: 'answer', text: '📖 答案' },
     cheat: { key: 'cheat', text: '⚡ 作弊' },
-    exportPuzzle: { key: 'export', text: EXPORT_COPY.button },
+    exportPuzzle: { key: 'export', text: '📋 导出题目' },
+    saveGame: { key: 'save', text: '💾 存档' },
+
+    // —— 继续游戏（每行一个存档条：两个纯文字按钮）——
+    resumeSave: { key: 'resume', text: '继续' },
+    removeSave: { key: 'remove', text: '删除' },
 
     // —— 缩放（贴棋盘的那一对圆圈）——
     zoomOut: { key: 'zoomOut', text: '➖' },
@@ -41,31 +39,19 @@ export const ACTION = {
     startGame: { key: 'start', text: '▶ 开始游戏' },
 
     // —— 题目列表 / 预览 / 导出 ——
-    challenge: { key: 'challenge', text: `▶ ${SEARCH_COPY.challenge}` },
-    copyPuzzle: { key: 'puzzle', text: EXPORT_COPY.copyPuzzle },
-    remove: { key: 'remove', text: `🗑 ${MINE_COPY.remove}` },
-    cancel: { key: 'cancel', text: `↩ ${MINE_COPY.cancel}` },
+    challenge: { key: 'challenge', text: '▶ 挑战' },
+    copyPuzzle: { key: 'puzzle', text: '📋 复制题面' },
+    remove: { key: 'remove', text: '🗑 删除' },
+    cancel: { key: 'cancel', text: '↩ 取消' },
 
     // —— 求解页 ——
-    fillBoard: { key: 'fill', text: SOLVE_COPY.fillBoard },
-    clearBoard: { key: 'clear', text: SOLVE_COPY.clearBoard },
-    solve: { key: 'solve', text: SOLVE_COPY.solveLabel },
+    fillBoard: { key: 'fill', text: '⬇ 填入棋盘' },
+    clearBoard: { key: 'clear', text: '🧹 清空棋盘' },
+    solve: { key: 'solve', text: '🧮 求解' },
 
     // —— 账号 ——
-    logout: { key: 'logout', text: AUTH_COPY.logout },
-    copyUid: { key: 'copy', text: `📋 ${AUTH_COPY.copy}` },
-    copiedUid: { key: 'copy', text: `📋 ${AUTH_COPY.copied}` },
-    savedUid: { key: 'done', text: `➡️ ${AUTH_COPY.saved}` },
-} as const satisfies Record<string, ActionSpec>
-
-/**
- * 把「静态按钮 + 点击函数」拼成 Action
- * · 不给 `onClick` → 组件渲染成纯文本（禁用态也这么表达，全站惯例）
- * · 不写 `onClick: undefined`：没有点击函数时就不带这个键
- */
-export const actionOf = (spec: ActionSpec, onClick?: () => void): Action =>
-    onClick ? { ...spec, onClick } : { ...spec }
-
-/** 出题 / 编辑：提交按钮随阶段变（填题面 → 填答案） */
-export const submitSpecOf = (phase: CreatePhase): ActionSpec =>
-    phase === CREATE_PHASE.Puzzle ? ACTION.submitPuzzle : ACTION.submitSolution
+    logout: { key: 'logout', text: '退出' },
+    copyUid: { key: 'copy', text: '📋 复制' },
+    copiedUid: { key: 'copy', text: '📋 已复制' },
+    savedUid: { key: 'done', text: '➡️ 我已保存，开始使用' },
+} as const satisfies Record<string, Action>

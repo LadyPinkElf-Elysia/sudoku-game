@@ -32,6 +32,8 @@ const router = createRouter({
 
         { path: PAGE.Game, name: PAGE.Game, component: () => import('@/pages/GamePage.vue') },
 
+        { path: PAGE.Resume, name: PAGE.Resume, component: () => import('@/pages/ResumePage.vue') },
+
         { path: PAGE.Solve, name: PAGE.Solve, component: () => import('@/pages/SolvePage.vue') },
 
         {
@@ -71,6 +73,11 @@ router.beforeEach(async (to) => {
   if (userStore.isGuest) await userStore.restore()
   if (!userStore.isGuest) return true
   return { name: PAGE.Login, query: { redirect: to.fullPath } }
+})
+
+/** 导航失败统一打印（最常见：目标页懒加载 import 失败 → 表现成"点了没反应"） */
+router.onError((err, to) => {
+    console.error('[router] 导航失败：', to.fullPath, err)
 })
 
 export default router

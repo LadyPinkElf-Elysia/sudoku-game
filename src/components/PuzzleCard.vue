@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import Flex from './Flex.vue';
 import TextAction from './TextAction.vue';
-import { SEARCH_COPY } from '@/constants/puzzle';
+import { SEARCH_COPY } from '@/constants/copy';
 import { metaTextOf } from '@/composables/puzzle/metaText';
 import type { Action, Actions } from '@/types/item';
 import type { SearchResult } from '@/types/puzzle';

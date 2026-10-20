@@ -1,20 +1,80 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import BoardView from '@/components/BoardView.vue'
 import ListSection from '@/components/ListSection.vue'
 import Overlay from '@/components/Overlay.vue'
 import PuzzleCard from '@/components/PuzzleCard.vue'
-import { PAGER_MODE_OPTIONS, SEARCH_COPY, SORT_OPTIONS } from '@/constants/puzzle'
-import { useSearchPuzzle } from '@/composables/puzzle/useSearchPuzzle'
+import { SEARCH_COPY } from '@/constants/copy'
+import { PAGE } from '@/constants/pages'
+import { PAGER_MODE_OPTIONS, SORT_OPTIONS } from '@/constants/puzzle'
+import { UID_PATTERN } from '@/constants/user'
+import { useListQuery } from '@/composables/useListQuery'
+import { usePuzzleDetail } from '@/composables/puzzle/usePuzzleDetail'
+import { usePuzzlePreview } from '@/composables/puzzle/usePuzzlePreview'
+import { getOne } from '@/services/api/puzzleApi'
+import { usePuzzleStore } from '@/stores/puzzle'
 import type { ListBar, ListPager } from '@/types/item'
-import type { ListSort } from '@/types/puzzle'
+import type { ListSort, SearchResult } from '@/types/puzzle'
+
+/**
+ * 搜索页流程（**只有这一页用 → 就地写**）：
+ * 条件/分页/浏览偏好交给 useListQuery，预览交给 usePuzzlePreview，
+ * 这里只负责「搜索框分流（pid/uid/关键词）+ 挑战」
+ */
+const router = useRouter()
+const puzzleStore = usePuzzleStore()
+const detail = usePuzzleDetail()
+/** 预览：搜索列表只给 pid，现取详情即可（无缓存需求） */
+const preview = usePuzzlePreview((pid) => getOne(pid).catch(() => null))
+
+/** 20 位命中 uid 时的表头（「出题人：X 的公开题」） */
+const authorLabel = ref('')
+
+/** store 取值包一层 computed，页面解构后仍是响应式 */
+const items = computed<SearchResult[]>(() => puzzleStore.items)
+const pageCount = computed<number>(() => puzzleStore.pageCount)
+const loading = computed<boolean>(() => puzzleStore.loading)
+const error = computed<string>(() => puzzleStore.error)
+
+/** 取数：20 位 → 先当 pid，再当 uid；其它 → 标题/uname 模糊 */
+const load = async (q: { keyword: string; sort: ListSort; page: number }): Promise<boolean> => {
+    const text = q.keyword.trim()
+    authorLabel.value = ''
+
+    if (UID_PATTERN.test(text)) {
+        const hit = await getOne(text).catch(() => null)
+        if (hit) {
+            await router.push({ name: PAGE.PuzzleView, params: { pid: text } })
+            return false                      // 已跳落地页 → 不做页码收敛
+        }
+        await puzzleStore.search({ uid: text, sort: q.sort, page: q.page })
+        if (puzzleStore.authorUname)
+            authorLabel.value = `${SEARCH_COPY.authorPrefix}${puzzleStore.authorUname} ${SEARCH_COPY.authorSuffix}`
+        return true
+    }
+
+    await puzzleStore.search({ keyword: text, sort: q.sort, page: q.page })
+    return true
+}
+
+const list = useListQuery({ routeName: PAGE.Search, load, pageCount: () => puzzleStore.pageCount })
+const { keyword, sort, page, pagerMode, changePagerMode, onSearch, changeSort, changePage, retry } = list
+
+/** 题目预览：只读遮罩（数据走详情接口） */
+const openPreview = (pid: string): void => {
+    void preview.showPreview(pid, false, SEARCH_COPY.preview)
+}
+
+/** 列表项「挑战」：拉到详情后直接开局，不走遮罩 */
+const challenge = async (pid: string): Promise<void> => {
+    await detail.load(pid)
+    if (!detail.error.value) await detail.challenge()
+}
 
 const {
-    keyword, sort, page, pageCount, items, loading, error, authorLabel,
-    pagerMode, changePagerMode,
-    onSearch, changeSort, changePage, retry,
-    previewOpen, previewTitle, previewInput, previewActions, previewZoomActions, previewLoading, openPreview, challenge,
-} = useSearchPuzzle()
+    previewOpen, previewTitle, previewInput, previewActions, previewZoomActions, previewLoading,
+} = preview
 
 /** 列表工具条 + 分页：组件只认数据，标签/选项由本页给 */
 const listBar = computed<ListBar>(() => ({

@@ -1,4 +1,4 @@
-import { EMPTY_GROUP_COPY, RATIO_COPY } from '../../src/constants/game'
+import { EMPTY_GROUP_COPY, RATIO_COPY } from '../../src/constants/copy'
 import { countBlanks } from '../../src/core/board/ops'
 import { parsePuzzle } from '../../src/core/sudoku/parse'
 import { getSudoku } from '../../src/core/sudoku/rules'

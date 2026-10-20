@@ -1,23 +1,88 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import BoardView from '@/components/BoardView.vue'
 import Flex from '@/components/Flex.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
 import TextAction from '@/components/TextAction.vue'
-import { ACTION, actionOf, submitSpecOf } from '@/constants/actions'
-import { CREATE_PHASE } from '@/constants/game'
-import { useGameStore } from '@/stores/game'
+import { ACTION } from '@/constants/actions'
+import { CREATE_PHASE, GAME_MODE } from '@/constants/game'
+import { PAGE } from '@/constants/pages'
+import { actionOf, submitSpecOf } from '@/core/action'
+import { errorTextOf } from '@/core/message'
+import { boardToStr, parsePuzzle } from '@/core/sudoku/parse'
 import { useBoardZoom } from '@/composables/board/useZoom'
-import { useEditFlow } from '@/composables/game/useEditFlow'
+import { usePuzzleStage } from '@/composables/game/usePuzzleStage'
+import { getOne, update } from '@/services/api/puzzleApi'
+import { useGameStore } from '@/stores/game'
 import type { Actions } from '@/types/item'
 import type { BoardRenderInput } from '@/types/render'
+
+/**
+ * 编辑页流程（FR-10，**只有这一页用 → 就地写**）：载入自己的题面（未锁定）
+ * →（两阶段 / 校验交给 usePuzzleStage，出题页共用）→ PATCH → 回「我的题目」
+ */
+const route = useRoute()
+const router = useRouter()
 const gameStore = useGameStore()
 const { zoom, zoomActions } = useBoardZoom(() => gameStore.config.boxSize)
-const {
-    phase, errorMsg, loading, showFail,
-    submitPuzzle, submitSolution, backToEdit, goMyPuzzles,
-} = useEditFlow()
+
+/** 两阶段状态机（阶段 / 题面快照 / 报错 / 失败遮罩）——与出题页共用一份 */
+const { phase, puzzleSnapshot, errorMsg, showFail, resetStage, submitPuzzle, checkSolution, backToEdit } =
+    usePuzzleStage()
+
+const pid = ref('')
+const loading = ref(false)
+
+const goMyPuzzles = (): void => { void router.replace({ name: PAGE.MyPuzzles }) }
+
+/** 载入自己的题面（不预填旧答案） */
+const load = async (): Promise<void> => {
+    const id = String(route.params.pid ?? '')
+    if (!id) { goMyPuzzles(); return }
+
+    loading.value = true
+    resetStage()       // 回到「填题面」阶段（清掉上一轮残留）
+    try {
+        const detail = await getOne(id)
+        const parsed = parsePuzzle(detail.puzzleText)
+        if (!parsed) {
+            errorMsg.value = '题目数据异常，无法编辑'
+            showFail.value = true
+            return
+        }
+        pid.value = id
+        gameStore.startInput(GAME_MODE.Create, parsed.boxSize, parsed.board)   // 未锁定 → 可增量改
+    } catch (err) {
+        errorMsg.value = errorTextOf(err, '题目加载失败')
+        showFail.value = true
+    } finally {
+        loading.value = false
+    }
+}
+
+/** 提交答案：成对校验 → 转圈 PATCH（题面/答案成对提交）→ 回「我的题目」 */
+const submitSolution = async (): Promise<void> => {
+    if (loading.value) return
+    if (!checkSolution()) return
+
+    loading.value = true
+    try {
+        await update(pid.value, {
+            puzzleText: boardToStr(puzzleSnapshot.value),
+            solutionText: boardToStr(gameStore.numBoard),
+        })
+        goMyPuzzles()
+    } catch (err) {
+        errorMsg.value = errorTextOf(err, '保存失败，请重试')
+        showFail.value = true
+    } finally {
+        loading.value = false
+    }
+}
+
+onMounted(() => { void load() })
 
 /** 棋盘渲染入参：一个对象喂给 BoardView */
 const boardParams = computed<BoardRenderInput>(() => ({

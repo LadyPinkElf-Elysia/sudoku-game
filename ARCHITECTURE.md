@@ -1,4 +1,4 @@
-# 架构约束 v1.9.16（数据 · 纯函数 · 组合式）
+# 架构约束 v1.9.17（数据 · 纯函数 · 组合式）
 
 > **硬约束**：`scripts/check-arch.mjs` 是本文 R1~R15 的可执行版本（R15 与 R8 的命名语义为评审规则；
 > R11 = core 必须可测但**不强制测试**，见 §三 R11）；`pnpm guard` 违规 exit 1，`pnpm build` 不含它（= vue-tsc -b + typecheck:functions + vite build），guard 单独跑。
@@ -63,9 +63,10 @@
 `components/` 禁 `@/stores`；**也禁 `vue-router`**（路由只属于 pages / composables）。
 **布局也适用**：需要读 store 的"布局"放 `pages/`（`pages/AppLayout.vue`）。
 
-### R6 页面只接线　🔴
-声明 ≤ 10；只许 `vue`、`vue-router`、`@/components`、`@/composables`、`@/stores`、`@/constants`、`@/types`；
-**禁 `Math.`**（要显示算好的值 → 由 composable 暴露，composable 才能 import core）。
+### R6 页面只接线（**2026-10 调整：单页专用逻辑就地写**）　🔴
+声明 ≤ **30**（页面文件 ≤ **400** 行，见 R9）；只许 `vue`、`vue-router`、`@/components`、`@/composables`、`@/stores`、`@/constants`、`@/types`、`@/core`、`@/services`（后两个为"就地写流程"开放，算式仍禁）；
+**禁 `Math.`**（要显示算好的值 → 调 core 的纯函数）。
+**判据（冒烟线）**：**只被一个页面用**的流程 / 派生 / 文案就写在那个页面里；**跨页复用的**才抽成 `composables/`。
 子页面（`pages/difficulty/*.vue`）同样适用。
 
 ### R7 组合式只编排　🔴
@@ -80,7 +81,8 @@
 `composables/**` 的 `.ts` 文件名必须 `use*`（不是 composable 的纯函数模块登记为例外 E8：`puzzle/metaText.ts`）。
 
 ### R9 体量预算　🔴
-单文件 ≤ 200 行（**行数按"不含结尾换行"计**，守卫已修正 off-by-one）；`core` 单文件导出 2~8 个；
+单文件 ≤ **200** 行；**页面 ≤ 400 行**（R6 调整的配套：单页专用流程就地写，别为了行数硬抽组合式）；
+`core` 单文件导出 2~8 个；
 只有 `core` 允许「唯一入口模块」式的 1 个导出（≥ 50 行）。
 **要加第 9 个导出时不要放宽限制，改拆文件**（例：`board/model.ts` 转换 + `board/ops.ts` 操作）。
 
@@ -134,10 +136,10 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
 | R3 core 纯度 | 宿主 / `new Worker` / `Math.random`·`Date` / `console` | 🔴 |
 | R4 数据层 | `for(`·`.forEach(`·`Math.` + `vue-router` | 🔴 |
 | R5 展示层 | `@/stores`；组件禁 `vue-router` | 🔴 |
-| R6 页面 | 声明 ≤10 + 禁 `Math.` | 🔴 |
+| R6 页面 | 声明 ≤30 + 禁 `Math.` | 🔴 |
 | R7 组合式 | 禁 `Math.` | 🔴 |
 | R8 命名 | constants 导出名 `UPPER_SNAKE` + composables 文件名 `use*` | 🔴（语义部分评审） |
-| R9 体量 | 200 行 / core 2~8 导出 / 单函数模块 ≥50 行 | 🔴 |
+| R9 体量 | 200 行（**页面 400**）/ core 2~8 导出 / 单函数模块 ≥50 行 | 🔴 |
 | R10 类型归位 | types 死类型 / `Omit·Pick` 派生 / constants 不放类型 | 🔴 |
 | R11 core 可测 | 模块级可变状态（顶层 `let` / `Map` / `Set`） | 🔴（可测性；**不查测试**） |
 | R12 禁桶文件 | `export * from` | 🔴 |
@@ -240,7 +242,7 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
       pages/                AppLayout · HomePage · DifficultyPage · GamePage · CreatePage · EditPuzzlePage
                             LoginPage · SearchPage · MyPuzzlesPage · PuzzleViewPage · SolvePage
                             difficulty/{SystemPage,CustomPage}
-      constants/            board · game · pages · user · puzzle · solve
+      constants/            actions · copy · board · game · pages · user · puzzle · solve
       types/                见 §九
       styles/               card.css（页面卡片）· form.css（控件 / 状态 / 列表公共 · 子导航 Tab：.sub-nav / .sub-tab）· overlay.css（遮罩文案 / 账号卡）
       router/
@@ -383,6 +385,28 @@ core 是纯函数层，**天然可测**：不碰宿主、不用 `Math.random` / 
   ④ **store 归位（只留真源 + 规则派生 + 基本操作 + 规则查询）**：`startCreate` / `startSolve` 删除（改由调用方传 `GAME_MODE.*` 给 `startInput`）；
   `startFromTexts` 移出为 `composables/game/useStartFromTexts.ts`（挑战开局：解析两串 + 算比例 + 定来源 = Challenge，两处调用方共用）；
   `cheat` 更名 `fillSolution`（"作弊"只是按钮文案）；`stores/game.ts` 169 → 146 行，顶部注释写明四组职责（§六「跨页共用流程」同步 ＋useStartFromTexts）
+- v1.9.17：**按钮条文案收成一份 + 一局存档（本轮：去散落 / 可续玩）**
+  ① **按钮条常量**：＋`constants/actions.ts`（`ACTION` 表：key + 文案，**按钮上的字直接写在这张表里**，不去别的 COPY 拼）＋`core/action.ts`
+  （`actionOf(spec, onClick?)`=「静态项 + 点击函数 → Action」，`submitSpecOf(phase)`=出题/编辑的提交按钮随阶段变）；
+  13 个文件（useGameFlow / useZoom / usePuzzleExport / usePuzzlePreview / useMyPuzzles / useCustomFlow + 7 个页面）里的
+  `{ key, text }` 字面量全部改为 `actionOf(ACTION.x, …)` —— 页面只回答"用哪颗 + 点了做什么"（R8/R10：函数不进 constants）
+  ② **游戏页 ＋「💾 存档」、主页 ＋「💾 继续游戏」→ 存档列表页**（每条一个条：继续 / 删除；**没存档不拦截，进页面看空态**）：`types/game.ts` ＋`GameSave`（**只存真源**：
+  config / origin / meta / solution / snapshots / currentStep / selected）· `services/saveGame.ts`（JSON 落盘 + 结构校验，
+  坏数据当场清掉；`SAVE.maxChars` 150 万字符上限）· `stores/game.ts` ＋`restoreGame(save)`（只写回真源，146 → 163 行）·
+  `composables/game/useGameSave.ts`（组数据 / 提示 / 跳页）—— 读档后**历史进度条与题目信息一并回来**（09 册 链路 13）
+  ③ **「📖 答案」改为挑战专属**（`origin === Challenge && solution.length`）：系统生成的答案由程序算出、自定义的答案由玩家填写，
+  都不是"参考答案"；`services/prefs.writePref` 改为返回 `boolean`（写不进去要让存档如实报失败）
+  ④ **文案归位（只留一处）**：＋`constants/copy.ts` —— 除按钮条外的**全部文案**（遮罩 / 表单 / 空态 / 徽标 / 元信息标签 / 校验提示）
+  从 `constants/game|puzzle|solve|user` 搬进这一处（那四个文件只剩**数据/取值**）；`PUZZLE_VISIBILITY_OPTIONS` 因 label 直接取徽标文案一并搬入
+  （constants 之间不许互相 import：R2 矩阵里 `src/constants` 的 src 白名单是空的）。按钮上的字仍只在 `constants/actions.ts`
+  ⑤ **减抽离（2026-10 下半场，按"只抽可复用的"）**：**单页专用**的组合式全部**就地写进页面** ——
+  `useAuth`→LoginPage · `useAccountMenu`→AppLayout · `useAccountPanel`→MyPuzzlesPage · `useDifficultyFlow`→SystemPage ·
+  `useCreateFlow`→CreatePage · `useEditFlow`→EditPuzzlePage · `useCustomFlow`→CustomPage · `useGameFlow`→GamePage ·
+  `useSearchPuzzle`→SearchPage · `useMyPuzzles`→MyPuzzlesPage · `useSolveFlow`→SolvePage · `usePuzzleExport` 并入 `useGameFlow`；
+  配套放宽 **R6（页面顶层声明 ≤30、行数 ≤400，并计数只算顶层）** 与 **R9（页面 400 行）**；
+  仍留在 `composables/` 的只有**跨页复用 / 组件级基础设施**：`useListQuery` · `useClipboard` · `useZoom`/`useBoardZoom` ·
+  `useBoardCanvas` · `usePuzzleStage` · `usePuzzlePreview` · `usePuzzleDetail` · `useStartFromTexts` · `useGameSave` · `metaText`(E8)
+
 - v1.9.15：＋**`CODE-GUIDE.md`「代码导读」**（各层为什么这么写）：先整体（一次交互的五个阶段：pages → components → composables → stores → core，含依赖铁律与四个真实痛点）
   → 再逐层（`core` 纯函数与 rng 注入 · `store` 只记"要记住的"与 computed 单一事实源 · `composable` 为什么是
   store 与组件之间的缺环 · `pages` 为什么必须最薄 / `component` 为什么必须"笨"）→ 两条完整链条（游戏页落子 / 求解页）标注各层各自在做的事

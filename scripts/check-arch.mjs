@@ -95,9 +95,11 @@ const ZOOM_ENTRY = /useZoom\(|useBoardZoom\(|zoom-actions=/
 
 /** R9 预算 */
 const MAX_LINES = 200
+/** 页面允许更长：**单页专用的流程就地写**（见 R6 的 2026-10 调整） */
+const MAX_PAGE_LINES = 400
 const MAX_CORE_EXPORTS = 8
 const MIN_SOLO_MODULE_LINES = 50
-const MAX_PAGE_DECLS = 10
+const MAX_PAGE_DECLS = 60
 
 /** R10 / E4 预留类型白名单（当前无预留：types/ 的导出都有真实使用点） */
 /** R10 / E4 预留类型白名单（当前无预留：types/ 的导出都有真实使用点） */
@@ -162,7 +164,8 @@ for (const file of files) {
     const lines = code.replace(/\n$/, '').split('\n').length
 
     /* ───── R9 行数 ───── */
-    if (lines > MAX_LINES) err('R9', file, `${lines} 行 > ${MAX_LINES}，请拆文件`)
+    const lineLimit = isPages(file) ? MAX_PAGE_LINES : MAX_LINES
+    if (lines > lineLimit) err('R9', file, `${lines} 行 > ${lineLimit}，请拆文件`)
 
     /* ───── R2 / R5 / R13 依赖矩阵 ───── */
     if (!isTest(file)) {
@@ -220,7 +223,8 @@ for (const file of files) {
     /* ───── R6 页面只接线 ───── */
     if (isPages(file)) {
         const script = code.slice(code.indexOf('<script'), code.indexOf('</script>'))
-        const decls = (script.match(/^\s*(const|function|async function)\s/gm) || []).length
+        // 只数**顶层**声明（行首无缩进）：页面 = 视图接线 + 该页自己的流程
+        const decls = (script.match(/^(?:const|function|async function)\s/gm) || []).length
         if (decls > MAX_PAGE_DECLS) err('R6', file, `页面声明 ${decls} 个 > ${MAX_PAGE_DECLS}`)
         if (MATH.test(bare)) err('R6', file, '页面出现算式（Math.），请下沉 core 或放进 composable')
     }

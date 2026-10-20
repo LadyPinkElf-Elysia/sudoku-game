@@ -4,7 +4,8 @@ import { useRouter } from 'vue-router'
 import Flex from '@/components/Flex.vue'
 import TextAction from '@/components/TextAction.vue'
 import { PAGE } from '@/constants/pages'
-import { AUTH_COPY } from '@/constants/user'
+import { AUTH_COPY, SAVE_COPY } from '@/constants/copy'
+import { errorTextOf } from '@/core/message'
 import { useUserStore } from '@/stores/user'
 import type { Menus } from '@/types/item'
 
@@ -14,8 +15,9 @@ const userStore = useUserStore()
 /** 灰显项被点击后的本页提示条文案 */
 const tip = ref('')
 
-/** 入口：关于我的 / 开始游戏 / 出题（游客灰显）/ 搜索题目 / 题目求解 */
+/** 入口：继续游戏（没存档也照进，页面上看空态）/ 关于我的 / 开始游戏 / 出题（游客灰显）/ 搜索题目 / 题目求解 */
 const menuItems = computed<Menus>(() => [
+    { key: 'resume', icon: '💾', message: SAVE_COPY.title, routeName: PAGE.Resume },
     { key: 'about', icon: '👤', message: '关于我的', routeName: PAGE.MyPuzzles },
     { key: 'start', icon: '▶', message: '开始游戏', routeName: PAGE.Difficulty },
     { key: 'create', icon: '✏️', message: '出题模式', routeName: PAGE.Create, disabled: userStore.isGuest },
@@ -23,10 +25,19 @@ const menuItems = computed<Menus>(() => [
     { key: 'solve', icon: '🧩', message: '题目求解', routeName: PAGE.Solve },
 ])
 
-/** 灰显项不跳页、只给提示；要登录的入口点了也走这里 */
-const go = (item: Menus[number]): void => {
+/**
+ * 灰显项不跳页、只给提示（只有"需要登录"这一种）
+ * · **跳转失败要说出来**：目标页是懒加载的，一旦那个 .vue 编译不过 / 动态 import 404，
+ *   `router.push` 会 reject —— 不 catch 就表现成"点了没反应"（排查时最容易误判）
+ */
+const go = async (item: Menus[number]): Promise<void> => {
     if (item.disabled) { tip.value = AUTH_COPY.needLogin; return }
-    void router.push({ name: item.routeName })
+    tip.value = ''
+    try {
+        await router.push({ name: item.routeName })
+    } catch (err) {
+        tip.value = errorTextOf(err, `打开「${item.message}」失败`)
+    }
 }
 </script>
 

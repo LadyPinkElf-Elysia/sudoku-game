@@ -1,5 +1,6 @@
 import { DEFAULT_TIMEOUT } from "@/constants/game";
-import { SOLVE_COPY, SOLVE_TIMEOUT } from "@/constants/solve";
+import { SOLVE_COPY } from "@/constants/copy";
+import { SOLVE_TIMEOUT } from "@/constants/solve";
 import type { NumBoard } from "@/types/board";
 import type { PuzzleData } from "@/types/puzzle";
 import type { GenerateResponse, SolveResponse, WorkerRequest } from "@/types/worker";

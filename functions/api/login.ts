@@ -1,4 +1,5 @@
-import { AUTH_COPY, UID_PATTERN } from '../../src/constants/user'
+import { AUTH_COPY } from '../../src/constants/copy'
+import { UID_PATTERN } from '../../src/constants/user'
 import { hashPassword, makeToken, safeEqual, LOCK_MS, MAX_FAILS, SESSION_TTL } from '../utils/auth'
 import { fail, json } from '../utils/json'
 import { toPublicUser } from '../utils/user'

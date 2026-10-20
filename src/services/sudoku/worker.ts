@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { generatePuzzle } from "@/core/sudoku/generator"
 import { solvePuzzleMulti } from "@/core/sudoku/multiSolver"
-import { SOLVE_COPY } from "@/constants/solve"
+import { SOLVE_COPY } from "@/constants/copy"
 import type { WorkerRequest } from "@/types/worker"
 
 /** 按 kind 派活：单解/多解/生成都只是调 core，随机由这里注入（services 层才允许宿主对象） */

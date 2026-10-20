@@ -1,15 +1,54 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import Flex from '@/components/Flex.vue';
 import FormField from '@/components/FormField.vue';
 import Overlay from '@/components/Overlay.vue';
 import TextAction from '@/components/TextAction.vue';
-import { ACTION, actionOf } from '@/constants/actions';
-import { BLANK_RATIO, BOX_SIZE_SELECT_OPTIONS } from '@/constants/game';
-import { useDifficultyFlow } from '@/composables/game/useDifficultyFlow';
+import { ACTION } from '@/constants/actions';
+import { BLANK_RATIO, BOX_SIZE_SELECT_OPTIONS, GAME_INIT_CONFIG, GAME_ORIGIN } from '@/constants/game';
+import { PAGE } from '@/constants/pages';
+import { actionOf } from '@/core/action';
+import { percentOf } from '@/core/game/derive';
+import { errorTextOf } from '@/core/message';
+import { blankCountOf, cellCountOf } from '@/core/sudoku/shape';
+import { generateInWorker } from '@/services/sudoku/workerClient';
+import { useGameStore } from '@/stores/game';
+import type { GameConfig } from '@/types/game';
 import type { Actions } from '@/types/item';
 
-const { draft, loading, error, totalCells, blankCount, blankPercent, apply } = useDifficultyFlow()
+/**
+ * 难度页（系统生成 Tab）：配置草稿 → Worker 生成 → 开局并跳转
+ * **只有这一页用 → 就地写**（跨页复用的才抽 composables）
+ */
+const gameStore = useGameStore()
+const router = useRouter()
+
+/** 配置草稿（可变：盘面大小走下拉、挖空比例走滑杆）—— 用 GameConfig 放宽字面量类型 */
+const draft = ref<GameConfig>({ ...GAME_INIT_CONFIG })
+const loading = ref(false)
+const error = ref('')
+
+const totalCells = computed(() => cellCountOf(draft.value.boxSize))
+const blankCount = computed(() => blankCountOf(draft.value.boxSize, draft.value.blankRatio))
+const blankPercent = computed<number>(() => percentOf(draft.value.blankRatio))
+
+/** 生成并开局（双击保护 → 清旧错误 → 转圈 → Worker → 开局 → 跳页） */
+const apply = async (): Promise<void> => {
+    if (loading.value) return
+    error.value = ''
+    loading.value = true
+    try {
+        const cfg: GameConfig = { boxSize: draft.value.boxSize, blankRatio: draft.value.blankRatio }
+        const { puzzle, solution } = await generateInWorker(cfg.boxSize, blankCount.value)
+        gameStore.startGame(puzzle, solution, cfg, GAME_ORIGIN.System)
+        router.replace({ name: PAGE.Game })
+    } catch (err) {
+        error.value = errorTextOf(err, '生成失败，请重试')
+    } finally {
+        loading.value = false        // 成功/失败都复位，否则转圈遮罩残留
+    }
+}
 
 /** 回主页只走顶栏那一个入口，这里只留开局 */
 const actions = computed<Actions>(() => [
