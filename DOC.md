@@ -156,10 +156,9 @@ npx wrangler pages dev --port 8788                  # 后端 + 本地 D1
 
 ```
 src/
-  constants/     actions(按钮条文案表) · copy(其余全部文案) · board · game · pages · user · puzzle · solve
+  constants/     actions(按钮条文案表 + ACTION_OF 拼装) · copy(其余全部文案) · board · game · pages · user · puzzle · solve
   types/         board · game(+GameSave) · sudoku · render(+BoardGeometry/CellFonts/FrameState/RedrawMode) · item · page · puzzle · user · worker
   core/
-    action.ts            actionOf（拼 Action：静态项 + onClick）
     message.ts           errorTextOf / blankRatioErrorOf / puzzleSubmitErrorOf（校验阶梯）
     array.ts             shuffle(rng) / 造二维 / 二维映射 / 切块
     board/               metrics(边长·字号·offsetToCell·pixelOf) · model(fromPuzzle/toNum/toRC) · ops(clone/lock/apply/count/given) · zoom(clamp/±/默认值)
@@ -269,6 +268,7 @@ functions/       api/{register,login,logout,me, puzzles/...} · utils/{id,auth,j
 - **v1.9.16**：三处归位 + 性能重排 —— `render/` 拆五文件去模块级状态 · 类型归位（`types/render.ts` / `types/sudoku.ts`）· `core/sudoku/groups.ts`（组表 + 三扫描）· store 只留真源（`startCreate/startSolve` 删除、`startFromTexts` 外移、`cheat`→`fillSolution`）。
 - **v1.9.17**：按钮条文案表（`constants/actions.ts`）+ 其他文案一处（`constants/copy.ts`）+ 存档（`GameSave` / `services/saveGame` / `restoreGame` / `useGameSave`）+ 答案按钮改挑战专属 + `writePref` 返回 boolean。
 - **2026-10（十五轮收敛）**：见 §4.3 —— 方向从"多抽一层"转为"**只抽复杂或通用的**"，页面/组件/组合式的边界都按判断线重画。
+- **2026-10（构建修复）**：`core/action.ts` 删除后，11 处 `@/core/action` 的 import 合并进 `@/constants/actions`（`ACTION_OF as actionOf`）；`services/api/session.ts` 的 `setToken` / `setLastUid` 改为语句体（`writePref` 返回 boolean，签名仍是 void）。
 
 ---
 
@@ -279,8 +279,9 @@ functions/       api/{register,login,logout,me, puzzles/...} · utils/{id,auth,j
 ```
 src/composables/board/useZoom.ts   ← 缩放进 BoardView
 src/core/page.ts                   ← 分页薄壳拆到各自使用者
-src/core/action.ts                 ← 兼容转发；把调用方改成 `import { ACTION_OF as actionOf } from '@/constants/actions'` 后即可删
 ```
+
+（`src/core/action.ts` 已删除：调用方统一改为 `import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'`，拼装函数与按钮表同处一文件。）
 
 （其余空壳你已删除，已核对：`useAuth` / `useAccountMenu` / `useAccountPanel` / `useCreateFlow` / `useEditFlow` /
 `useCustomFlow` / `useGameFlow` / `useDifficultyFlow` / `useGeneratePuzzle` / `useSearchPuzzle` / `useMyPuzzles` /

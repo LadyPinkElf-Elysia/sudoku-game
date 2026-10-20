@@ -1,6 +1,5 @@
 import { computed, ref } from 'vue'
-import { ACTION } from '@/constants/actions'
-import { actionOf } from '@/core/action'
+import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
 import { fromPuzzle } from '@/core/board/model'
 import { parsePuzzle } from '@/core/sudoku/parse'
 import type { Actions } from '@/types/item'
