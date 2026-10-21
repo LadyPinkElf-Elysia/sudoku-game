@@ -8,58 +8,8 @@
     margin-bottom: 18px;
 }
 
-.label {
-    font-size: 0.78rem;
-    color: #6b7280;
-    font-weight: 600;
-}
-
-/* 输入框：统一规格（页面只保留“布局微调”，如 flex:1 / 右侧给图标留位） */
-.input {
-    width: 100%;
-    box-sizing: border-box;
-    height: 36px;
-    padding: 0 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    color: #111827;
-    outline: none;
-    transition: 0.15s;
-}
-
-.input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px #eef2ff;
-}
-
-/* 下拉框：默认表单规格（撑满一行）；列表页的紧凑版加 .is-sm */
-.select {
-    width: 100%;
-    height: 36px;
-    padding: 0 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    color: #374151;
-    background: #fff;
-    box-sizing: border-box;
-    cursor: pointer;
-    outline: none;
-    transition: 0.15s;
-}
-
-.select:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 2px #eef2ff;
-}
-
-.select.is-sm {
-    width: auto;
-    height: 28px;
-    padding: 0 6px;
-    font-size: 0.78rem;
-}
+/* 输入框 / 下拉 / 主按钮的规格由 Element Plus 提供：
+   默认尺寸 36px、主色与圆角见本文件末尾的 `:root` 变量；页面里不要再写 .input / .select / .btn-primary */
 
 /* 说明文字 */
 .hint {
@@ -68,16 +18,12 @@
     line-height: 1.4;
 }
 
-/* 页面级提示文案：加载中 / 空结果 / 错误 */
+/* 页面级提示文案（列表骨架屏等还在用）；错误态交给 EP 的 el-result */
 .state {
     margin: 16px 0 0;
     font-size: 0.85rem;
     color: #6b7280;
     text-align: center;
-}
-
-.state.is-error {
-    color: #b91c1c;
 }
 
 /* 表单错误条 */
@@ -124,60 +70,12 @@
     background: #f9fafb;
 }
 
-/* 错误态里的「重试」小按钮 */
-.retry {
-    margin-left: 6px;
-    border: 1px solid #fecaca;
-    border-radius: 6px;
-    background: #fee2e2;
-    color: #b91c1c;
-    font-size: 0.78rem;
-    font-family: inherit;
-    padding: 2px 8px;
-    cursor: pointer;
-}
-
-/* 文字型操作（重命名 / 删除 / 编辑 / 题目预览 / 答案预览 / 退出…）：就是普通文字 —— 不变蓝、不加下划线 */
-.text-btn {
-    border: none;
-    background: none;
-    padding: 0;
-    color: inherit;
-    font-size: 0.78rem;
-    font-family: inherit;
-    cursor: pointer;
-}
-
 /* 页面 / 区块标题（列表页、详情页、难度页、登录页共用） */
 .section-title {
     margin: 0 0 18px;
     font-size: 1.05rem;
     color: #111827;
     word-break: break-all;
-}
-
-/* 主操作按钮（登录提交 / 搜索…）：全宽或跟在输入框右侧都行 */
-.btn-primary {
-    height: 36px;
-    padding: 0 16px;
-    border: none;
-    border-radius: 8px;
-    background: #6366f1;
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: 0.15s;
-}
-
-.btn-primary:hover:not(:disabled) {
-    background: #4f46e5;
-}
-
-.btn-primary:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
 }
 
 /* 列表容器 */
@@ -225,3 +123,61 @@
     font-weight: 600;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
+
+/* ───────── Element Plus 主题对齐（主色 / 圆角 / 控件高度跟全站一致） ─────────
+   必须在 element-plus/dist/index.css 之后加载（顺序见 main.ts），变量才能盖掉默认值 */
+:root {
+    --el-color-primary: #6366f1;
+    --el-color-primary-light-3: #8b8df5;
+    --el-color-primary-light-5: #b1b2f9;
+    --el-color-primary-light-7: #d3d4fb;
+    --el-color-primary-light-8: #e2e3fc;
+    --el-color-primary-light-9: #eef2ff;
+    --el-color-primary-dark-2: #4f46e5;
+    --el-border-radius-base: 8px;
+}
+
+/* 默认尺寸的输入 / 下拉统一 36px；small（列表工具条）保持紧凑 */
+.el-input:not(.el-input--small) .el-input__wrapper,
+.el-select:not(.el-select--small) .el-select__wrapper {
+    min-height: 36px;
+}
+
+/* 普通按钮统一 36px 高（link / text / circle 形态不受影响） */
+.el-button:not(.is-link):not(.is-text):not(.is-circle) {
+    height: 36px;
+    padding: 0 16px;
+    font-size: 0.9rem;
+}
+
+.el-button:not(.is-link):not(.is-text).el-button--primary {
+    font-weight: 600;
+}
+
+/* ───────── 文字按钮（原 TextAction 组件）：页面直接写 <el-button class="text-action" link> ───────── */
+.text-action {
+    padding: 0;
+    height: auto;
+    font-size: 0.78rem;
+    font-family: inherit;
+    font-weight: inherit;
+}
+
+/* EP 给相邻按钮加了 12px 左边距，会和 Flex 的 gap 叠加 → 文字按钮一律清掉 */
+.el-button.text-action,
+.el-button.text-action + .el-button.text-action {
+    margin: 0;
+}
+
+/* 覆盖 el-button link 的主色：#inherit 才会跟随所在行的文字颜色（全站约定：不变蓝） */
+.el-button.text-action.is-link {
+    --el-button-text-color: inherit;
+    --el-button-hover-link-text-color: var(--el-color-primary);
+}
+
+/* 不可点（actionOf 的 onClick = undefined）：保持纯文本观感，只是变淡 */
+.el-button.text-action.is-link.is-disabled {
+    --el-button-disabled-text-color: #9ca3af;
+    opacity: 1;
+}
+

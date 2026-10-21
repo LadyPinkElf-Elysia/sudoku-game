@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import EyeGlyph from './EyeGlyph.vue';
-import TextAction from './TextAction.vue';
+import { computed } from 'vue';
+import { ElInput, ElOption, ElSelect, ElSlider } from 'element-plus';
 import type { SelectOption } from '@/types/item';
 
 const props = defineProps<{
@@ -37,52 +36,54 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: string | number] }>()
 
 const type = computed(() => props.type ?? 'text')
-/** 密码的明文开关（type=password） */
-const visible = ref(false)
+/** 紧凑（列表工具条 / 卡片设置项）→ EP 的 small 尺寸 */
+const size = computed(() => (props.compact ? 'small' : 'default'))
 
-/** 文本类控件：直接回传文本 */
-const onInput = (e: Event): void => {
-    emit('update:modelValue', (e.target as HTMLInputElement | HTMLTextAreaElement).value)
+/** 文本 / 多行 / 密码：el-input 回传字符串 */
+const onText = (value: string): void => {
+    emit('update:modelValue', value)
 }
 
-/** 下拉 / 滑动条：下拉按键值还原原始类型（数字选项如盘面大小 B），滑动条转数字 */
-const onValue = (e: Event): void => {
-    const raw = (e.target as HTMLInputElement | HTMLSelectElement).value
-    const hit = props.options?.find((o) => String(o.value) === raw)
-    emit('update:modelValue', hit ? hit.value : Number(raw))
+/** 下拉：选项值原样带回（盘面大小 B 这类数字选项不再手工还原类型） */
+const onPick = (value: string | number): void => {
+    emit('update:modelValue', value)
+}
+
+/** 滑动条：EP 在范围模式下回传数组，这里只认单值 */
+const onSlide = (value: number | number[]): void => {
+    emit('update:modelValue', Array.isArray(value) ? value[0] : value)
 }
 </script>
 
 <template>
     <!--
       通用表单字段：**数据 + 渲染方式**传进来，由本组件决定画哪个控件
-      type = text / textarea / password / select / range；规格来自全局 styles/form.css
+      type = text / textarea / password / select / range；外观走 Element Plus（主题变量见 styles/form.css）
+      根节点仍是 <label>：页面上挂在 FormField 上的原生事件（如登录页 @paste）继续冒泡到这里
     -->
     <label class="field" :class="{ 'is-vertical': vertical }">
         <span v-if="label" class="text">{{ label }}</span>
 
-        <textarea v-if="type === 'textarea'" class="input textarea" :value="modelValue" :placeholder="placeholder"
-            :maxlength="maxlength" spellcheck="false" @input="onInput"></textarea>
+        <el-input v-if="type === 'textarea'" class="control textarea" type="textarea" :rows="4" resize="none"
+            :model-value="modelValue" :placeholder="placeholder" :maxlength="maxlength"
+            @update:model-value="onText" />
 
-        <select v-else-if="type === 'select'" class="select" :class="{ 'is-sm': compact }"
-            :style="width ? { width } : undefined" :value="modelValue" @change="onValue">
-            <option v-for="opt in options ?? []" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
+        <el-select v-else-if="type === 'select'" class="control" :class="{ 'is-compact': compact }" :size="size"
+            :style="width ? { width } : undefined" :model-value="modelValue" @update:model-value="onPick">
+            <el-option v-for="opt in options ?? []" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
 
-        <input v-else-if="type === 'range'" class="slider" type="range" :min="min" :max="max" :step="step"
-            :value="modelValue" @input="onValue">
+        <el-slider v-else-if="type === 'range'" class="control" :model-value="Number(modelValue)"
+            :min="min ?? 0" :max="max ?? 100" :step="step ?? 1" @update:model-value="onSlide" />
 
-        <span v-else class="control">
-            <input class="input" :class="{ 'is-mono': mono, 'has-eye': type === 'password' }"
-                :type="type === 'password' && !visible ? 'password' : 'text'" :value="modelValue"
-                :placeholder="placeholder" :maxlength="maxlength" :autocomplete="autocomplete" spellcheck="false"
-                @input="onInput">
+        <!-- 密码：show-password 自带 👁（原来的 EyeGlyph + 定位样式已删除） -->
+        <el-input v-else-if="type === 'password'" class="control" type="password" show-password :size="size"
+            :model-value="modelValue" :placeholder="placeholder" :maxlength="maxlength"
+            :autocomplete="autocomplete" @update:model-value="onText" />
 
-            <!-- 密码右侧的 👁 就是通用的「可点击文本」（自绘图形走插槽） -->
-            <TextAction v-if="type === 'password'" class="eye" :on-click="() => (visible = !visible)">
-                <EyeGlyph :revealed="visible" />
-            </TextAction>
-        </span>
+        <el-input v-else class="control" :class="{ 'is-mono': mono }" :size="size" :model-value="modelValue"
+            :placeholder="placeholder" :maxlength="maxlength" :autocomplete="autocomplete"
+            @update:model-value="onText" />
 
         <span v-if="hint" class="hint">{{ hint }}</span>
     </label>
@@ -118,7 +119,7 @@ const onValue = (e: Event): void => {
 }
 
 /* 多行输入：等宽 + 可纵向拉伸（题面串要逐字核对） */
-.textarea {
+.textarea :deep(.el-textarea__inner) {
     height: 96px;
     padding: 8px 10px;
     line-height: 1.5;
@@ -126,62 +127,20 @@ const onValue = (e: Event): void => {
     resize: vertical;
 }
 
-/* 滑动条 */
-.slider {
-    width: 100%;
-    height: 4px;
-    border-radius: 2px;
-    background: #e5e7eb;
-    appearance: none;
-    -webkit-appearance: none;
-    cursor: pointer;
-}
-
-.slider::-webkit-slider-thumb {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #6366f1;
-    border: 2px solid #fff;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-}
-
-.slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #6366f1;
-    border: 2px solid #fff;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-}
-
-/* 等宽：账号 ID 一类需要逐字核对的值 */
-.input.is-mono {
+/* 等宽：账号 ID 一类需要逐字核对的值（要穿到 el-input 内层去） */
+.is-mono :deep(.el-input__inner) {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     letter-spacing: .5px;
 }
 
-/* 密码框：右侧给 👁 留位 */
+/* 控件默认撑满一行 */
 .control {
-    position: relative;
-    display: block;
+    width: 100%;
 }
 
-.input.has-eye {
-    padding-right: 38px;
-}
-
-.eye {
-    position: absolute;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 30px;
-    height: 28px;
-    justify-content: center;
+/* 紧凑下拉（列表工具条两项并排）：不撑满 */
+.control.is-compact {
+    width: auto;
+    min-width: 108px;
 }
 </style>

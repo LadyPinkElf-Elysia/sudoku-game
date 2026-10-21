@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElButton } from 'element-plus'
 import FormField from '@/components/FormField.vue'
 import Overlay from '@/components/Overlay.vue'
 import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
@@ -108,7 +109,7 @@ const doneActions = computed<Actions>(() => [
 </script>
 
 <template>
-    <div class="page-card login-page">
+    <div class="page-card login-page" v-loading="loading" :element-loading-text="AUTH_COPY.wait">
         <h2 class="section-title">{{ title }}</h2>
 
         <!-- 表单：回车即提交（type=submit） -->
@@ -126,16 +127,14 @@ const doneActions = computed<Actions>(() => [
 
             <p v-if="error" class="form-error">{{ error }}</p>
 
-            <button class="btn-primary" type="submit" :disabled="loading">{{ title }}</button>
+            <el-button class="submit" type="primary" native-type="submit" :loading="loading">{{ title }}</el-button>
         </form>
 
-        <button class="text-btn" type="button" @click="switchMode(isSignUp ? 'sign-in' : 'sign-up')">
+        <el-button class="switch" link type="primary" @click="switchMode(isSignUp ? 'sign-in' : 'sign-up')">
             {{ isSignUp ? '已有账号？去登录' : '没有账号？去注册' }}
-        </button>
+        </el-button>
 
-        <Overlay :show="loading" spinning :text="AUTH_COPY.wait" />
-
-        <!-- 注册成功：账号 ID 卡片（值 + 按钮条都交给 Overlay） -->
+        <!-- 请求中 / 注册成功：账号 ID 卡片（值 + 按钮条都交给 Overlay） -->
         <Overlay :show="!!createdUid" text="✅ 注册成功" :desc="AUTH_COPY.uidHint" :actions="doneActions">
             <p class="uid-card">{{ createdUid }}</p>
         </Overlay>
@@ -143,8 +142,8 @@ const doneActions = computed<Actions>(() => [
 </template>
 
 <style scoped>
-/* .field / .label / .input / .hint / .form-error / .overlay-* / .uid-card / .section-title / .btn-primary
-   / .text-btn 均来自全局样式 */
+/* .field / .hint / .form-error / .overlay-* / .uid-card / .section-title 来自全局；
+   表单控件与按钮由 Element Plus 提供（主题变量见 styles/form.css） */
 .login-page {
     display: flex;
     flex-direction: column;
@@ -158,7 +157,12 @@ const doneActions = computed<Actions>(() => [
 }
 
 /* 「切换登录/注册」的纯文字按钮居中 */
-.text-btn {
+.switch {
     align-self: center;
+}
+
+/* 提交按钮占满一行（el-button 默认是 inline-flex，不会自动撑满） */
+.submit {
+    width: 100%;
 }
 </style>

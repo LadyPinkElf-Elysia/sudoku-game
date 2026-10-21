@@ -24,3 +24,20 @@
     user-select: all;
     color: #111827;
 }
+
+/* ───────── Overlay 用的 el-dialog：内边距与对齐（必须全局：scoped 追不进 Teleport） ───────── */
+
+/* 没有标题 → 不占头部那条空白 */
+.el-dialog.overlay .el-dialog__header {
+    display: none;
+}
+
+.el-dialog.overlay .el-dialog__body {
+    padding: 24px 20px 6px;
+    text-align: center;
+}
+
+.el-dialog.overlay .el-dialog__footer {
+    padding: 0 20px 18px;
+    text-align: center;
+}

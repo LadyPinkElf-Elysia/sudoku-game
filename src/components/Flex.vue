@@ -11,7 +11,7 @@ const props = withDefaults(defineProps<{
     direction?: 'row' | 'column'
     /** 间距（px） */
     gap?: number
-    /** 交叉轴对齐 */
+    /** 交叉轴对齐（⚠️ 默认 center，与 CSS flex 的 stretch 不同：竖排列表要撑满得显式传 stretch） */
     align?: 'start' | 'center' | 'end' | 'baseline' | 'stretch'
     /** 主轴对齐 */
     justify?: 'start' | 'center' | 'end' | 'between'

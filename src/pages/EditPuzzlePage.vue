@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ActionBar from '@/components/ActionBar.vue'
 import BoardView from '@/components/BoardView.vue'
-import Flex from '@/components/Flex.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
-import TextAction from '@/components/TextAction.vue'
 import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
 import { CREATE_PHASE, GAME_MODE } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
@@ -95,18 +94,16 @@ const failActions: Actions = [
 </script>
 
 <template>
-    <div class="page-card wide">
+    <div class="page-card wide" v-loading="loading" element-loading-text="正在处理…">
         <!-- FR-10：没有大小选择器、没有标题/可见性/参考答案开关 -->
-        <Flex class="op-bar" :gap="12" justify="center" wrap>
-            <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
-        </Flex>
+        <ActionBar class="op-bar" :actions="actions" wrap />
         <p v-if="errorMsg && !showFail" class="tip">{{ errorMsg }}</p>
 
         <BoardView :board="gameStore.board" :box-size="gameStore.sudoku.B" :selected="gameStore.selected"
             :conflict-mask="gameStore.conflictMask" @cell-click="gameStore.select" />
         <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.sudoku.B" @pick="gameStore.inputNum" />
 
-        <Overlay :show="loading" spinning text="正在处理…" />
+        <!-- 提交 / 保存：页面级加载（v-loading 挂在根节点） -->
 
         <Overlay :show="showFail" text="⚠️ 未通过" :desc="errorMsg" :actions="failActions" />
     </div>

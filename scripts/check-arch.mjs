@@ -10,6 +10,7 @@
  *   R1   红  顶层目录白名单
  *   R2   红  依赖矩阵（`MATRIX`，逐层校验 src/ 与 functions/；含外部包白名单、全局禁 axios）
  *            **2026-10 放宽**：`pages/` 可用 `core` / `services`（就地写流程）；`components/` 可用 `core`（`ACTION_OF`、zoom 算式）。
+ *   R2   红  …**2026-10 放宽**：`pages/`、`components/` 可用 `element-plus` 与 `@element-plus/icons-vue`（UI 库，不构成跨层依赖）。
  *            仍然禁止：`components/` 碰 store / router（R5）· `services/` 碰 store / router · 任何层碰 axios
  *   R3   红  core 纯度（宿主 / Worker / 随机 / 时间 / console）
  *   R4   红  数据层不写算法（for / forEach / Math.）+ 不碰路由
@@ -60,8 +61,8 @@ const MATRIX = {
     'src/render':      { src: ['src/render/', 'src/core/', 'src/constants/', 'src/types/'], pkg: [] },
     'src/stores':      { src: ['src/stores/', 'src/core/', 'src/services/', 'src/constants/', 'src/types/'], pkg: ['vue', 'pinia'] },
     'src/composables': { src: ['src/composables/', 'src/stores/', 'src/render/', 'src/core/', 'src/services/', 'src/constants/', 'src/types/'], pkg: ['vue', 'vue-router'] },
-    'src/components':  { src: ['src/components/', 'src/composables/', 'src/constants/', 'src/types/', 'src/core/'], pkg: ['vue'] },   // ← 禁 vue-router / store；允许 core 纯函数
-    'src/pages':       { src: ['src/pages/', 'src/components/', 'src/composables/', 'src/stores/', 'src/services/', 'src/core/', 'src/constants/', 'src/types/'], pkg: ['vue', 'vue-router'] },   // 页面可就地写流程：允许 core / services（Math. 仍禁 → R6）
+    'src/components':  { src: ['src/components/', 'src/composables/', 'src/constants/', 'src/types/', 'src/core/'], pkg: ['vue', 'element-plus', '@element-plus/icons-vue'] },   // ← 禁 vue-router / store；允许 core 纯函数 + UI 库
+    'src/pages':       { src: ['src/pages/', 'src/components/', 'src/composables/', 'src/stores/', 'src/services/', 'src/core/', 'src/constants/', 'src/types/'], pkg: ['vue', 'vue-router', 'element-plus', '@element-plus/icons-vue'] },   // 页面可就地写流程：允许 core / services（Math. 仍禁 → R6）
     'src/router':      { src: ['src/router/', 'src/stores/', 'src/constants/', 'src/types/'], pkg: ['vue-router'] },
     'functions':       { src: ['functions/', 'src/core/', 'src/constants/', 'src/types/'], pkg: [] },                     // 后端：复用 core，禁 vue/pinia
 }

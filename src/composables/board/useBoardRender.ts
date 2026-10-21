@@ -42,7 +42,7 @@ export const useBoardRender = (
     const zoomOut = (): void => { zoom.value = zoomOutOf(zoom.value) }
     const resetZoom = (): void => { zoom.value = defaultZoomOf(input().boxSize) }
 
-    /** 缩放按钮条：到界就不给点击函数（组件渲染成纯文本） */
+    /** 缩放按钮条：到界 → `disabled`（`ACTION_OF` 置位，`ActionBar` 渲染成禁用按钮） */
     const zoomActions = computed<Actions>(() => [
         actionOf(ACTION.zoomOut, canZoomOutFrom(zoom.value) ? zoomOut : undefined),
         actionOf(ACTION.zoomIn, canZoomInFrom(zoom.value) ? zoomIn : undefined),

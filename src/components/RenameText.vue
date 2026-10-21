@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { nextTick, ref, watch, type Component } from 'vue';
+import { ElButton, ElIcon, ElInput } from 'element-plus';
+import { EditPen } from '@element-plus/icons-vue';
+import type { InputInstance } from 'element-plus';
 
 const props = defineProps<{
     /** 显示文本（列表行标题 / 「我的」页显示名） */
     text: string
-    /** 文本前的小图标（账号区传 👤；不传就只有文本） */
-    icon?: string
+    /** 文本前的小图标（EP 图标组件；不传就只有文本） */
+    icon?: Component
     /** 是否处于编辑态（父组件控制；编辑时文本位置换成输入框） */
     renaming: boolean
     /** 编辑中的文本 */
@@ -31,7 +34,7 @@ const emit = defineEmits<{
 }>()
 
 /** 进入编辑态就聚焦（本组件常驻，输入框由内部 v-if 控制出现） */
-const box = ref<HTMLInputElement | null>(null)
+const box = ref<InputInstance>()
 watch(() => props.renaming, async (on) => {
     if (!on) return
     await nextTick()
@@ -42,25 +45,40 @@ watch(() => props.renaming, async (on) => {
 <template>
     <!-- 「文本 + 重命名」：点「重命名」文字就地变输入框（行内标题 / 账号显示名共用同一套键位） -->
     <span class="rename">
-        <input v-if="renaming" ref="box" class="input rename-input" :value="renameText" :maxlength="maxlength"
-            :placeholder="placeholder" @input="emit('input', ($event.target as HTMLInputElement).value)"
-            @keyup.enter="emit('commit')" @keyup.esc="emit('cancel')" @blur="emit('commit')">
+        <el-input v-if="renaming" ref="box" class="rename-input" :model-value="renameText" :maxlength="maxlength"
+            :placeholder="placeholder" @update:model-value="(v) => emit('input', v)"
+            @keyup.enter="emit('commit')" @keyup.esc="emit('cancel')" @blur="emit('commit')" />
 
         <template v-else>
-            <!-- 图标与文本一起插值，避免模板把 `{{ icon }}` 后面的空格吃掉 -->
-            <component :is="tag ?? 'span'" class="rename-text" :title="text">{{ icon ? `${icon} ` : '' }}{{ text }}</component>
-            <button class="text-btn" type="button" @click="emit('start')">{{ label }}</button>
+            <el-icon v-if="icon" class="rename-icon"><component :is="icon" /></el-icon>
+            <component :is="tag ?? 'span'" class="rename-text" :title="text">{{ text }}</component>
+            <el-button class="text-action" link type="primary" @click="emit('start')">
+                <el-icon class="rename-btn-icon"><EditPen /></el-icon>{{ label }}
+            </el-button>
         </template>
     </span>
 </template>
 
 <style scoped>
-/* 文本与「重命名」紧挨着（不用 space-between，避免被挤到行中间） */
+/* 文本与「重命名」按基线对齐（字号不同才不会一高一低） */
 .rename {
     display: inline-flex;
     align-items: baseline;
     gap: 8px;
     min-width: 0;
+}
+
+/* 名字前的小图标（EP 图标；主色）—— 图标按中线对齐，不参与文字基线 */
+.rename-icon {
+    align-self: center;
+    font-size: 1rem;
+    color: var(--el-color-primary);
+}
+
+/* 「重命名」前的铅笔图标：与 ActionBar 的图标同色（主色）、略小一号 */
+.rename-btn-icon {
+    font-size: 13px;
+    color: var(--el-color-primary);
 }
 
 .rename-text {
@@ -71,9 +89,9 @@ watch(() => props.renaming, async (on) => {
     word-break: break-all;
 }
 
+/* 编辑态输入框：占满剩余宽度（高度走 EP 默认 36px，与其它控件一致） */
 .rename-input {
     flex: 1;
-    height: 30px;
-    font-size: 0.9rem;
+    min-width: 0;
 }
 </style>

@@ -54,6 +54,8 @@ const isSave = (v: unknown): v is GameSave => {
     const s = v as Record<string, unknown>
     if (s.version !== SAVE.version || typeof s.savedAt !== 'number') return false
     if (typeof s.id !== 'string' || !s.id) return false
+    // 存档名：旧存档没有这个字段；有就必须是非空字符串
+    if (s.name !== undefined && (typeof s.name !== 'string' || !s.name)) return false
     if (!(Object.values(GAME_ORIGIN) as string[]).includes(String(s.origin))) return false
     if (!isMeta(s.meta)) return false
 

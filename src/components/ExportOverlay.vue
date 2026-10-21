@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { ElInput } from 'element-plus'
 import Overlay from './Overlay.vue'
 import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
 import { EXPORT_COPY } from '@/constants/copy'
@@ -37,12 +38,12 @@ const actions = computed<Actions>(() => [
 <template>
     <Overlay :show="show" wide :text="EXPORT_COPY.title" :desc="tip" :actions="actions">
         <p class="export-label">{{ EXPORT_COPY.puzzleLabel }}</p>
-        <textarea class="input textarea export-text" readonly :value="puzzleText"></textarea>
+        <el-input class="export-text" type="textarea" :rows="5" readonly resize="none" :model-value="puzzleText" />
     </Overlay>
 </template>
 
 <style scoped>
-/* 导出遮罩里的题面串：小标题 + 等宽只读文本（.input / .textarea 来自全局样式） */
+/* 导出遮罩里的题面串：小标题 + 等宽只读文本（textarea 用 el-input，主题见 styles/form.css） */
 .export-label {
     margin: 12px 0 4px;
     font-size: 0.78rem;
@@ -50,9 +51,10 @@ const actions = computed<Actions>(() => [
     text-align: left;
 }
 
-.export-text {
-    width: 100%;
-    box-sizing: border-box;
+.export-text :deep(.el-textarea__inner) {
     height: 110px;
+    padding: 8px 10px;
+    line-height: 1.5;
+    font-family: ui-monospace, Menlo, monospace;
 }
 </style>

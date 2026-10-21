@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import Flex from "./Flex.vue";
-import TextAction from "./TextAction.vue";
+import ActionBar from "./ActionBar.vue";
 import { useBoardRender } from '@/composables/board/useBoardRender'
 import type { Board, ConflictMask, Position } from '@/types/board'
 
@@ -41,10 +40,7 @@ defineExpose({ zoomIn, zoomOut, resetZoom })
           缩放：**固定在棋盘上方、水平居中** —— 放在滚动框外面，
           所以棋盘放大到要横向 / 纵向滚动时，这一对也不会跟着滚走
         -->
-        <Flex class="board-zoom" justify="center" :gap="8">
-            <TextAction v-for="a in zoomActions" :key="a.key" class="zoom-btn" :text="a.text"
-                :on-click="a.onClick" />
-        </Flex>
+        <ActionBar class="board-zoom" :actions="zoomActions" :gap="8" />
 
         <!-- 只读（interactive=false）= 纯 canvas，不接任何动作；可玩才接 cell-click -->
         <div ref="boxEl" class="board-scroll-container">

@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import Flex from '@/components/Flex.vue';
+import { ElCheckbox } from 'element-plus';
+import ActionBar from '@/components/ActionBar.vue';
 import FormField from '@/components/FormField.vue';
-import Overlay from '@/components/Overlay.vue';
-import TextAction from '@/components/TextAction.vue';
 import { ACTION, ACTION_OF as actionOf } from '@/constants/actions';
 import { AUTH_COPY, CUSTOM_COPY } from '@/constants/copy';
 import { CUSTOM_TEXT_MAX, GAME_ORIGIN, TITLE_MAX } from '@/constants/game';
@@ -130,7 +129,7 @@ const actions = computed<Actions>(() => [
 </script>
 
 <template>
-    <div class="custom-page">
+    <div class="custom-page" v-loading="loading" :element-loading-text="CUSTOM_COPY.validating">
         <h2 class="section-title">自定义</h2>
 
         <FormField v-model="puzzleText" class="field" vertical type="textarea" :label="CUSTOM_COPY.puzzleLabel"
@@ -139,38 +138,29 @@ const actions = computed<Actions>(() => [
         <FormField v-model="solutionText" class="field" vertical type="textarea" :label="CUSTOM_COPY.solutionLabel"
             :hint="solutionInfo" :maxlength="CUSTOM_TEXT_MAX" placeholder="1 2 3 4 …" />
 
-        <label class="check" :title="isGuest ? AUTH_COPY.needLogin : ''">
-            <input type="checkbox" v-model="saveToMine" :disabled="isGuest">
+        <el-checkbox v-model="saveToMine" class="check" :disabled="isGuest"
+            :title="isGuest ? AUTH_COPY.needLogin : ''">
             {{ CUSTOM_COPY.saveLabel }}
-        </label>
+        </el-checkbox>
 
         <FormField v-if="saveToMine" v-model="title" class="field" vertical label="标题" :maxlength="TITLE_MAX"
             :placeholder="CUSTOM_COPY.titlePlaceholder" />
 
         <p v-if="error" class="form-error">{{ error }}</p>
 
-        <Flex class="op-bar" :gap="12" justify="center" wrap>
-            <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
-        </Flex>
+        <ActionBar class="op-bar" :actions="actions" wrap />
 
-        <Overlay :show="loading" spinning :text="CUSTOM_COPY.validating" />
+        <!-- 校验 / 提交中：页面级加载（v-loading 挂在根节点） -->
     </div>
 </template>
 
 <style scoped>
-/* .field / .label / .input / .hint / .form-error / .section-title 来自全局样式；多行输入等宽在 FormField 里 */
+/* .field / .hint / .form-error / .section-title 来自全局；表单控件由 Element Plus 提供 */
 
+/* 「同时保存到我的题目」：EP 复选框，只补上下留白 */
 .check {
     display: flex;
-    align-items: center;
-    gap: 8px;
     margin: 0 0 18px;
     font-size: 0.85rem;
-    color: #374151;
-    cursor: pointer;
-}
-
-.check input[disabled] {
-    cursor: not-allowed;
 }
 </style>

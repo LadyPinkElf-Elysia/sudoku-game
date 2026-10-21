@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { User } from '@element-plus/icons-vue'
+import ActionBar from './ActionBar.vue'
 import Flex from './Flex.vue'
 import RenameText from './RenameText.vue'
 import SecretValue from './SecretValue.vue'
-import TextAction from './TextAction.vue'
 import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
 import { AUTH_COPY, MINE_COPY } from '@/constants/copy'
 import { UNAME_MAX } from '@/constants/user'
@@ -39,12 +40,12 @@ const logoutItems = computed<Actions>(() => [
 <template>
     <section class="account">
         <Flex class="account-row" align="center" justify="center" :gap="8" wrap>
-            <RenameText class="account-rename" :text="uname" icon="👤" :renaming="renaming" :rename-text="renameText"
+            <RenameText class="account-rename" :text="uname" :icon="User" :renaming="renaming" :rename-text="renameText"
                 :maxlength="UNAME_MAX" :placeholder="AUTH_COPY.renamePlaceholder" :label="AUTH_COPY.rename"
                 @start="emit('renameStart')" @input="emit('renameInput', $event)"
                 @commit="emit('renameCommit')" @cancel="emit('renameCancel')" />
 
-            <TextAction v-for="a in logoutItems" :key="a.key" :text="a.text" :on-click="a.onClick" />
+            <ActionBar :actions="logoutItems" :gap="8" />
         </Flex>
 
         <p v-if="renameError" class="hint">{{ renameError }}</p>

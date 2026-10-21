@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import ActionBar from './ActionBar.vue';
 import Flex from './Flex.vue';
-import TextAction from './TextAction.vue';
 import { SEARCH_COPY } from '@/constants/copy';
 import { metaTextOf } from '@/composables/puzzle/metaText';
 import type { Action, Actions } from '@/types/item';
@@ -18,11 +18,11 @@ const metaText = computed<string>(() => metaTextOf(props.item))
 
 const actions = computed<Actions>(() => {
     const preview: Action = {
-        key: 'preview', text: `👁 ${SEARCH_COPY.preview}`,
+        key: 'preview', text: SEARCH_COPY.preview,
         onClick: () => emit('preview', props.item.pid),
     }
     const challenge: Action = {
-        key: 'challenge', text: `▶ ${SEARCH_COPY.challenge}`,
+        key: 'challenge', text: SEARCH_COPY.challenge,
         onClick: () => emit('challenge', props.item.pid),
     }
     return [preview, challenge]
@@ -40,8 +40,6 @@ const actions = computed<Actions>(() => {
 
         <p class="meta-line">{{ metaText }}</p>
 
-        <Flex class="op-bar" :gap="6" justify="center">
-            <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
-        </Flex>
+        <ActionBar class="op-bar" :actions="actions" :gap="6" />
     </article>
 </template>

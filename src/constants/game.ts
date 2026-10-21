@@ -45,6 +45,9 @@ export const SAVE = {
     maxChars: 1500000,
 } as const
 
+/** 存档名字长度上限（点「存档」时弹框输入；留空则回退到题目名 / 来源名） */
+export const SAVE_NAME_MAX = 20
+
 /** 出题页阶段 */
 export const CREATE_PHASE = {
     Puzzle: 'puzzle',

@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElButton, ElMessageBox } from 'element-plus'
 import AccountSection from '@/components/AccountSection.vue'
 import BoardView from '@/components/BoardView.vue'
 import ListSection from '@/components/ListSection.vue'
 import MyPuzzleRow from '@/components/MyPuzzleRow.vue'
 import Overlay from '@/components/Overlay.vue'
-import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
-import { AUTH_COPY, MINE_COPY } from '@/constants/copy'
+import { ACTION } from '@/constants/actions'
+import { AUTH_COPY, LOADING_COPY, MINE_COPY } from '@/constants/copy'
 import { TITLE_MAX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
-import { PAGER_MODE_OPTIONS, SORT_OPTIONS } from '@/constants/puzzle'
 import { UNAME_PATTERN } from '@/constants/user'
 import { errorTextOf } from '@/core/message'
 import { useListQuery } from '@/composables/useListQuery'
@@ -19,7 +19,7 @@ import { usePuzzlePreview } from '@/composables/puzzle/usePuzzlePreview'
 import { remove as removePuzzle, update as updatePuzzle } from '@/services/api/puzzleApi'
 import { usePuzzleStore } from '@/stores/puzzle'
 import { useUserStore } from '@/stores/user'
-import type { Actions, ListBar, ListPager, MyPuzzleRowControls } from '@/types/item'
+import type { MyPuzzleRowControls } from '@/types/item'
 import type { ListSort, MyPuzzle, MyPuzzleDetail, PuzzlePatch, Visibility } from '@/types/puzzle'
 
 /**
@@ -33,23 +33,19 @@ const preview = usePuzzlePreview((rowId) => puzzleStore.detailOf(rowId))
 const items = computed<MyPuzzle[]>(() => puzzleStore.mine)
 const loading = computed<boolean>(() => puzzleStore.loading)
 const error = computed<string>(() => puzzleStore.error)
-const pageCount = computed<number>(() => puzzleStore.pageCount)
 
-/** PATCH / DELETE 进行中 → 转圈遮罩 */
+/** PATCH / DELETE 进行中 → 页面级加载 */
 const busy = ref(false)
-/** 正在内联重命名的 rowId（'' = 无）；删除仍走二次确认弹层 */
+/** 正在内联重命名的 rowId（'' = 无）；删除走 ElMessageBox 二次确认 */
 const rowRenaming = ref('')
 const rowRenameText = ref('')
-const removeOpen = ref(false)
-/** 当前操作的目标行 */
-const target = ref('')
 
 const list = useListQuery({
     routeName: PAGE.MyPuzzles,
     load: async (q) => { await puzzleStore.loadMine({ sort: q.sort, page: q.page }); return true },
     pageCount: () => puzzleStore.pageCount,
 })
-const { sort, page, pagerMode, changePagerMode, changeSort, changePage, retry } = list
+const { bar, pager, changePagerMode, changeSort, changePage, retry } = list
 
 const detailOf = (rowId: string): Promise<MyPuzzleDetail | null> => puzzleStore.detailOf(rowId)
 
@@ -101,22 +97,34 @@ const openRowPreview = (rowId: string, answer: boolean): void => {
     void preview.showPreview(rowId, answer, answer ? MINE_COPY.answerPreview : MINE_COPY.preview)
 }
 
-/** 挑战自己的题：以自有题面开局（作者不计热度，所以不调 play） */
+/** 挑战自己的题：以自有题面开局（作者不计热度，所以不调 play）—— 要取详情，**全程遮罩** */
 const challengeRow = async (rowId: string): Promise<void> => {
-    const detail = await detailOf(rowId)
-    if (!detail) return
-    const ok = startFromTexts(
-        detail.puzzleText, detail.solutionText, detail.blankCount,
-        { pid: detail.pid, title: detail.title, uname: detail.uname },
-    )
-    if (!ok) return
-    await router.push({ name: PAGE.Game })
+    if (busy.value) return
+    busy.value = true
+    try {
+        const detail = await detailOf(rowId)
+        if (!detail) return
+        const ok = startFromTexts(
+            detail.puzzleText, detail.solutionText, detail.blankCount,
+            { pid: detail.pid, title: detail.title, uname: detail.uname },
+        )
+        if (!ok) return
+        await router.push({ name: PAGE.Game })
+    } finally {
+        busy.value = false
+    }
 }
 
-/** 编辑：拿到 pid 后进编辑页（路径参数） */
+/** 编辑：拿到 pid 后进编辑页（路径参数）—— 同样要取详情 */
 const openEdit = async (rowId: string): Promise<void> => {
-    const pid = await loadPid(rowId)
-    if (pid) await router.push({ name: PAGE.EditPuzzle, params: { pid } })
+    if (busy.value) return
+    busy.value = true
+    try {
+        const pid = await loadPid(rowId)
+        if (pid) await router.push({ name: PAGE.EditPuzzle, params: { pid } })
+    } finally {
+        busy.value = false
+    }
 }
 
 /** 内联重命名：点标题旁「重命名」→ 标题变输入框；回车 / 失焦提交，Esc 取消 */
@@ -130,11 +138,18 @@ const commitRowRename = async (): Promise<void> => {
     await patch(rowId, { title: name })
 }
 
-const confirmRemove = async (): Promise<void> => {
-    await withDetail(target.value, async (pid) => {
-        await removePuzzle(pid)
-        removeOpen.value = false
-    }, '删除失败，请重试')
+/** 删除：EP 的确认框（按钮文案仍来自 constants/actions）→ 拿 pid → DELETE → 清缓存 + 重拉 */
+const confirmRemove = async (rowId: string): Promise<void> => {
+    try {
+        await ElMessageBox.confirm(MINE_COPY.removeConfirm, MINE_COPY.removeTitle, {
+            type: 'warning',
+            confirmButtonText: ACTION.remove.text,
+            cancelButtonText: ACTION.cancel.text,
+        })
+    } catch {
+        return                                   // 取消 / 关闭 → 什么都不做
+    }
+    await withDetail(rowId, async (pid) => { await removePuzzle(pid) }, '删除失败，请重试')
 }
 
 /** 每行一套行内控件（闭包随行；components 只负责画） */
@@ -153,18 +168,13 @@ const controlsFor = (item: MyPuzzle): MyPuzzleRowControls => {
         onPreview: (answer) => openRowPreview(id, answer),
         onChallenge: () => { void challengeRow(id) },
         onEdit: () => { void openEdit(id) },
-        onRemove: () => { target.value = id; removeOpen.value = true },
+        onRemove: () => { void confirmRemove(id) },
     }
 }
 
-const removeActions = computed<Actions>(() => [
-    actionOf(ACTION.remove, () => { void confirmRemove() }),
-    actionOf(ACTION.cancel, () => { removeOpen.value = false }),
-])
-
 /** 预览遮罩的数据（由 usePuzzlePreview 提供；列表页与搜索页共用那一个组合式） */
 const {
-    previewOpen, previewTitle, previewInput, previewActions,
+    previewOpen, previewTitle, previewInput, previewActions, previewLoading,
 } = preview
 
 /**
@@ -203,18 +213,11 @@ const logout = async (): Promise<void> => {
     await router.replace({ name: PAGE.Home })
 }
 
-/** 账号区一行里的「退出」（放最右） */
-
-/** 列表工具条 + 分页：组件只认数据，标签/选项由本页给 */
-const listBar = computed<ListBar>(() => ({
-    modeLabel: '浏览方式', modeOptions: PAGER_MODE_OPTIONS, mode: pagerMode.value,
-    sortLabel: '排序', sortOptions: SORT_OPTIONS, sort: sort.value,
-}))
-const listPager = computed<ListPager>(() => ({ page: page.value, pageCount: pageCount.value, mode: pagerMode.value }))
 </script>
 
 <template>
-    <div class="page-card wide">
+    <div class="page-card wide" v-loading.fullscreen.lock="previewLoading || busy"
+        :element-loading-text="LOADING_COPY.puzzle">
         <!-- 账号区（FR-1 / FR-12）：显示名（就地重命名）+ 退出 + uid 遮蔽/复制 —— 展示在组件里，数据与回调由本页给 -->
         <AccountSection :uname="uname" :renaming="renaming" :rename-text="renameText" :rename-error="renameError"
             :load-uid="loadUid" @rename-start="startRename" @rename-input="onRenameInput"
@@ -222,10 +225,10 @@ const listPager = computed<ListPager>(() => ({ page: page.value, pageCount: page
 
         <!-- 列表骨架（工具条 + 三态 + 列表 + 分页条）：条目渲染方式由本页选（私人列表 → MyPuzzleRow） -->
         <ListSection :items="items" :loading="loading" :error="error" :empty-text="MINE_COPY.empty"
-            :key-of="(item) => item.rowId" :bar="listBar" :pager="listPager" @retry="retry"
+            :key-of="(item) => item.rowId" :bar="bar" :pager="pager" @retry="retry"
             @change-mode="changePagerMode" @change-sort="(v) => changeSort(v as ListSort)" @change-page="changePage">
             <template #empty>
-                <button class="go-create" type="button" @click="goCreate">{{ MINE_COPY.goCreate }}</button>
+                <el-button link type="primary" @click="goCreate">{{ MINE_COPY.goCreate }}</el-button>
             </template>
 
             <template #item="{ item }">
@@ -238,25 +241,12 @@ const listPager = computed<ListPager>(() => ({ page: page.value, pageCount: page
             <BoardView v-bind="previewInput" />
         </Overlay>
 
-        <!-- 删除：二次确认 -->
-        <Overlay :show="removeOpen" :text="MINE_COPY.removeTitle" :desc="MINE_COPY.removeConfirm"
-            :actions="removeActions" />
+        <!-- 删除：走 ElMessageBox 二次确认（见 confirmRemove），不再自绘遮罩 -->
 
-        <!-- PATCH / DELETE 进行中 -->
-        <Overlay :show="busy" spinning />
+        <!-- PATCH / DELETE 进行中：页面级加载（v-loading 挂在根节点） -->
     </div>
 </template>
 
 <style scoped>
-/* .list-bar / .sort-box / .select(.is-sm) / .state / .retry / .list / .input / .overlay-* 都在全局 */
-
-.go-create {
-    margin-left: 6px;
-    border: none;
-    background: none;
-    color: inherit;
-    font-size: 0.85rem;
-    font-family: inherit;
-    cursor: pointer;
-}
+/* .list-bar / .sort-box / .list 都在全局；三态、表单控件、按钮由 Element Plus 提供 */
 </style>

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import ActionBar from '@/components/ActionBar.vue'
 import BoardView from '@/components/BoardView.vue'
 import Flex from '@/components/Flex.vue'
 import FormField from '@/components/FormField.vue'
 import NumberPad from '@/components/NumberPad.vue'
-import Overlay from '@/components/Overlay.vue'
-import PagerBar from '@/components/PagerBar.vue'
-import TextAction from '@/components/TextAction.vue'
+import PagerStepsView from '@/components/PagerStepsView.vue'
 import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
 import { SOLVE_COPY } from '@/constants/copy'
 import { BOX_SIZE_SELECT_OPTIONS, CUSTOM_TEXT_MAX, GAME_INIT_CONFIG, GAME_MODE } from '@/constants/game'
@@ -163,7 +162,7 @@ const actions = computed<Actions>(() => [
 </script>
 
 <template>
-    <div class="page-card wide">
+    <div class="page-card wide" v-loading="loading" :element-loading-text="SOLVE_COPY.solving">
         <h2 class="section-title">{{ SOLVE_COPY.title }}</h2>
 
         <!-- 输入方式：与难度页的「系统生成 / 自定义」同一套 Tab 视觉 -->
@@ -178,14 +177,14 @@ const actions = computed<Actions>(() => [
             <FormField v-model="puzzleText" class="field" vertical type="textarea"
                 :label="SOLVE_COPY.puzzleLabel" :maxlength="CUSTOM_TEXT_MAX"
                 :hint="`${puzzleText.length} 字符`" placeholder="0 0 3 0 …" />
-            <p class="meta-line">「🧮 求解」会先解析这串题面；「⬇ 填入棋盘」= 解析后填进棋盘并切到棋盘模式（就在求解左边）</p>
+            <p class="meta-line">「求解」会先解析这串题面；「填入棋盘」= 解析后填进棋盘并切到棋盘模式（就在求解左边）</p>
         </template>
 
         <template v-else>
             <FormField class="field" vertical type="select" :label="SOLVE_COPY.boxSizeLabel"
                 :options="boxSizeOptions" :model-value="boxSize"
                 @update:model-value="(v) => setBoxSize(v as number)" />
-            <p class="meta-line">点棋盘选格 → 用下方数字键填题面（X 清格）</p>
+            <p class="meta-line">点棋盘选格 → 用下方数字键填题面（右下角的清格键是删除）</p>
         </template>
 
         <!-- 棋盘只属于「棋盘填入」模式：两种输入方式互不干扰 -->
@@ -199,19 +198,19 @@ const actions = computed<Actions>(() => [
             :options="SOLVE_LIMIT_OPTIONS" :model-value="maxSolutions"
             @update:model-value="(v) => (maxSolutions = v as number)" />
 
-        <Flex class="op-bar" :gap="12" justify="center" wrap>
-            <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
-        </Flex>
+        <ActionBar class="op-bar" :actions="actions" wrap />
         <p v-if="error" class="form-error">{{ error }}</p>
 
         <template v-if="solutions.length">
-            <p class="result-label">📖 {{ SOLVE_COPY.resultLabel }} · {{ resultInfo }}</p>
+            <p class="result-label">{{ SOLVE_COPY.resultLabel }} · {{ resultInfo }}</p>
             <BoardView v-bind="solutionInput" />
-            <PagerBar :page="solutionIndex" :page-count="solutions.length" mode="steps"
-                :step-label="stepLabel" :info-text="pagerInfo" @change="changeSolution" />
+            <Flex :gap="10" justify="center">
+                <PagerStepsView :page="solutionIndex" :page-count="solutions.length"
+                    :step-label="stepLabel" :info-text="pagerInfo" @change="changeSolution" />
+            </Flex>
         </template>
 
-        <Overlay :show="loading" spinning :text="SOLVE_COPY.solving" />
+        <!-- 求解中：页面级加载（v-loading 挂在根节点） -->
     </div>
 </template>
 

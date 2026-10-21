@@ -1,6 +1,7 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { SAVE_COPY } from '@/constants/copy'
+import { useTip } from '@/composables/useTip'
 import { SAVE } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { addSave, hasSaveData, readSaves, removeSaveById } from '@/services/saveGame'
@@ -24,8 +25,11 @@ export const useGameSave = () => {
     const saves = ref<GameSave[]>(readSaves())
     /** 本地有没有存档数据（区分"没存过"与"存了但读不出来"；随增删刷新） */
     const hasData = ref<boolean>(hasSaveData())
-    /** 一次性提示（空盘 / 存不下 / 已删除 / 没存档）—— 游戏页与继续游戏页共用 */
-    const tip = ref('')
+    /** 一次性提示（空盘 / 存不下 / 已删除 / 没存档）—— **3 秒后自动淡出**，游戏页与继续游戏页共用 */
+    const { tip, showTip } = useTip()
+
+    /** 本局已存档的话，上次起的名字（命名弹框预填，避免覆盖时把自定义名丢了） */
+    const currentName = computed<string>(() => saves.value.find((item) => item.id === slotId)?.name ?? '')
 
     /** 重新读表（增删之后同步列表） */
     const refresh = (): void => {
@@ -33,10 +37,10 @@ export const useGameSave = () => {
         hasData.value = hasSaveData()
     }
 
-    /** 存档：返回给用户看的提示文案（同时写进 tip） */
-    const save = (): string => {
+    /** 存档：`name` 是玩家给这局起的名字（留空 = 列表里回退显示题目名 / 来源名） */
+    const save = (name = ''): string => {
         if (!gameStore.board.length) {
-            tip.value = SAVE_COPY.empty
+            showTip(SAVE_COPY.empty)
             return tip.value
         }
 
@@ -52,8 +56,10 @@ export const useGameSave = () => {
             currentStep: gameStore.currentStep,
             selected: gameStore.selected,
         }
+        const trimmed = name.trim()
+        if (trimmed) data.name = trimmed
 
-        tip.value = addSave(data) ? SAVE_COPY.saved : SAVE_COPY.tooBig
+        showTip(addSave(data) ? SAVE_COPY.saved : SAVE_COPY.tooBig)
         refresh()
         return tip.value
     }
@@ -63,7 +69,7 @@ export const useGameSave = () => {
         const data = saves.value.find((item) => item.id === id)
         if (!data) {
             refresh()
-            tip.value = SAVE_COPY.empty
+            showTip(SAVE_COPY.empty)
             return false
         }
         gameStore.restoreGame(data)
@@ -73,9 +79,27 @@ export const useGameSave = () => {
 
     /** 删某一条（就地刷新列表） */
     const remove = (id: string): void => {
-        tip.value = removeSaveById(id) ? SAVE_COPY.removed : SAVE_COPY.empty
+        showTip(removeSaveById(id) ? SAVE_COPY.removed : SAVE_COPY.empty)
         refresh()
     }
 
-    return { saves, hasData, tip, save, resume, remove }
+    /** 改名：写回同一条（id 不变 → 列表顺序按存档时间不变）；空名字不接受 */
+    const rename = (id: string, name: string): string => {
+        const data = saves.value.find((item) => item.id === id)
+        if (!data) {
+            refresh()
+            showTip(SAVE_COPY.empty)
+            return tip.value
+        }
+        const trimmed = name.trim()
+        if (!trimmed) {
+            showTip(SAVE_COPY.nameInvalid)
+            return tip.value
+        }
+        showTip(addSave({ ...data, name: trimmed }) ? SAVE_COPY.renamed : SAVE_COPY.tooBig)
+        refresh()
+        return tip.value
+    }
+
+    return { saves, hasData, tip, currentName, save, resume, remove, rename }
 }

@@ -31,6 +31,8 @@ export interface GameSave {
     id: string
     /** 存档时间（ms） */
     savedAt: number
+    /** 玩家给这局起的名字（可选：旧存档没有；没有就回退到题目名 / 来源名） */
+    name?: string
     origin: GameOrigin
     meta: GameMeta
     config: GameConfig

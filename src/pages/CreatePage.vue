@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import ActionBar from '@/components/ActionBar.vue'
 import BoardView from '@/components/BoardView.vue'
-import Flex from '@/components/Flex.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
 import FormField from '@/components/FormField.vue'
-import TextAction from '@/components/TextAction.vue'
 import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
 import { TITLE_PREFIX } from '@/constants/copy'
 import { BOX_SIZE_SELECT_OPTIONS, CREATE_PHASE, GAME_INIT_CONFIG, GAME_MODE, TITLE_MAX } from '@/constants/game'
@@ -120,26 +119,20 @@ const failActions: Actions = [
 </script>
 
 <template>
-    <div class="page-card wide">
-        <div class="field">
-            <label class="label">标题</label>
-            <input class="input" v-model="title" :maxlength="TITLE_MAX" placeholder="1~40 位">
-        </div>
+    <div class="page-card wide" v-loading="loading" element-loading-text="正在提交题目…">
+        <FormField v-model="title" class="field" vertical label="标题" :maxlength="TITLE_MAX" placeholder="1~40 位" />
 
         <FormField class="field" vertical type="select" label="盘面大小" :options="BOX_SIZE_SELECT_OPTIONS"
             :model-value="boxSize" @update:model-value="(v) => (boxSize = v as number)" />
 
-        <Flex class="op-bar" :gap="12" justify="center" wrap>
-            <TextAction v-for="a in actions" :key="a.key" :text="a.text" :on-click="a.onClick" />
-        </Flex>
+        <ActionBar class="op-bar" :actions="actions" wrap />
         <p v-if="errorMsg && !showFail" class="tip">{{ errorMsg }}</p>
 
         <BoardView :board="gameStore.board" :box-size="gameStore.sudoku.B" :selected="gameStore.selected"
             :conflict-mask="gameStore.conflictMask" @cell-click="gameStore.select" />
         <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.config.boxSize" @pick="gameStore.inputNum" />
 
-        <!-- 提交：转圈（校验 + 上传） -->
-        <Overlay :show="loading" spinning text="正在提交题目…" />
+        <!-- 提交：页面级加载（v-loading 挂在根节点，见模板第一行） -->
 
         <!-- 成功：只留「去我的题目」 -->
         <Overlay :show="showSuccess" text="🎉 出题完成" desc="题目已通过验证并保存" :actions="successActions" />

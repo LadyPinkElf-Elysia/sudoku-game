@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElIcon } from 'element-plus'
+import { House, User } from '@element-plus/icons-vue'
 import Flex from '@/components/Flex.vue'
 import { AUTH_COPY } from '@/constants/copy'
 import { PAGE } from '@/constants/pages'
@@ -23,19 +25,22 @@ const uname = computed<string>(() => userStore.uname)
     <div class="app-shell">
         <header class="app-header">
             <!-- 常驻「回到主页」：三栏 grid 第 1 列（标题左边）—— 任何页面（含登录页）都能回主页 -->
-            <RouterLink :to="{ name: PAGE.Home }" class="nav-item nav-home">主页</RouterLink>
+            <RouterLink :to="{ name: PAGE.Home }" class="nav-item nav-home">
+                <el-icon class="nav-icon"><House /></el-icon>主页
+            </RouterLink>
 
             <span class="app-title">数独</span>
 
-            <!-- 右侧账号位：游客「👤 登录」→ 登录页；登录后「👤 用户名」→「我的」页（退出在「我的」页账号区）；登录页自己就是入口 → 隐藏 -->
+            <!-- 右侧账号位：游客「登录」→ 登录页；登录后「用户名」→「我的」页（退出在「我的」页账号区）；登录页自己就是入口 → 隐藏 -->
             <Flex v-if="showNav" class="app-nav" justify="end" :gap="6" wrap>
                 <RouterLink v-if="isGuest" :to="{ name: PAGE.Login }" class="nav-item nav-user">
-                    👤 {{ AUTH_COPY.login }}
+                    <el-icon class="nav-icon"><User /></el-icon>{{ AUTH_COPY.login }}
                 </RouterLink>
 
                 <RouterLink v-else :to="{ name: PAGE.MyPuzzles }" class="nav-item nav-user"
                     :title="AUTH_COPY.meTitle">
-                    👤 {{ uname }}
+                    <el-icon class="nav-icon"><User /></el-icon>
+                    <span class="nav-name">{{ uname }}</span>
                 </RouterLink>
             </Flex>
         </header>
@@ -88,18 +93,44 @@ const uname = computed<string>(() => userStore.uname)
     min-width: 0;
 }
 
-/* 顶栏的入口 = 普通文字（不变蓝、不加下划线） */
+/* 顶栏的入口 = 普通文字（默认正文色），悬停 / 当前页变主色；图标与文字一行居中 */
 .nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     color: inherit;
     font-size: .82rem;
     font-family: inherit;
     text-decoration: none;
     cursor: pointer;
+    transition: color .15s;
 }
 
-/* 账号位（游客「👤 登录」/ 登录后「👤 用户名」）：名字长了省略号，别把标题挤偏 */
+/* 悬停 + 当前页（RouterLink 自动加的类）：都变主色，跟页面里其它可点文字一致 */
+.nav-item:hover,
+.nav-item.router-link-active {
+    color: var(--el-color-primary);
+}
+
+/* 当前页再加一点字重，和"只是悬浮"区分开 */
+.nav-item.router-link-active {
+    font-weight: 600;
+}
+
+/* 顶栏图标：用主色，和正文文字区分开 */
+.nav-icon {
+    font-size: .95rem;
+    color: var(--el-color-primary);
+}
+
+/* 账号位（游客「登录」/ 登录后「用户名」）：名字长了省略号，别把标题挤偏 */
 .nav-user {
     max-width: 130px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.nav-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

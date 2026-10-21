@@ -2,14 +2,17 @@ import type { Page } from './page'
 import type { PagerMode, Visibility } from './puzzle'
 
 /**
- * 一处可点动作（全站统一）：**传文本 + 点击函数**
- * · 不给 `onClick` → 就是纯文本（禁用态也这么表达，不再另设 disabled）
+ * 一处可点动作（全站统一）：**传文本 + 点击函数 + 禁用标记**
+ * · `disabled` 由 `ACTION_OF` 在"没给点击函数"时置 true —— 消费方只认这个字段，
+ *   不再靠"有没有 onClick"反推（隐式协议最容易漏）
  * · 图形也算文本（`➖` / `👁` / `▶ 挑战`）；不额外挂悬停提示
  */
 export interface Action {
     key: string
     text: string
     onClick?: () => void
+    /** 不可点（禁用）：文案照常显示，只是不能点 */
+    disabled?: boolean
 }
 
 export type Actions = Action[]
@@ -24,17 +27,23 @@ export interface SelectOption {
     label: string
 }
 
-/** 列表页头工具条（ListSection 用）：左「浏览方式」、右「排序」 */
-export interface ListBar {
-    modeLabel: string
-    modeOptions: readonly SelectOption[]
-    mode: string
-    sortLabel: string
-    sortOptions: readonly SelectOption[]
-    sort: string
+/** 列表页头上的一个筛选下拉（标签 + 当前值 + 选项） */
+export interface ListFilter {
+    /** 标签文案（由 constants/copy 的 LIST_COPY 给） */
+    label: string
+    /** 当前值 */
+    value: string
+    /** 选项 */
+    options: readonly SelectOption[]
 }
 
-/** 列表分页（ListSection 用）：页从 1 开始，渲染方式由 PagerBar 决定 */
+/** 列表页头工具条（ListSection 用）：左「浏览方式」、右「排序」—— 由 `useListQuery` 产出，页面不再拼 */
+export interface ListBar {
+    mode: ListFilter
+    sort: ListFilter
+}
+
+/** 列表分页（ListSection 用）：页从 1 开始，渲染方式由 mode 决定 */
 export interface ListPager {
     page: number
     pageCount: number
@@ -65,12 +74,12 @@ export interface MyPuzzleRowControls {
     onRemove: () => void
 }
 
-/** 首页菜单一项：Menu（routeName 必须是 PAGE 里的路由名） */
+/** 首页菜单一项：Menu（`to` 是"去哪"的路由描述，不是路由名 —— 模板里可以直接给 RouterLink）
+ *  图标不在这里：`constants` 只放值，图标映射见 `pages/HomePage.vue` 的 `MENU_ICON`（按 key 取 EP 图标） */
 export interface Menu {
     key: string
-    icon?: string
     message: string
-    routeName: Page
+    to: { name: Page }
     disabled?: boolean
 }
 

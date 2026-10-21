@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import EyeGlyph from './EyeGlyph.vue';
-import TextAction from './TextAction.vue';
+import { ElButton, ElIcon } from 'element-plus';
+import { CopyDocument, Hide, Select, View } from '@element-plus/icons-vue';
 import { useClipboard } from '@/composables/useClipboard';
 
 /**
@@ -54,11 +54,13 @@ const text = computed<string>(() => `${props.label} ${open.value ? value.value :
         <span>{{ text }}</span>
 
         <span class="icon-row">
-            <TextAction class="glyph" :on-click="() => { void toggle() }">
-                <EyeGlyph :revealed="open" />
-            </TextAction>
+            <el-button class="glyph" link title="显示 / 隐藏" @click="toggle">
+                <el-icon><Hide v-if="open" /><View v-else /></el-icon>
+            </el-button>
 
-            <TextAction class="glyph" :text="copied ? '✅' : '📋'" :on-click="() => { void copyValue() }" />
+            <el-button class="glyph" link title="复制" @click="copyValue">
+                <el-icon><Select v-if="copied" /><CopyDocument v-else /></el-icon>
+            </el-button>
         </span>
     </p>
 </template>
@@ -80,12 +82,21 @@ const text = computed<string>(() => `${props.label} ${open.value ? value.value :
     vertical-align: middle;
 }
 
-/* 裸图标：没有框，也没有 hover 效果（就是普通文字） */
+/* 裸图标：没有框，也没有 hover 底色（就是普通文字）
+   ⚠️ 图标是 currentColor：这里给的是"图标颜色"，与 el-button link 的文字色分开 */
 .glyph {
+    --el-button-text-color: #4b5563;
+    --el-button-hover-link-text-color: #6366f1;
     justify-content: center;
+    height: auto;
+    margin: 0;
     padding: 2px 4px;
     font-size: 1rem;
     line-height: 1;
     color: #4b5563;
+}
+
+.glyph:hover {
+    color: #6366f1;
 }
 </style>

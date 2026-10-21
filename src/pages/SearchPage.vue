@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElButton, ElInput } from 'element-plus'
 import BoardView from '@/components/BoardView.vue'
 import ListSection from '@/components/ListSection.vue'
 import Overlay from '@/components/Overlay.vue'
 import PuzzleCard from '@/components/PuzzleCard.vue'
-import { SEARCH_COPY } from '@/constants/copy'
+import { LOADING_COPY, SEARCH_COPY } from '@/constants/copy'
 import { PAGE } from '@/constants/pages'
-import { PAGER_MODE_OPTIONS, SORT_OPTIONS } from '@/constants/puzzle'
 import { UID_PATTERN } from '@/constants/user'
 import { useListQuery } from '@/composables/useListQuery'
 import { usePuzzleDetail } from '@/composables/puzzle/usePuzzleDetail'
 import { usePuzzlePreview } from '@/composables/puzzle/usePuzzlePreview'
 import { getOne } from '@/services/api/puzzleApi'
 import { usePuzzleStore } from '@/stores/puzzle'
-import type { ListBar, ListPager } from '@/types/item'
 import type { ListSort, SearchResult } from '@/types/puzzle'
 
 /**
@@ -33,7 +32,6 @@ const authorLabel = ref('')
 
 /** store 取值包一层 computed，页面解构后仍是响应式 */
 const items = computed<SearchResult[]>(() => puzzleStore.items)
-const pageCount = computed<number>(() => puzzleStore.pageCount)
 const loading = computed<boolean>(() => puzzleStore.loading)
 const error = computed<string>(() => puzzleStore.error)
 
@@ -59,42 +57,46 @@ const load = async (q: { keyword: string; sort: ListSort; page: number }): Promi
 }
 
 const list = useListQuery({ routeName: PAGE.Search, load, pageCount: () => puzzleStore.pageCount })
-const { keyword, sort, page, pagerMode, changePagerMode, onSearch, changeSort, changePage, retry } = list
+const { keyword, bar, pager, changePagerMode, onSearch, changeSort, changePage, retry } = list
 
 /** 题目预览：只读遮罩（数据走详情接口） */
 const openPreview = (pid: string): void => {
     void preview.showPreview(pid, false, SEARCH_COPY.preview)
 }
 
-/** 列表项「挑战」：拉到详情后直接开局，不走遮罩 */
+/** 列表项「挑战」：取详情 → 开局（**耗时，全程全屏加载**，避免看起来像卡住） */
+const challenging = ref(false)
 const challenge = async (pid: string): Promise<void> => {
-    await detail.load(pid)
-    if (!detail.error.value) await detail.challenge()
+    if (challenging.value) return
+    challenging.value = true
+    try {
+        await detail.load(pid)
+        if (!detail.error.value) await detail.challenge()
+    } finally {
+        challenging.value = false
+    }
 }
 
 const {
     previewOpen, previewTitle, previewInput, previewActions, previewLoading,
 } = preview
 
-/** 列表工具条 + 分页：组件只认数据，标签/选项由本页给 */
-const listBar = computed<ListBar>(() => ({
-    modeLabel: SEARCH_COPY.browseLabel, modeOptions: PAGER_MODE_OPTIONS, mode: pagerMode.value,
-    sortLabel: SEARCH_COPY.sortLabel, sortOptions: SORT_OPTIONS, sort: sort.value,
-}))
-const listPager = computed<ListPager>(() => ({ page: page.value, pageCount: pageCount.value, mode: pagerMode.value }))
+/** 全屏加载：预览取数 与 挑战开局 共用（文案按动作区分） */
+const opening = computed<boolean>(() => previewLoading.value || challenging.value)
+const loadingText = computed<string>(() => (challenging.value ? LOADING_COPY.game : LOADING_COPY.puzzle))
 </script>
 
 <template>
-    <div class="page-card wide">
+    <div class="page-card wide" v-loading.fullscreen.lock="opening" :element-loading-text="loadingText">
         <!-- 最上面：搜索框（回车即搜） -->
         <form class="search-form" @submit.prevent="onSearch">
-            <input class="input" v-model="keyword" :placeholder="SEARCH_COPY.placeholder" spellcheck="false">
-            <button class="btn-primary" type="submit">{{ SEARCH_COPY.action }}</button>
+            <el-input v-model="keyword" class="search-input" :placeholder="SEARCH_COPY.placeholder" />
+            <el-button type="primary" native-type="submit">{{ SEARCH_COPY.action }}</el-button>
         </form>
 
         <!-- 列表骨架（工具条 + 三态 + 列表 + 分页条）：条目渲染方式由本页选（公开列表 → PuzzleCard） -->
         <ListSection :items="items" :loading="loading" :error="error" :empty-text="SEARCH_COPY.empty"
-            :key-of="(item) => item.pid" :bar="listBar" :pager="listPager" @retry="retry"
+            :key-of="(item) => item.pid" :bar="bar" :pager="pager" @retry="retry"
             @change-mode="changePagerMode" @change-sort="(v) => changeSort(v as ListSort)" @change-page="changePage">
             <!-- 20 位命中 uid：出题人表头 -->
             <template #top>
@@ -111,41 +113,22 @@ const listPager = computed<ListPager>(() => ({ page: page.value, pageCount: page
             <BoardView v-bind="previewInput" />
         </Overlay>
 
-        <Overlay :show="previewLoading" spinning />
+        <!-- 预览取数中：页面级加载（v-loading 挂在根节点） -->
     </div>
 </template>
 
 <style scoped>
-/* .input / .select(.is-sm) / .state / .retry / .list / .list-bar / .sort-box 都在全局 */
+/* .state / .retry / .list / .list-bar / .sort-box 都在全局；输入框与按钮由 Element Plus 提供 */
 
 .search-form {
     display: flex;
     gap: 8px;
 }
 
-/* 布局微调：搜索框吃掉剩余宽度（覆盖全局 .input 的 width:100%） */
-.search-form .input {
+/* 布局微调：搜索框吃掉剩余宽度（按钮用 el-button，自带 36px 高） */
+.search-input {
     flex: 1;
     min-width: 0;
-    width: auto;
-}
-
-.search-btn {
-    height: 36px;
-    padding: 0 16px;
-    border: none;
-    border-radius: 8px;
-    background: #6366f1;
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: 0.15s;
-}
-
-.search-btn:hover {
-    background: #4f46e5;
 }
 
 .author {

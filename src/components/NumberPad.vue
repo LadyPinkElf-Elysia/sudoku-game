@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { ElButton, ElIcon } from "element-plus";
+import { Close } from "@element-plus/icons-vue";
 
 const props = defineProps<{
     max: number
@@ -20,13 +22,14 @@ const gridStyle = computed(() => ({
 <template>
     <div class="num-pad-wrapper">
         <div class="num-grid" :style="gridStyle">
-            <button v-for="n in max" :key="n" class="num-btn" @click="emit('pick', n)" title="单击填入数字">
+            <el-button v-for="n in max" :key="n" class="num-btn" circle title="单击填入数字"
+                @click="emit('pick', n)">
                 {{ n }}
-            </button>
+            </el-button>
         </div>
-        <button class="num-btn clear-btn" @click="emit('pick', 0)" title="清除当前格数字">
-            X
-        </button>
+        <el-button class="num-btn clear-btn" circle title="清除当前格数字" @click="emit('pick', 0)">
+            <el-icon><Close /></el-icon>
+        </el-button>
     </div>
 
 </template>
@@ -47,25 +50,24 @@ const gridStyle = computed(() => ({
     margin: 0 auto;
 }
 
+/* el-button + el-button 默认有 12px 左边距，网格里必须清掉 */
+.num-grid :deep(.el-button + .el-button) {
+    margin-left: 0;
+}
+
+/* 圆形数字键：尺寸与圆角交给 el-button（--el-button-size），这里只调颜色 */
 .num-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 2px solid #d1d5db;
-    background: #fff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #374151;
+    --el-button-size: 32px;
+    margin: 0;
     font-size: 0.8rem;
-    padding: 0;
-    transition: 0.15s;
+    color: #374151;
+    border-color: #d1d5db;
 }
 
 .num-btn:hover {
-    background: #eef2ff;
+    color: #6366f1;
     border-color: #6366f1;
+    background: #eef2ff;
 }
 
 .num-btn.clear-btn {

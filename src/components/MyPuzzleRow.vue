@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import ActionBar from './ActionBar.vue';
 import Flex from './Flex.vue';
 import FormField from './FormField.vue';
 import RenameText from './RenameText.vue';
 import SecretValue from './SecretValue.vue';
-import TextAction from './TextAction.vue';
 import { metaTextOf } from '@/composables/puzzle/metaText';
 import { TITLE_MAX } from '@/constants/game';
 import { MINE_COPY, PUZZLE_VISIBILITY_OPTIONS } from '@/constants/copy';
@@ -49,7 +49,7 @@ const previewItems = computed<Actions>(() => [
 
 /** 挑战：本行唯一的动作 */
 const challengeItems = computed<Actions>(() => [
-    { key: 'challenge', text: `▶ ${MINE_COPY.challenge}`, onClick: props.controls.onChallenge },
+    { key: 'challenge', text: MINE_COPY.challenge, onClick: props.controls.onChallenge },
 ])
 </script>
 
@@ -66,9 +66,7 @@ const challengeItems = computed<Actions>(() => [
             </div>
 
             <!-- 右上角：删除 · 编辑 -->
-            <Flex class="item-corner" :gap="6">
-                <TextAction v-for="a in cornerItems" :key="a.key" :text="a.text" :on-click="a.onClick" />
-            </Flex>
+            <ActionBar class="item-corner" :actions="cornerItems" :gap="6" />
         </Flex>
 
         <p class="meta-line">{{ metaText }}</p>
@@ -85,11 +83,9 @@ const challengeItems = computed<Actions>(() => [
 
         <!-- 题目预览 · 答案预览 · 挑战：同一行，挑战在最右边 -->
         <Flex class="op-bar" justify="between" :gap="12">
-            <Flex :gap="6">
-                <TextAction v-for="a in previewItems" :key="a.key" :text="a.text" :on-click="a.onClick" />
-            </Flex>
+            <ActionBar :actions="previewItems" :gap="6" />
 
-            <TextAction v-for="a in challengeItems" :key="a.key" :text="a.text" :on-click="a.onClick" />
+            <ActionBar :actions="challengeItems" :gap="6" />
         </Flex>
     </article>
 </template>

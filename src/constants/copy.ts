@@ -8,7 +8,15 @@
 
 /** 逻辑驱动的静态文案 */
 export const GAME_COPY = {
-    win: { title: '🎉 恭喜完成', desc: '全部填对，太厉害了' },
+    win: { title: '恭喜完成', desc: '全部填对，太厉害了' },
+} as const
+
+/** 全屏加载文案（耗时动作统一用它：预览取数 / 挑战开局 / 列表行取详情…） */
+export const LOADING_COPY = {
+    /** 取题目详情（预览、我的题目行操作） */
+    puzzle: '正在加载题目…',
+    /** 挑战开局（取详情 → 开局 → 跳游戏页） */
+    game: '正在打开题目…',
 } as const
 
 /** 游戏页「📋 导出题目」遮罩：题面串（与 parsePuzzle 对称；**不含答案**）—— 按钮上的字在 `ACTION.exportPuzzle` / `ACTION.copyPuzzle` / `ACTION.close` */
@@ -36,6 +44,14 @@ export const SAVE_COPY = {
     savedAt: '存档于',
     stepLabel: '进度',
     stepUnit: '步',
+    /** 点「存档」时的命名弹框（默认填题目名 / 来源名，方便玩家自己记住是哪一局） */
+    nameTitle: '存档',
+    namePrompt: '给这局起个名字（方便以后在列表里找）',
+    namePlaceholder: '例如：周五晚上这一局',
+    nameInvalid: '名字不能为空，最多 20 个字',
+    /** 继续游戏页行内改名 */
+    renameTitle: '重命名存档',
+    renamed: '已改名',
 } as const
 
 /** 出题页标题默认值前缀（实际默认标题 = 「我的题目 9×9」，边长由 core 算） */
@@ -69,15 +85,18 @@ export const CUSTOM_COPY = {
     saved: '已保存到我的题目',
 } as const
 
+/** 列表页工具条的标签（搜索 / 我的题目共用；选项数据在 constants/puzzle 的 *_OPTIONS） */
+export const LIST_COPY = {
+    modeLabel: '浏览方式',
+    sortLabel: '排序',
+} as const
+
 /** 搜索页文案 */
 export const SEARCH_COPY = {
     placeholder: '搜标题 / 出题人，或粘贴 20 位 ID',
     action: '搜索',
-    browseLabel: '浏览方式',
-    sortLabel: '排序',
     preview: '题目预览',
     challenge: '挑战',
-    loading: '加载中…',
     empty: '没有找到题目',
     retry: '重试',
     authorPrefix: '出题人：',
@@ -93,11 +112,11 @@ export const PUZZLE_META_COPY = {
     author: '出题人',
 } as const
 
-/** 可见性徽标文案（我的题目行内 / 可见性下拉项） */
+/** 可见性徽标文案（我的题目行内 / 可见性下拉项）—— 纯文字，图标由下拉/行内自己给 */
 export const PUZZLE_VISIBILITY_COPY = {
-    public: '🌐 公开',
-    protected: '🔗 受保护',
-    private: '🔒 私有',
+    public: '公开',
+    protected: '受保护',
+    private: '私有',
 } as const
 
 /** 可见性下拉项（label 直接取徽标文案 → 跟着它一起放这里，避免 constants 之间互相 import） */
@@ -110,10 +129,10 @@ export const PUZZLE_VISIBILITY_OPTIONS = [
 /** 我的题目页文案 */
 export const MINE_COPY = {
     empty: '你还没有出过题',
-    goCreate: '去出题 →',
+    goCreate: '去出题',
     rename: '重命名',
     renamePlaceholder: '1~40 位',
-    removeTitle: '⚠️ 删除题目',
+    removeTitle: '删除题目',
     removeConfirm: '删除后不可恢复，确定删除这道题吗？',
     /** 敏感值的标签（pid / uid）；遮蔽、显示、复制那套交互在 SecretValue 组件里 */
     pidTag: 'pid',
@@ -131,7 +150,7 @@ export const MINE_COPY = {
 
 /** 题目求解页文案（「⬇ 填入棋盘 / 🧹 清空棋盘 / 🧮 求解」三个**按钮**上的字在 ACTION 里） */
 export const SOLVE_COPY = {
-    title: '🧩 题目求解',
+    title: '题目求解',
     modeLabel: '输入方式',
     modeText: '题目字符串',
     modeBoard: '棋盘填入',

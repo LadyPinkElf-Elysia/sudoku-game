@@ -14,10 +14,18 @@ export interface MetaParts {
     author?: string
 }
 
-/** 出题时间（本地时区、24 小时制、带分钟）；没记录就按「现在」—— **全站唯一**的格式化实现 */
-const createdTextOf = (createdAt: number): string => new Date(createdAt || Date.now()).toLocaleString('zh-CN', {
-    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-})
+/** 时间格式选项（本地时区、24 小时制、带分钟） */
+const TIME_OPTIONS: Intl.DateTimeFormatOptions = {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+}
+
+/**
+ * 时间文案 —— **全站唯一**的格式化实现（题目元信息 / 存档列表共用）
+ * · `withYear=false` 用于"只在一年内看"的短格式（继续游戏页）
+ * · 传 0 / 缺值 → 按「现在」（旧数据没有时间字段时不该显示 1970）
+ */
+export const dateTimeTextOf = (ms: number, withYear = true): string =>
+    new Date(ms || Date.now()).toLocaleString('zh-CN', withYear ? { ...TIME_OPTIONS, year: 'numeric' } : TIME_OPTIONS)
 
 /**
  * 元信息行文本：「盘面大小 9×9 · 挖空 N 格 · 创建时间 … · 热度 N · 出题人 X」
@@ -26,7 +34,7 @@ const createdTextOf = (createdAt: number): string => new Date(createdAt || Date.
 export const metaTextOf = (parts: MetaParts): string => [
     `${PUZZLE_META_COPY.size} ${parts.sideS}×${parts.sideS}`,
     `${PUZZLE_META_COPY.blank} ${parts.blankCount} 格`,
-    `${PUZZLE_META_COPY.created} ${createdTextOf(parts.createdAt)}`,
+    `${PUZZLE_META_COPY.created} ${dateTimeTextOf(parts.createdAt)}`,
     ...(parts.playCount === undefined ? [] : [`${PUZZLE_META_COPY.hot} ${parts.playCount}`]),
     ...(parts.author ? [`${PUZZLE_META_COPY.author} ${parts.author}`] : []),
 ].join(' · ')

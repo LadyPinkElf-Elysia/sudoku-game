@@ -1,21 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
+import ActionBar from '@/components/ActionBar.vue'
 import BoardView from '@/components/BoardView.vue'
 import ExportOverlay from '@/components/ExportOverlay.vue'
 import Flex from '@/components/Flex.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import Overlay from '@/components/Overlay.vue'
-import PagerBar from '@/components/PagerBar.vue'
-import TextAction from '@/components/TextAction.vue'
+import PagerStepsView from '@/components/PagerStepsView.vue'
+import TipLine from '@/components/TipLine.vue'
 import { ACTION, ACTION_OF as actionOf } from '@/constants/actions'
-import { GAME_COPY } from '@/constants/copy'
-import { GAME_MODE, GAME_ORIGIN, GAME_STATUS } from '@/constants/game'
+import { GAME_COPY, SAVE_COPY } from '@/constants/copy'
+import { GAME_MODE, GAME_ORIGIN, GAME_STATUS, SAVE_NAME_MAX } from '@/constants/game'
 import { PAGE } from '@/constants/pages'
 import { fromPuzzle } from '@/core/board/model'
 import { givenBoard } from '@/core/board/ops'
 import { boardToStr } from '@/core/sudoku/parse'
 import { useGameSave } from '@/composables/game/useGameSave'
+import { useTip } from '@/composables/useTip'
 import { useGameStore } from '@/stores/game'
 import { usePuzzleStore } from '@/stores/puzzle'
 import type { Cell } from '@/types/board'
@@ -30,10 +33,10 @@ const gameStore = useGameStore()
 const puzzleStore = usePuzzleStore()
 const router = useRouter()
 
-const tip = ref('')
+const { tip, showTip } = useTip()
 const answerOpen = ref(false)
-/** 存档（写这一局；提示与「💡 提示」共用同一条 tip 行） */
-const { save: storeSave } = useGameSave()
+/** 存档（写这一局；提示与「💡 提示」共用同一条 tip 行；命名弹框预填上次的名字） */
+const { save: storeSave, currentName } = useGameSave()
 
 /** 题目导出（只给系统生成的盘）：**只导题面、不给答案**；复制与提示都在 ExportOverlay 里 */
 const exportOpen = ref(false)
@@ -74,7 +77,31 @@ const restart = (): void => {
 }
 const hint = (): void => {
     const cands = gameStore.selected ? gameStore.getCandidates(gameStore.selected) : []
-    tip.value = hintTextOf(gameStore.selectedCell, cands)
+    showTip(hintTextOf(gameStore.selectedCell, cands))
+}
+
+/**
+ * 存档：先让玩家给这局起个名字（默认 = 题目名 / 来源名）再落盘
+ * 列表里按"自己起的名字"找，比按题目名清楚（同一道题可能玩好几局）
+ * 取消弹框 = 不存档、也不改提示
+ */
+const saveGame = async (): Promise<void> => {
+    const fallback = currentName.value || gameStore.meta.title || SAVE_COPY.origin[gameStore.origin]
+    try {
+        const { value } = await ElMessageBox.prompt(SAVE_COPY.namePrompt, SAVE_COPY.nameTitle, {
+            inputValue: fallback,
+            inputPlaceholder: SAVE_COPY.namePlaceholder,
+            confirmButtonText: ACTION.saveGame.text,
+            cancelButtonText: ACTION.cancel.text,
+            inputValidator: (raw) => {
+                const name = (raw ?? '').trim()
+                return name && name.length <= SAVE_NAME_MAX ? true : SAVE_COPY.nameInvalid
+            },
+        })
+        showTip(storeSave(value))
+    } catch {
+        // 取消 / 关闭 → 什么都不做
+    }
 }
 
 const leadActions = computed<Actions>(() => [
@@ -83,7 +110,7 @@ const leadActions = computed<Actions>(() => [
 ])
 const trailActions = computed<Actions>(() => [
     actionOf(ACTION.hint, hint),
-    actionOf(ACTION.saveGame, () => { tip.value = storeSave() }),
+    actionOf(ACTION.saveGame, () => { void saveGame() }),
     // 只有系统生成的盘才给导出（自定义的串本就在手上、挑战有 pid / 落地页可分享）
     ...(gameStore.origin === GAME_ORIGIN.System ? [actionOf(ACTION.exportPuzzle, exportPuzzle)] : []),
     // 「📖 答案」只给挑战：系统生成的答案由程序算出、自定义的是你自己填的，都不算"参考答案"
@@ -103,7 +130,7 @@ onMounted(() => {
     }
     // 自定义「提交到我的题目」成功后的轻提示（一次性，取走即清）
     const saved = puzzleStore.takeSavedTip()
-    if (saved) tip.value = saved
+    if (saved) showTip(saved)
 })
 
 /** 操作条：左段（返回/重开）＋ 右段（提示/存档/导出/答案/DEV 作弊）—— 缩放不在这里，贴棋盘 */
@@ -125,19 +152,19 @@ const infoText = computed<string>(() => {
     <div class="page-card wide">
         <p class="meta-line game-info">{{ infoText }}</p>
 
-        <Flex class="op-bar" :gap="12" justify="center" wrap>
-            <TextAction v-for="a in items" :key="a.key" :text="a.text" :on-click="a.onClick" />
-        </Flex>
-        <p v-if="tip" class="tip">{{ tip }}</p>
+        <ActionBar class="op-bar" :actions="items" wrap />
+        <TipLine :text="tip" />
 
         <!-- 游玩盘：**只给四个字段**（渲染入参不外露成中间对象） -->
         <BoardView :board="gameStore.board" :box-size="gameStore.sudoku.B" :selected="gameStore.selected"
             :conflict-mask="gameStore.conflictMask" @cell-click="gameStore.select" />
 
         <!-- 历史记录：数据（当前步 / 快照数）+ 渲染方式（steps）交给同一个通用组件 -->
-        <p class="history-label">📜 历史记录</p>
-        <PagerBar :page="gameStore.currentStep" :page-count="gameStore.snapshots.length" mode="steps"
-            :step-label="stepLabel" @change="gameStore.jump" />
+        <p class="history-label">历史记录</p>
+        <Flex :gap="10" justify="center">
+            <PagerStepsView :page="gameStore.currentStep" :page-count="gameStore.snapshots.length"
+                :step-label="stepLabel" @change="gameStore.jump" />
+        </Flex>
         <NumberPad :max="gameStore.sudoku.S" :columns="gameStore.sudoku.B" @pick="gameStore.inputNum" />
 
         <!-- 参考答案：同一个遮罩（只读棋盘走插槽，按钮条由 Overlay 渲染）；关掉后进度原样保留（不碰 store） -->

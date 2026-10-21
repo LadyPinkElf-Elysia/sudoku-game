@@ -1,7 +1,9 @@
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { PREF_KEY_PAGER_MODE, PAGER_MODE, SORT } from '@/constants/puzzle'
+import { LIST_COPY } from '@/constants/copy'
+import { PREF_KEY_PAGER_MODE, PAGER_MODE, PAGER_MODE_OPTIONS, SORT, SORT_OPTIONS } from '@/constants/puzzle'
 import { readPref, writePref } from '@/services/prefs'
+import type { ListBar, ListPager } from '@/types/item'
 import type { Page } from '@/types/page'
 import type { ListSort, PagerMode } from '@/types/puzzle'
 
@@ -84,9 +86,21 @@ export const useListQuery = (opts: ListQueryOptions) => {
 
     const retry = (): void => { void loadAndClamp() }
 
+    /** 工具条：标签 + 选项 + 当前值在这一处拼好（页面不再各拼一遍、也不再各自硬编码文案） */
+    const bar = computed<ListBar>(() => ({
+        mode: { label: LIST_COPY.modeLabel, value: pagerMode.value, options: PAGER_MODE_OPTIONS },
+        sort: { label: LIST_COPY.sortLabel, value: sort.value, options: SORT_OPTIONS },
+    }))
+
+    /** 分页条：页码来自 URL，页数来自各页的 store / 结果 */
+    const pager = computed<ListPager>(() => ({
+        page: page.value, pageCount: opts.pageCount(), mode: pagerMode.value,
+    }))
+
     return {
         keyword, sort, page,
         pagerMode, changePagerMode,
+        bar, pager,
         onSearch, changeSort, changePage, retry,
     }
 }
