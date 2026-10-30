@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue'
 import { ElButton, ElIcon } from 'element-plus'
-import {
-    ArrowRight, Back, Bottom, Brush, Close, CopyDocument, Delete, EditPen, FolderAdd, Grid, Key, List,
-    Opportunity, Reading, RefreshLeft, Select, Share, SwitchButton, Upload, VideoPlay, View, ZoomIn, ZoomOut,
-} from '@element-plus/icons-vue'
 import Flex from './Flex.vue'
 import type { Action, Actions } from '@/types/item'
+import { ArrowRight, Back, Bottom, Brush, Close, CopyDocument, Delete, EditPen, FolderAdd, Grid, Key, List, Opportunity, Reading, RefreshLeft, Select, Share, SwitchButton, Upload, VideoPlay, View, ZoomIn, ZoomOut } from '@element-plus/icons-vue';
 
 /**
  * 动作条（**全站唯一一处「一排文字按钮」**）：传 `Actions` → 自己画
